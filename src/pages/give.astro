@@ -28,30 +28,32 @@ const sms = `sms:+1${CHURCH.textToGive.replace(/\D/g, '')}`;
     </blockquote>
   </PageHead>
 
-  <section class="section">
-    <div class="container">
-      <div class="section-head">
-        <p class="eyebrow">Ways to give</p>
-        <h2 class="h1">Choose what's <span class="accent">easiest for you.</span></h2>
-        <p>Jesus was generous with us beyond measure. We want to be known as a generous church.</p>
-      </div>
-      <div class="cards-grid ways">
-        <a class="card" href="#online"><h3>Online</h3><p>One-time or recurring, by card, debit or bank account.</p><span class="link link-arrow">Give online</span></a>
-        <a class="card" href={sms}><h3>Text</h3><p>Text an amount to <strong>{CHURCH.textToGive}</strong>. Add a fund name to choose where it goes (ex: $50 General).</p><span class="link link-arrow">Text to give</span></a>
-        <div class="card"><h3>By mail</h3><p>Make checks payable to <strong>{CHURCH.name}</strong><br />{CHURCH.street}<br />{CHURCH.city}, {CHURCH.region} {CHURCH.zip}</p></div>
-        <div class="card"><h3>Bill pay</h3><p>Set up one-time or recurring payments through your bank's online bill pay, with no fees. You can also use the offering basket on Sunday.</p></div>
-      </div>
-    </div>
-  </section>
-
   <section class="section band-paper" id="online">
     <div class="container">
       <div class="section-head">
-        <p class="eyebrow">Online giving</p>
-        <h2 class="h1">Simple and <span class="accent">secure.</span></h2>
-        <p>Use different payment methods including credit card, debit card and even a check online.</p>
+        <p class="eyebrow">Ways to give</p>
+        <h2 class="h1">Simple, secure and <span class="accent">easy.</span></h2>
+        <p>Jesus was generous with us beyond measure. We want to be known as a generous church. Give online by card, debit or bank account, or choose another way.</p>
       </div>
-      <MinistryForm id={giving.entry.data.form!} title="Online giving form" />
+      <div class="give-grid">
+        <MinistryForm id={giving.entry.data.form!} title="Online giving form" />
+        <aside class="other" aria-labelledby="other-title">
+          <h3 id="other-title" class="eyebrow">Other ways to give</h3>
+          <div class="way">
+            <h4>Text to give</h4>
+            <a class="num" href={sms}>{CHURCH.textToGive}</a>
+            <p>Text an amount. Add a fund name to choose where it goes (ex: $50 General).</p>
+          </div>
+          <div class="way">
+            <h4>By mail</h4>
+            <p>Make checks payable to <strong>{CHURCH.name}</strong><br />{CHURCH.street}, {CHURCH.city}, {CHURCH.region} {CHURCH.zip}</p>
+          </div>
+          <div class="way">
+            <h4>Bill pay</h4>
+            <p>Set up one-time or recurring payments through your bank's online bill pay, with no fees. You can also use the offering basket on Sunday.</p>
+          </div>
+        </aside>
+      </div>
     </div>
   </section>
 
@@ -75,6 +77,17 @@ const sms = `sms:+1${CHURCH.textToGive.replace(/\D/g, '')}`;
 <style>
   .verse { margin-top: 1.5rem; max-width: 40ch; border-left: 3px solid var(--gold); padding-left: 1.25rem; font-family: var(--font-display); font-size: var(--step-1); line-height: 1.45; }
   .verse cite { display: block; margin-top: 0.5rem; font-family: var(--font-body); font-size: var(--step--1); font-style: normal; font-weight: 700; letter-spacing: 0.04em; color: var(--gold-ink-sm); }
-  .ways .card { height: 100%; }
-  .ways .link { display: inline-block; margin-top: 0.75rem; font-weight: 700; }
+  .give-grid { display: grid; gap: 2rem; align-items: start; }
+  .other { display: grid; gap: 0; }
+  .other .eyebrow { margin-bottom: 0.5rem; }
+  .way { padding: 1.4rem 0; border-top: 1px solid var(--line-gold); }
+  .way h4 { font-family: var(--font-display); font-weight: 400; font-size: var(--step-2); line-height: 1.2; }
+  .way p { margin-top: 0.4rem; color: var(--muted); max-width: 42ch; }
+  .way strong { color: var(--ink); }
+  .num { display: inline-block; margin-top: 0.3rem; font-family: var(--font-display); font-size: var(--step-3); line-height: 1.1; color: var(--gold-ink); text-decoration-color: var(--gold); text-underline-offset: 6px; }
+  .num:hover { color: var(--ink); }
+  @media (min-width: 960px) {
+    .give-grid { grid-template-columns: minmax(0, 620px) minmax(0, 1fr); gap: clamp(3rem, 6vw, 6rem); }
+    .other { padding-top: 0.5rem; }
+  }
 </style>

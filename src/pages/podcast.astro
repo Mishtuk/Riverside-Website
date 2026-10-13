@@ -4,29 +4,29 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import PageHead from '../components/PageHead.astro';
 import Cta from '../components/Cta.astro';
+import VideoCard from '../components/VideoCard.astro';
 import { CHURCH, href } from '../lib/site';
 import { APPLE_PODCASTS_URL, getSermons } from '../lib/podcast';
 import { getVideos } from '../lib/youtube';
 
 const [videos, sermons] = await Promise.all([getVideos(6), getSermons()]);
-const clean = (t: string) => t.replace(/^Riverside Community Church\s*\|\s*/i, '');
 const date = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
 const year = (d: Date) => d.getUTCFullYear();
-const shown = sermons.slice(0, 10);
-const rest = sermons.slice(10);
+const shown = sermons.slice(0, 6);
+const rest = sermons.slice(6);
 const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${year(sermons[0].pubDate)}` : '';
 ---
 
 <Base
   title="Podcast | Riverside Community Church"
-  description="Listen to messages from Riverside Community Church on Apple Podcasts or YouTube, plus an archive of older sermon audio."
+  description="Listen to messages from Riverside Community Church on YouTube, plus an archive of older sermon audio."
 >
   <Header slot="header" />
 
   <PageHead eyebrow="Podcast" title="Listen anywhere." image="/media/photos/worship.jpg" focus="center" lede="Take Sunday with you: on your commute, on a walk, or at home.">
     <div class="btn-row" style="margin-top:2rem">
-      <a class="btn btn-dark" href={APPLE_PODCASTS_URL} rel="noopener">Apple Podcasts</a>
-      <a class="btn btn-outline" href={CHURCH.socials.youtube} rel="noopener">YouTube</a>
+      <a class="btn btn-dark" href={CHURCH.socials.youtube} rel="noopener">Watch &amp; listen on YouTube</a>
+      <a class="btn btn-outline" href={APPLE_PODCASTS_URL} rel="noopener">Podcast archive on Apple</a>
     </div>
   </PageHead>
 
@@ -40,13 +40,7 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
       {videos.length > 0 ? (
         <ul class="vids" role="list">
           {videos.map((v) => (
-            <li>
-              <a class="card vid" href={`https://www.youtube.com/watch?v=${v.id}`} rel="noopener">
-                <div class="media"><img src={v.thumbnail} alt="" width="480" height="360" loading="lazy" decoding="async" /></div>
-                <p class="date"><time datetime={v.published.toISOString()}>{date(v.published)}</time></p>
-                <h3>{clean(v.title)}</h3>
-              </a>
-            </li>
+            <li><VideoCard v={v} /></li>
           ))}
         </ul>
       ) : (
@@ -64,28 +58,35 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
       </div>
 
       {sermons.length === 0 ? (
-        <p class="muted">The audio archive is unavailable right now. Try <a class="link" href={APPLE_PODCASTS_URL} rel="noopener">Apple Podcasts</a> or YouTube.</p>
+        <p class="muted">The audio archive is unavailable right now. Try <a class="link" href={CHURCH.socials.youtube} rel="noopener">YouTube</a>.</p>
       ) : (
         <>
+          <audio id="pod-audio" preload="none"></audio>
           <ol class="episodes" role="list">
             {shown.map((s) => (
-              <li class="card ep">
-                <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time></p>
-                <h3>{s.title}</h3>
-                <audio controls preload="none" src={s.audioUrl}></audio>
-              </li>
+              <li class="ep">
+      <a class="ep-btn" href={s.audioUrl} aria-label={`Play ${s.title}`}></a>
+      <div class="ep-info">
+        <h3>{s.title}</h3>
+        <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time><span class="ep-time" aria-live="off"></span></p>
+        <input class="ep-seek" type="range" min="0" max="100" step="1" value="0" aria-label={`Seek ${s.title}`} />
+      </div>
+    </li>
             ))}
           </ol>
           {rest.length > 0 && (
             <details class="older">
-              <summary class="btn btn-outline">Show {rest.length} older episodes</summary>
+              <summary class="btn btn-outline">Show {rest.length} more episodes</summary>
               <ol class="episodes" role="list">
                 {rest.map((s) => (
-                  <li class="card ep">
-                    <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time></p>
-                    <h3>{s.title}</h3>
-                    <audio controls preload="none" src={s.audioUrl}></audio>
-                  </li>
+                  <li class="ep">
+      <a class="ep-btn" href={s.audioUrl} aria-label={`Play ${s.title}`}></a>
+      <div class="ep-info">
+        <h3>{s.title}</h3>
+        <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time><span class="ep-time" aria-live="off"></span></p>
+        <input class="ep-seek" type="range" min="0" max="100" step="1" value="0" aria-label={`Seek ${s.title}`} />
+      </div>
+    </li>
                 ))}
               </ol>
             </details>
@@ -103,31 +104,77 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
   <Footer slot="footer" />
 </Base>
 
+<script>
+  const audio = document.getElementById('pod-audio') as HTMLAudioElement | null;
+  if (audio) {
+    const rows = [...document.querySelectorAll<HTMLElement>('.ep')];
+    let cur: HTMLElement | null = null;
+    const t = (n: number) => (isFinite(n) ? `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, '0')}` : '0:00');
+    const paint = () => rows.forEach((r) => {
+      const on = r === cur;
+      r.classList.toggle('on', on);
+      r.querySelector('.ep-btn')!.setAttribute('aria-pressed', String(on && !audio.paused));
+      if (!on) return;
+      const seek = r.querySelector<HTMLInputElement>('.ep-seek')!;
+      const d = audio.duration || 0;
+      seek.max = String(Math.floor(d) || 100);
+      seek.value = String(Math.floor(audio.currentTime));
+      seek.style.setProperty('--p', d ? `${(audio.currentTime / d) * 100}%` : '0%');
+      seek.setAttribute('aria-valuetext', `${t(audio.currentTime)} of ${t(d)}`);
+      r.querySelector('.ep-time')!.textContent = ` · ${t(audio.currentTime)} / ${t(d)}`;
+    });
+    rows.forEach((r) => {
+      const b = r.querySelector<HTMLAnchorElement>('.ep-btn')!;
+      b.setAttribute('role', 'button');
+      b.setAttribute('aria-pressed', 'false');
+      const toggle = () => {
+        if (cur === r) return audio.paused ? audio.play() : audio.pause();
+        cur = r;
+        audio.src = b.href;
+        audio.play();
+        paint();
+      };
+      b.addEventListener('click', (e) => { e.preventDefault(); toggle(); });
+      b.addEventListener('keydown', (e) => { if (e.key === ' ') { e.preventDefault(); toggle(); } });
+      r.querySelector<HTMLInputElement>('.ep-seek')!.addEventListener('input', (e) => {
+        if (cur === r) audio.currentTime = +(e.target as HTMLInputElement).value;
+      });
+    });
+    ['play', 'pause', 'timeupdate', 'loadedmetadata', 'ended'].forEach((ev) => audio.addEventListener(ev, paint));
+    audio.addEventListener('error', () => { if (cur) cur.querySelector('.ep-time')!.textContent = ' · Could not load audio'; });
+  }
+</script>
+
 <style>
   .vids { list-style: none; padding: 0; display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); }
-  .vid { height: 100%; padding: 0; overflow: hidden; }
-  .vid .media { aspect-ratio: 16 / 9; border-radius: 0; }
-  .vid .date, .vid h3 { padding-inline: 1.15rem; }
-  .vid h3 { font-size: var(--step-1); line-height: 1.25; margin: 0.3rem 0 1.25rem; color: var(--ink); }
+  @media (max-width: 599px) { .vids { gap: 0.75rem; } }
   .date { font-size: var(--step--1); font-weight: 700; color: var(--gold-ink-sm); }
-  .vid .date { margin-top: 1rem; }
   .more { margin-top: 2rem; }
-  .episodes { list-style: none; padding: 0; display: grid; gap: 1rem; }
-  @media (min-width: 900px) { .episodes { grid-template-columns: 1fr 1fr; } }
-  /* Phones: compact list rows (thumb + title) instead of six full-width cards */
-  @media (max-width: 599px) {
-    .vids { gap: 0.75rem; }
-    .vid { display: grid; grid-template-columns: 8.5rem 1fr; grid-template-rows: auto 1fr; column-gap: 0.9rem; padding: 0.6rem; align-items: start; }
-    .vid .media { grid-row: span 2; border-radius: var(--radius-s); }
-    .vid .date, .vid h3 { padding-inline: 0; }
-    .vid .date { margin-top: 0.1rem; }
-    .vid h3 { font-size: 1.05rem; margin: 0.15rem 0 0; }
+
+  .episodes { list-style: none; padding: 0; display: grid; gap: 0.75rem; }
+  @media (min-width: 900px) { .episodes { grid-template-columns: 1fr 1fr; gap: 1rem; } }
+  .ep { display: flex; align-items: center; gap: 1rem; padding: 0.9rem 1.1rem; background: var(--cream); border-radius: var(--radius); }
+  .ep.on { box-shadow: inset 0 0 0 1.5px var(--gold); }
+  .ep-btn {
+    position: relative; flex: none; width: 3.25rem; height: 3.25rem; border-radius: 50%; background: var(--gold);
+    transition: transform 0.3s var(--ease), background-color 0.25s;
   }
-  .ep { background: var(--cream); display: grid; gap: 0.35rem; }
-  .ep h3 { font-size: var(--step-1); margin: 0; color: var(--ink); }
-  audio { width: 100%; margin-top: 0.6rem; }
-  .older { margin-top: 1.5rem; }
-  .older summary { cursor: pointer; list-style: none; margin-bottom: 1.5rem; }
+  .ep-btn:hover { background: var(--gold-soft); transform: scale(1.06); }
+  .ep-btn::before { content: ''; position: absolute; left: 54%; top: 50%; translate: -50% -50%; border-block: 8px solid transparent; border-left: 13px solid var(--ink); }
+  .ep-btn[aria-pressed='true']::before { left: 50%; width: 12px; height: 15px; border: 0; border-inline: 4px solid var(--ink); }
+  .ep-info { min-width: 0; flex: 1; }
+  .ep h3 { font-size: var(--step-0); line-height: 1.25; margin: 0; color: var(--ink); }
+  .ep .date { margin-top: 0.15rem; font-weight: 600; }
+  .ep-time { font-variant-numeric: tabular-nums; color: var(--ink); }
+  .ep-seek { display: none; width: 100%; height: 1.5rem; margin: 0.35rem 0 0; background: none; appearance: none; cursor: pointer; --p: 0%; }
+  .ep.on .ep-seek { display: block; }
+  .ep-seek::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--gold-ink) var(--p), var(--stone-2) var(--p)); }
+  .ep-seek::-moz-range-track { height: 4px; border-radius: 2px; background: var(--stone-2); }
+  .ep-seek::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--gold-ink); }
+  .ep-seek::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; margin-top: -5px; border-radius: 50%; background: var(--ink); border: 0; }
+  .ep-seek::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: 0; }
+  .older { margin-top: 1rem; }
+  .older summary { cursor: pointer; list-style: none; margin-bottom: 1rem; }
   .older summary::-webkit-details-marker { display: none; }
   .older[open] summary { display: none; }
 </style>

@@ -29,7 +29,9 @@ const src = `https://forms.ministryforms.net/embed.aspx?formId=${id}`;
   });
 </script>
 <style>
-  .embed { min-height: 640px; }
+  .embed { min-height: 640px; padding: 0; }
+  /* Vendor page opens with a ~5rem grey band above its tabs: crop it so the card starts at the form. */
+  .embed :global(iframe) { display: block; margin-top: -4.5rem; }
   .embed-loading {
     display: grid; place-items: center; min-height: 640px; margin: 0;
     border: 1px dashed var(--stone, #d8d3c8); border-radius: var(--radius, 12px);

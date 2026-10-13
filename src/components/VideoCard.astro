@@ -1,0 +1,53 @@
+---
+// Sermon card: branded thumbnail (ink gradient, gold date chip, play disc) + display title + date.
+import type { Video } from '../lib/youtube';
+interface Props { v: Video; hideChip?: boolean }
+const { v } = Astro.props;
+---
+<a class="card vid" href={`https://www.youtube.com/watch?v=${v.id}`} rel="noopener">
+  <div class="vthumb">
+    <img src={v.thumbnail} alt="" width="1280" height="720" loading="lazy" decoding="async"
+      data-fb={v.thumbFallback} onerror="this.onerror=null;this.src=this.dataset.fb" />
+    <span class="vchip">{v.service ? 'Sunday Service' : 'Message'} · {v.dateShort}</span>
+    <span class="vplay" aria-hidden="true"></span>
+  </div>
+  <p class="date"><time datetime={v.dateISO}>{v.dateLabel}</time></p>
+  <h3>{v.displayTitle}</h3>
+</a>
+
+<style is:global>
+  .vthumb { position: relative; overflow: hidden; aspect-ratio: 16 / 9; background: var(--ink); isolation: isolate; }
+  .vthumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.8s var(--ease); }
+  .vthumb::after { /* soft ink gradient so the chip reads and burned-in lyrics recede */
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(180deg, rgb(28 28 28 / 0) 45%, rgb(28 28 28 / 0.78) 100%);
+  }
+  .vchip {
+    position: absolute; z-index: 2; left: 0.7rem; bottom: 0.65rem;
+    padding: 0.2rem 0.6rem; border-radius: var(--radius-pill); background: var(--gold); color: var(--ink);
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em; line-height: 1.3;
+  }
+  .vplay {
+    position: absolute; z-index: 2; right: 0.7rem; bottom: 0.6rem; width: 2.5rem; aspect-ratio: 1; border-radius: 50%;
+    background: var(--gold); box-shadow: 0 4px 16px rgb(0 0 0 / 0.35); transition: transform 0.35s var(--ease), background-color 0.25s;
+  }
+  .vplay::before { content: ''; position: absolute; left: 54%; top: 50%; translate: -50% -50%; border-block: 7px solid transparent; border-left: 11px solid var(--ink); }
+  a:hover > .vthumb img { transform: scale(1.04); }
+  a:hover > .vthumb .vplay { transform: scale(1.1); background: var(--gold-soft); }
+</style>
+<style>
+  .vid { height: 100%; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .vid .date, .vid h3 { padding-inline: 1.15rem; }
+  .vid .date { margin-top: 1rem; font-size: var(--step--1); font-weight: 700; color: var(--gold-ink-sm); }
+  .vid h3 { font-size: var(--step-1); line-height: 1.25; margin: 0.3rem 0 1.25rem; color: var(--ink); }
+  @media (max-width: 599px) {
+    .vid { display: grid; grid-template-columns: 9rem 1fr; grid-template-rows: auto 1fr; column-gap: 0.9rem; padding: 0.6rem; align-items: start; }
+    .vid .vthumb { grid-row: span 2; border-radius: var(--radius-s); }
+    .vid .date, .vid h3 { padding-inline: 0; }
+    .vid .date { margin-top: 0.1rem; }
+    .vid h3 { font-size: 1.05rem; margin: 0.15rem 0 0; }
+    .vid .vchip { display: none; }
+    .vid .vplay { width: 1.9rem; right: 0.4rem; bottom: 0.4rem; }
+    .vid .vplay::before { border-block-width: 5px; border-left-width: 8px; }
+  }
+</style>

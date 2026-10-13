@@ -28,7 +28,8 @@ const values = [
   { title: 'Simple', text: 'A few things, done really well.' },
 ];
 
-const initials = (n: string) => n.split(' ').map((w) => w[0]).slice(0, 2).join('');
+// Lead pastor is featured with his photo; the team gets text cards until real headshots arrive.
+const [pastor, ...team] = staff;
 const slug = (n: string) => n.split(' ')[0].toLowerCase();
 const pad = (i: number) => String(i + 1).padStart(2, '0');
 ---
@@ -123,20 +124,25 @@ const pad = (i: number) => String(i + 1).padStart(2, '0');
         <p class="eyebrow">Staff &amp; elders</p>
         <h2 class="h1">Meet the <span class="accent">people.</span></h2>
       </div>
-      <div class="people">
-        {staff.map((p) => (
-          <article class="person card" id={slug(p.name)}>
-            {p.photo
-              ? <img class="avatar" src={href('/media/photos/ezra.jpg')} alt={p.name} width="160" height="160" loading="lazy" />
-              : <div class="avatar mono" aria-hidden="true">{initials(p.name)}</div>}
-            <div>
-              <h3>{p.name}</h3>
-              <p class="role">{p.title}</p>
-              <p>{p.bio}</p>
-            </div>
-          </article>
+      <article class="lead" id={slug(pastor.name)}>
+        <div class="lead-photo">
+          <img src={href('/media/photos/ezra.jpg')} alt={`${pastor.name}, ${pastor.title}`} width="300" height="300" loading="lazy" />
+        </div>
+        <div class="lead-text">
+          <p class="role">{pastor.title}</p>
+          <h3>{pastor.name}</h3>
+          <p>{pastor.bio}</p>
+        </div>
+      </article>
+      <ul class="team">
+        {team.map((p) => (
+          <li class="member" id={slug(p.name)}>
+            <p class="role">{p.title}</p>
+            <h3>{p.name}</h3>
+            <p>{p.bio}</p>
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   </section>
 
@@ -202,16 +208,31 @@ const pad = (i: number) => String(i + 1).padStart(2, '0');
   .values p { font-size: var(--step--1); line-height: 1.5; }
   .values-more { margin-top: clamp(1.5rem, 1rem + 1.5vw, 2.25rem); }
 
-  /* Staff */
-  .people { display: grid; gap: 1.5rem; }
-  .person { display: grid; gap: 1.5rem; align-items: start; }
-  .avatar { width: 7rem; aspect-ratio: 1; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 4px var(--paper), 0 0 0 6px var(--gold); }
-  .mono {
-    display: grid; place-items: center; background: var(--stone); color: var(--gold-ink);
-    font-family: var(--font-display); font-size: 2.25rem; letter-spacing: 0.03em;
+  /* Staff: featured lead pastor + uniform text cards (no avatars, so nothing looks missing) */
+  .lead {
+    display: grid; gap: clamp(1.5rem, 1rem + 2vw, 3rem); align-items: center;
+    padding: clamp(1.5rem, 1rem + 2vw, 2.75rem); border-radius: var(--radius);
+    background: radial-gradient(60% 90% at 0% 0%, rgb(228 210 166 / 0.45), rgb(228 210 166 / 0) 70%), var(--parchment);
   }
-  .person h3 { margin-bottom: 0; }
-  .role { font-weight: 700; font-size: var(--step--1); letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold-ink-sm) !important; margin-bottom: 0.75rem; }
+  .lead-photo { position: relative; width: min(100%, 15rem); }
+  .lead-photo::before { /* thin gold arch offset behind the photo */
+    content: ''; position: absolute; inset: 0.75rem -0.75rem -0.75rem 0.75rem;
+    border: 1.5px solid var(--gold); border-radius: 999px 999px var(--radius) var(--radius);
+  }
+  .lead-photo img {
+    position: relative; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: 50% 30%;
+    border-radius: 999px 999px var(--radius) var(--radius); box-shadow: var(--shadow-m);
+  }
+  .lead-text h3 { font-size: var(--step-4); line-height: 1.05; margin-bottom: 1rem; }
+  .lead-text p:last-child { color: var(--muted); max-width: 60ch; font-size: var(--step-0); line-height: 1.65; }
+  .team { list-style: none; padding: 0; display: grid; gap: clamp(1rem, 0.5rem + 1.5vw, 1.75rem); margin-top: clamp(1rem, 0.5rem + 1.5vw, 1.75rem); }
+  .member {
+    background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow-s);
+    padding: clamp(1.5rem, 1.1rem + 1vw, 2.25rem); border-top: 3px solid var(--gold);
+  }
+  .member h3 { font-size: var(--step-2); margin-bottom: 0.9rem; padding-bottom: 0.9rem; border-bottom: 1px solid var(--line); }
+  .member p:last-child { color: var(--muted); font-size: var(--step--1); line-height: 1.6; }
+  .role { font-weight: 700; font-size: var(--step--1); letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-ink-sm) !important; margin-bottom: 0.4rem; }
 
   @media (min-width: 560px) {
     .values { grid-template-columns: 1fr 1fr; }
@@ -219,14 +240,14 @@ const pad = (i: number) => String(i + 1).padStart(2, '0');
     .values h3 { margin-top: 0.35rem; }
   }
   @media (min-width: 720px) {
-    .people { grid-template-columns: 1fr 1fr; }
-    .person { grid-template-columns: 7rem 1fr; }
+    .lead { grid-template-columns: 15rem 1fr; }
   }
   @media (min-width: 900px) {
     .story { grid-template-columns: 1.15fr 0.85fr; }
     .story-media { margin-top: 2.5rem; }
     .story-media .media { aspect-ratio: 4 / 5; }
     .beliefs { grid-template-columns: 0.8fr 1.2fr; align-items: start; }
+    .team { grid-template-columns: repeat(3, 1fr); }
     .beliefs-head { position: sticky; top: calc(var(--header-h) + 2rem); }
   }
   @media (min-width: 1024px) { .values { grid-template-columns: repeat(4, 1fr); } }

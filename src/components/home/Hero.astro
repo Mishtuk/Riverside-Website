@@ -6,6 +6,7 @@ import { CHURCH, href } from '../../lib/site';
   <div class="hero-media" aria-hidden="true">
     <video id="hero-video" autoplay muted loop playsinline preload="metadata" poster={href('/media/hero-poster.jpg')}>
       <source media="(max-width: 700px)" src={href('/media/hero-720.mp4')} type="video/mp4" />
+      <source src={href('/media/hero.av1.mp4')} type='video/mp4; codecs="av01.0.08M.08"' />
       <source src={href('/media/hero.mp4')} type="video/mp4" />
     </video>
     <script is:inline>

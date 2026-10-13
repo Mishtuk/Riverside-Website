@@ -17,12 +17,12 @@ const { entry, Content } = await page(id);
 // Header photo per subpage (slug -> [photo, focus]).
 const PHOTOS: Record<string, [string, string]> = {
   beliefs: ['preach', '30% 40%'],
-  'core-values': ['welcome', '60% 40%'],
-  gospel: ['worship', '60% 50%'],
-  'faith-and-politics': ['community', '50% 40%'],
+  'core-values': ['embrace', '65% 35%'],
+  gospel: ['vocals', '20% 30%'],
+  'faith-and-politics': ['drums', '50% 60%'],
   partnerships: ['stage', '40% 30%'],
 };
-const [photo, focus] = PHOTOS[Astro.params.slug as string] ?? ['community', 'center'];
+const [photo, focus] = PHOTOS[Astro.params.slug as string] ?? ['stage', 'center'];
 ---
 
 <Base title={`${entry.data.title} | Riverside Community Church`} description={entry.data.description}>

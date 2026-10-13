@@ -18,7 +18,15 @@ GitHub account: `Mishtuk` (gh CLI is logged in with repo scope).
   - Facts live in `src/lib/site.ts` (`CHURCH`, `NAV`, `href()`). Never hard-code times, address or phone.
   - Domain switch: build with env `SITE=https://www.riversideconnect.com BASE=/`.
   - **Pending user decision:** should the Give band and footer stay dark or go light cream?
-  - **Needs client input:** Men's ministry copy, photos of Katrina, Paul and Martry, and the Hebrews study schedule (only an image on the old site). The podcast feed has been stale since 2020.
+  - **Needs client input** (from the boss review, 2026-10-13):
+    - Headshots of Katrina, Paul and Martry.
+    - 15–20 recent high-res photos: exterior and sign, lobby, worship, kids, baptisms, people.
+    - Real sermon titles or series names on YouTube.
+    - Podcast: restart it or retire the Apple listing.
+    - Upcoming events, or a calendar source.
+    - Whether to keep the "Southern Baptist Convention" wording prominent on About.
+    - Whether the MinistryForms/SimpleChurch form colours can be set to gold.
+    - Men's ministry copy and the Hebrews study schedule.
   - Screenshots and the link checker (`linkcheck.mjs`) were in the session scratchpad. Regenerate them with headless Chrome against `npx astro preview`.
 
 ## User's design brief (2026-10-12, verbatim intent)

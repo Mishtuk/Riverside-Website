@@ -3,7 +3,6 @@ import Base from '../layouts/Base.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import PageHead from '../components/PageHead.astro';
-import Cta from '../components/Cta.astro';
 import Facade from '../components/Facade.astro';
 import MinistryForm from '../components/MinistryForm.astro';
 import { CHURCH, href } from '../lib/site';
@@ -25,6 +24,27 @@ const names = (bapt.entry.body ?? '').split('## Testimonies')[1]?.split('<!--')[
 const testimonies = ids.map((id, i) => ({ id, name: names[i] ?? 'Baptism testimony' })).slice(0, 6);
 const titleCase = (s: string) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
+// The first n sentences of the opening paragraphs stay visible; everything after goes behind "Read more".
+// Scripture (<p><em>) and non-paragraph blocks always go behind it. Nothing is dropped.
+const teaser = (html = '', n = 2) => {
+  const head: string[] = [], tail: string[] = [];
+  for (const block of html.split(/(?=<(?:p|h[1-6]|ul|ol)\b)/).map((b) => b.trim()).filter(Boolean)) {
+    const inner = block.match(/^<p>([\s\S]*)<\/p>$/)?.[1];
+    if (!n || !inner || inner.startsWith('<em>')) { tail.push(block); continue; }
+    const s = inner.split(/(?<=[.!?])\s+(?=[A-Z“"])/);
+    head.push(`<p>${s.slice(0, n).join(' ')}</p>`);
+    if (s.length > n) tail.push(`<p>${s.slice(n).join(' ')}</p>`);
+    n = Math.max(0, n - s.length);
+  }
+  return { head: head.join(''), tail: tail.join('') };
+};
+// Discipleship: the sign-up form is the visible CTA, so its "Get Connected" section is not repeated.
+const discT = teaser((disc.entry.rendered?.html ?? '').split(/<h2[^>]*>Get Connected/i)[0], 1);
+const womenT = teaser(women.entry.rendered?.html, 1);
+const servingT = teaser(intro(serving.entry.body), 2);
+const baptT = teaser(intro(bapt.entry.body), 1);
+const rightnowT = teaser(rightnow.entry.rendered?.html, 1);
+
 const chips = [
   ['discipleship', 'Discipleship'], ['esl', 'ESL'], ['prayer', 'Prayer'],
   ['serving', 'Serving'], ['baptisms', 'Baptisms'], ['resources', 'Resources'],
@@ -37,7 +57,7 @@ const chips = [
 >
   <Header slot="header" />
 
-  <PageHead eyebrow="Get involved" title="Grow, belong and serve." image="/media/photos/community.jpg" focus="center" lede="There is a place for you at Riverside. Pick a next step." />
+  <PageHead eyebrow="Get involved" title="Grow, belong and serve." image="/media/photos/cafe.jpg" focus="70% 50%" lede="There is a place for you at Riverside. Pick a next step." />
 
   <nav class="subnav" aria-label="On this page">
     <div class="container">
@@ -51,17 +71,27 @@ const chips = [
         <p class="eyebrow">Discipleship</p>
         <h2 class="h1">Follow Jesus <span class="accent">together.</span></h2>
       </div>
-      <div class="prose"><disc.Content /></div>
+      <div class="lead-copy" set:html={discT.head} />
+      <div class="btn-row cta"><a class="btn" href={DISCIPLESHIP_FORM} rel="noopener">Join a discipleship group</a></div>
+      <details class="readmore">
+        <summary><span class="rm-more">Current study &amp; guides</span><span class="rm-less">Hide the study</span></summary>
+        <div class="readmore-body prose" set:html={discT.tail} />
+      </details>
 
       <div class="cards-grid pair">
         <article class="card" id="men">
           <h3>Men</h3>
-          <div class="prose small"><p>Men At The River is our men&rsquo;s group. Email us and we will help you get connected.</p></div>
-          <p><a class="link link-arrow" href={mail}>Ask about the men&rsquo;s group</a></p>
+          <p>Men At The River is our men&rsquo;s group. Email us and we will help you get connected.</p>
+          <p class="card-cta"><a class="link link-arrow" href={mail}>Ask about the men&rsquo;s group</a></p>
         </article>
         <article class="card" id="women">
           <h3>Women</h3>
-          <div class="prose small"><women.Content /></div>
+          <div set:html={womenT.head} />
+          <details class="readmore">
+            <summary><span class="rm-more">Read more</span><span class="rm-less">Show less</span><span class="sr-only"> about Women&rsquo;s Ministry</span></summary>
+            <div class="readmore-body" set:html={womenT.tail} />
+          </details>
+          <p class="card-cta"><a class="link link-arrow" href={mail}>Ask about Women&rsquo;s Ministry</a></p>
         </article>
       </div>
     </div>
@@ -72,7 +102,7 @@ const chips = [
       <div class="stack">
         <p class="eyebrow">ESL</p>
         <h2 class="h1">English classes, <span class="accent">everyone welcome.</span></h2>
-        <p class="muted">Practice English in a friendly, patient class. Register for our ESL program with the form below.</p>
+        <p class="muted">Practice English in a friendly, patient class. Registration for our ESL program takes one short online form.</p>
         <div class="btn-row"><a class="btn" href={ESL_FORM} rel="noopener">Register for ESL</a></div>
       </div>
       <p class="hello" aria-hidden="true">Hello <span>Hola</span> Ol&aacute; <span>Bonjour</span> &#20320;&#22909;</p>
@@ -80,25 +110,32 @@ const chips = [
   </section>
 
   <section class="section" id="prayer">
-    <div class="container">
+    <div class="container prayer">
       <div class="section-head">
         <p class="eyebrow">Prayer</p>
         <h2 class="h1">We would love to <span class="accent">pray with you.</span></h2>
-        <p>Our Sunday morning prayer group meets {CHURCH.prayerTime} in the Counseling Office.</p>
+        <p>Our Sunday morning prayer group meets {CHURCH.prayerTime} in the Counseling Office. Everyone is welcome.</p>
       </div>
-      <div class="prose"><prayer.Content /></div>
-
-      <form class="mc card" action={MAILCHIMP_PRAYER.action} method="post" target="_blank">
-        <h3>Daily prayer emails</h3>
-        <label>Email address <input type="email" name="EMAIL" required autocomplete="email" /></label>
-        <label>First name <input type="text" name="FNAME" required autocomplete="given-name" /></label>
-        <label>Last name <input type="text" name="LNAME" required autocomplete="family-name" /></label>
-        <div class="hp" aria-hidden="true"><input type="text" name={MAILCHIMP_PRAYER.honeypot} tabindex="-1" /></div>
-        <button class="btn btn-dark" type="submit">Sign up</button>
-      </form>
-
-      <h3 class="h3 sub">Send a prayer request or praise</h3>
-      <MinistryForm id={prayer.entry.data.form!} title="Prayer request form" />
+      <div class="card prayer-card">
+        <details class="request" name="prayer">
+          <summary class="btn btn-dark">Get daily prayer emails</summary>
+          <form class="mc" action={MAILCHIMP_PRAYER.action} method="post" target="_blank">
+            <p>Daily prayer emails, plus a note when there are requests from the church, our members or the community.</p>
+            <label>Email address <input type="email" name="EMAIL" required autocomplete="email" /></label>
+            <div class="mc-names">
+              <label>First name <input type="text" name="FNAME" required autocomplete="given-name" /></label>
+              <label>Last name <input type="text" name="LNAME" required autocomplete="family-name" /></label>
+            </div>
+            <div class="hp" aria-hidden="true"><input type="text" name={MAILCHIMP_PRAYER.honeypot} tabindex="-1" /></div>
+            <button class="btn btn-dark" type="submit">Sign up</button>
+          </form>
+        </details>
+        <details class="request" name="prayer">
+          <summary class="btn btn-outline">Send a request or praise</summary>
+          <p class="request-note">You choose whether it can be shared publicly or only with our pastors and elders.</p>
+          <MinistryForm id={prayer.entry.data.form!} title="Prayer request form" />
+        </details>
+      </div>
     </div>
   </section>
 
@@ -107,7 +144,11 @@ const chips = [
       <div class="section-head">
         <p class="eyebrow">Serving</p>
         <h2 class="h1">Get into <span class="accent">gear.</span></h2>
-        <div set:html={intro(serving.entry.body)} />
+        <div set:html={servingT.head} />
+        <details class="readmore">
+          <summary><span class="rm-more">Read more</span><span class="rm-less">Show less</span><span class="sr-only"> about serving</span></summary>
+          <div class="readmore-body" set:html={servingT.tail} />
+        </details>
       </div>
       <div class="cards-grid snap-row" tabindex="0" role="region" aria-label="Serving teams">
         {sections(serving.entry.body).map((s) => (
@@ -124,7 +165,11 @@ const chips = [
         <p class="eyebrow">Baptisms</p>
         <h2 class="h1">Take the <span class="accent">next step.</span></h2>
       </div>
-      <div class="prose" set:html={intro(bapt.entry.body)} />
+      <div class="lead-copy" set:html={baptT.head} />
+      <details class="readmore">
+        <summary><span class="rm-more">Read more</span><span class="rm-less">Show less</span><span class="sr-only"> about baptism</span></summary>
+        <div class="readmore-body" set:html={baptT.tail} />
+      </details>
       <div class="vids snap-row">
         {testimonies.map((t) => (
           <figure>
@@ -139,8 +184,8 @@ const chips = [
         ))}
       </div>
       <div class="btn-row more">
-        <a class="btn btn-outline" href={CHURCH.socials.youtube} rel="noopener">More testimonies on YouTube</a>
         <a class="btn btn-dark" href={mail}>Ask about baptism</a>
+        <a class="link link-arrow yt" href={CHURCH.socials.youtube} rel="noopener">More testimonies on YouTube</a>
       </div>
     </div>
   </section>
@@ -154,7 +199,11 @@ const chips = [
       <div class="cards-grid pair">
         <article class="card" id="rightnow">
           <h3>RightNow Media</h3>
-          <div class="prose small"><rightnow.Content /></div>
+          <div set:html={rightnowT.head} />
+          <details class="readmore">
+            <summary><span class="rm-more">Read more</span><span class="rm-less">Show less</span><span class="sr-only"> about RightNow Media</span></summary>
+            <div class="readmore-body" set:html={rightnowT.tail} />
+          </details>
           <div class="btn-row"><a class="btn btn-sm" href={RIGHTNOW_URL} rel="noopener">Create a free account</a></div>
         </article>
         <article class="card" id="study-guides">
@@ -166,18 +215,31 @@ const chips = [
           </details>
         </article>
       </div>
+      <p class="start"><strong>Not sure where to start?</strong> <a class="link link-arrow" href={href('/connect')}>Tell us about yourself</a> and we will help you find your place.</p>
     </div>
   </section>
 
-  <Cta title="Not sure where to start?" text="Tell us a little about yourself and we will help you find your place.">
-    <a class="btn" href={href('/connect')}>Contact us</a>
-    <a class="btn btn-light" href={href('/im-new')}>Plan a visit</a>
-  </Cta>
 
   <Footer slot="footer" />
 </Base>
 
 <style>
+  .lead-copy { max-width: 46rem; font-size: var(--step-1); line-height: 1.55; color: var(--ink); }
+  .cta { margin-top: 1.5rem; }
+  #discipleship .readmore { display: block; margin-top: 1rem; max-width: 46rem; }
+  .readmore-body.prose { font-size: var(--step-0); }
+  .pair .card { display: flex; flex-direction: column; }
+  .pair .card > p, .pair .card > div:not(.readmore-body) > :global(p) { color: var(--ink); }
+  .card-cta { margin-top: auto; padding-top: 1.25rem; font-weight: 700; }
+  .card-cta .link { color: var(--gold-ink); }
+  .prayer { display: grid; gap: 0 clamp(2rem, 1rem + 4vw, 5rem); align-items: start; }
+  .prayer-card { display: grid; gap: 1rem; border-top: 3px solid var(--gold); }
+  .mc-names { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
+  .request > summary { list-style: none; width: 100%; }
+  .request > summary::-webkit-details-marker { display: none; }
+  .request > summary::after { content: '+'; margin-left: 0.6rem; font-size: 1.25em; line-height: 1; }
+  .request[open] > summary::after { content: '\2212'; }
+  .request :global(.embed) { margin-inline: calc(-1 * clamp(1.25rem, 1rem + 1vw, 2rem)); box-shadow: none; }
   .pair { grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); margin-top: 3rem; }
   .pair .card { height: 100%; }
   .pair .card h3 { font-size: var(--step-2); }
@@ -186,11 +248,12 @@ const chips = [
   .prose :global(h2) { font-size: var(--step-2); }
   .hello { font-family: var(--font-display); font-size: var(--step-5); line-height: 1.1; color: var(--gold-ink); }
   .hello span { color: var(--ink); }
-  .sub { margin: 3rem 0 1rem; }
-  .mc { display: grid; gap: 1rem; max-width: 34rem; margin-top: 2rem; }
-  .mc label { display: grid; gap: 0.3rem; font-weight: 700; font-size: var(--step--1); }
-  .mc input { padding: 0.75rem 1rem; min-height: 48px; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; font-weight: 400; }
+  .mc { display: grid; gap: 1rem; margin-top: 1.25rem; }
+  .mc p, .request-note { color: var(--muted); margin-top: 1rem; }
   .mc button { justify-self: start; }
+  .mc label { display: grid; gap: 0.3rem; font-weight: 700; font-size: var(--step--1); }
+  .mc label { min-width: 0; }
+  .mc input { width: 100%; min-width: 0; padding: 0.75rem 1rem; min-height: 48px; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; font-weight: 400; }
   .hp { position: absolute; left: -5000px; }
   .vids { display: grid; gap: 1.5rem; margin-top: 2.5rem; }
   @media (min-width: 700px) { .vids { grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); } }
@@ -202,5 +265,21 @@ const chips = [
   .guides summary { list-style: none; }
   .guides summary::-webkit-details-marker { display: none; }
   .guides[open] summary { margin-bottom: 1rem; }
-  .guides :global(li a) { display: inline-block; padding-block: 0.3rem; }
+  .guides :global(li a) { display: block; padding-block: 0.3rem; }
+  /* Phones: tighter chapter rhythm so the page stays a quick scroll; long copy sits behind "Read more". */
+  @media (max-width: 699px) {
+    .section { padding-block: 3rem; }
+    .lead-copy { font-size: var(--step-0); }
+    .pair { margin-top: 2rem; }
+    .section-head { margin-bottom: 1.5rem; }
+    .hello { font-size: var(--step-2); }
+    #serving .snap-row { align-items: start; }
+    #serving .snap-row .card :global(p) { font-size: var(--step--1); }
+  }
+  .more { align-items: center; gap: 1rem 1.5rem; }
+  .yt { font-weight: 700; color: var(--gold-ink); }
+  @media (min-width: 900px) { .prayer { grid-template-columns: 1fr 1fr; } .prayer .section-head { margin-bottom: 0; } }
+  .start { margin-top: clamp(1.75rem, 1.25rem + 2vw, 3rem); padding-top: 1.5rem; border-top: 1px solid var(--line-gold); font-size: var(--step-1); line-height: 1.5; }
+  .start strong { font-family: var(--font-display); font-weight: 400; }
+  .start .link { font-weight: 700; color: var(--gold-ink); }
 </style>

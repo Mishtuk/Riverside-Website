@@ -355,3 +355,26 @@ a:hover > .media img, a:focus-visible > .media img, .media:hover img { transform
   }
   .snap-row > * { scroll-snap-align: start; }
 }
+
+/* "Read more" disclosure (native <details>): keeps long legacy copy one tap away. */
+.readmore { margin-top: 0.75rem; }
+.readmore > summary {
+  display: inline-flex; align-items: center; gap: 0.55rem; min-height: 44px; cursor: pointer; list-style: none;
+  font-weight: 700; color: var(--gold-ink);
+}
+.readmore > summary::-webkit-details-marker { display: none; }
+.readmore > summary::after { /* chevron */
+  content: ''; width: 0.5em; height: 0.5em; border: solid currentColor; border-width: 0 2px 2px 0;
+  rotate: 45deg; translate: 0 -0.15em;
+}
+.readmore[open] > summary::after { rotate: -135deg; translate: 0 0.15em; }
+.readmore > summary span { text-decoration: underline 1.5px var(--line-gold); text-underline-offset: 4px; }
+.readmore > summary:hover span { text-decoration-color: currentColor; }
+.readmore[open] .rm-more, .readmore:not([open]) .rm-less { display: none; }
+.readmore-body { margin-top: 0.5rem; padding: 0.25rem 0 0.25rem clamp(1rem, 0.75rem + 1vw, 1.5rem); border-left: 2px solid var(--line-gold); }
+.readmore-body > * + * { margin-top: 1em; }
+.readmore-body p { color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) {
+  .readmore > summary::after { transition: rotate 0.3s var(--ease), translate 0.3s var(--ease); }
+  .readmore[open] .readmore-body { animation: fade-up 0.5s var(--ease) both; }
+}
