@@ -1,5 +1,5 @@
 ---
-import { CHURCH, href } from '../../lib/site';
+import { CHURCH, href, photo } from '../../lib/site';
 
 const items = [
   {
@@ -38,7 +38,7 @@ const items = [
       {items.map((it, i) => (
         <li class="step reveal">
           <div class="media">
-            <img src={href(`/media/photos/${it.img}`)} alt={it.alt} width="1200" height="675" loading="lazy" decoding="async" />
+            <img {...photo(it.img)} sizes="(min-width: 900px) 540px, 100vw" alt={it.alt} loading="lazy" decoding="async" />
           </div>
           <div class="step-body">
             <span class="step-num" aria-hidden="true">{i + 1}</span>

@@ -1,5 +1,5 @@
 ---
-import { href, CHURCH } from '../../lib/site';
+import { href, photo, CHURCH } from '../../lib/site';
 const gi = href('/get-involved');
 ---
 
@@ -9,7 +9,7 @@ const gi = href('/get-involved');
 
     <div class="bento">
       <a class="tile tile-photo disc reveal" href={`${gi}#discipleship`}>
-        <img src={href('/media/photos/message.jpg')} alt="" width="1200" height="675" loading="lazy" decoding="async" />
+        <img {...photo('message')} sizes="(min-width: 900px) 608px, 100vw" alt="" loading="lazy" decoding="async" />
         <div class="tile-body">
           <h3>Discipleship</h3>
           <p>Men’s and women’s groups that study the Bible together and help each other follow Jesus every day.</p>
@@ -27,7 +27,7 @@ const gi = href('/get-involved');
       </a>
 
       <a class="tile tile-photo prayer reveal" href={`${gi}#prayer`}>
-        <img src={href('/media/photos/community.jpg')} alt="" width="1200" height="675" loading="lazy" decoding="async" />
+        <img {...photo('community')} sizes="(min-width: 900px) 608px, 100vw" alt="" loading="lazy" decoding="async" />
         <div class="tile-body">
           <h3>Prayer</h3>
           <p>Sundays {CHURCH.prayerTime}, or send us a request.</p>
@@ -35,7 +35,7 @@ const gi = href('/get-involved');
       </a>
 
       <a class="tile tile-photo serve reveal" href={`${gi}#serving`}>
-        <img src={href('/media/photos/worship.jpg')} alt="" width="1200" height="675" loading="lazy" decoding="async" />
+        <img {...photo('worship')} sizes="(min-width: 900px) 608px, 100vw" alt="" loading="lazy" decoding="async" />
         <div class="tile-body">
           <h3>Serving</h3>
           <p>Kids, worship, caf&eacute;, greeters and more.</p>

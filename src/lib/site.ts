@@ -4,6 +4,18 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 /** Base-aware internal URL: href('/im-new') -> '/Riverside-Website/im-new' */
 export const href = (path = '/') => `${BASE}${path.startsWith('/') ? path : `/${path}`}`;
 
+/** Photo from public/media/photos (name or path). Large 1920w file + -960 small file; storytime is a 1500px native crop. */
+const PHOTO_W: Record<string, number> = { storytime: 1500 };
+export const photo = (p: string) => {
+  const n = p.split('/').pop()!.replace(/\.jpg$/, '');
+  const w = PHOTO_W[n] ?? 1920;
+  return {
+    src: href(`/media/photos/${n}.jpg`),
+    srcset: `${href(`/media/photos/${n}-960.jpg`)} 960w, ${href(`/media/photos/${n}.jpg`)} ${w}w`,
+    width: w, height: Math.round((w * 9) / 16),
+  };
+};
+
 export const CHURCH = {
   name: 'Riverside Community Church',
   tagline: 'People equipping people to reflect the transformational love of Jesus.',

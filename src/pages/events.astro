@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import PageHead from '../components/PageHead.astro';
-import { CHURCH, href } from '../lib/site';
+import { CHURCH, href, photo } from '../lib/site';
 import { page } from '../lib/md';
 
 // Recurring rhythms. Only facts already on the site; unknown times say so instead of guessing.
@@ -91,7 +91,7 @@ const sunday = [
       <ul class="rhythms">
         {rhythms.map((r) => (
           <li class="rhythm reveal">
-            <div class:list={['media', r.img.includes('ytimg') && 'yt']}><img src={r.img} alt={r.alt} width="1200" height="675" loading="lazy" decoding="async" /></div>
+            <div class:list={['media', r.img.includes('ytimg') && 'yt']}><img src={r.img} srcset={r.img.includes('/media/photos/') ? photo(r.img).srcset : undefined} sizes="(min-width: 700px) 400px, 100vw" alt={r.alt} width="1200" height="675" loading="lazy" decoding="async" /></div>
             <div class="rhythm-body">
               <p class="day">{r.day}</p>
               <h3>{r.title}</h3>

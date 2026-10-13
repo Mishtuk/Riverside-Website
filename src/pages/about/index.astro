@@ -4,7 +4,7 @@ import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import PageHead from '../../components/PageHead.astro';
 import Cta from '../../components/Cta.astro';
-import { CHURCH, href } from '../../lib/site';
+import { CHURCH, href, photo } from '../../lib/site';
 import { page } from '../../lib/md';
 import staff from '../../content/staff.json';
 import { ABOUT_PAGES } from '../../lib/about';
@@ -56,7 +56,7 @@ const pad = (i: number) => String(i + 1).padStart(2, '0');
         <div class="prose" set:html={story} />
       </div>
       <figure class="story-media reveal">
-        <div class="media"><img src={href('/media/photos/community.jpg')} alt="The Riverside congregation gathering before a Sunday service" width="1200" height="675" loading="lazy" /></div>
+        <div class="media"><img {...photo('community')} sizes="(min-width: 900px) 560px, 100vw" alt="The Riverside congregation gathering before a Sunday service" loading="lazy" /></div>
         <ol class="milestones">
           <li><strong>2000</strong><span>First service at the Regal 22, Warrington</span></li>
           <li><strong>2013</strong><span>A building of our own on Columbia Avenue</span></li>

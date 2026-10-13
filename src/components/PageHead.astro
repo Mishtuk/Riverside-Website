@@ -5,14 +5,14 @@
  *        Omit for the plain stone header. Photos are decorative (alt=""), so the h1 carries meaning.
  * focus: optional CSS object-position for the photo, e.g. "30% 40%". Default "center".
  */
-import { href } from '../lib/site';
+import { photo } from '../lib/site';
 interface Props { eyebrow: string; title: string; lede?: string; image?: string; focus?: string }
 const { eyebrow, title, lede, image, focus = 'center' } = Astro.props;
 ---
 <section class:list={['page-head', image && 'has-image']}>
   {image && (
     <div class="page-head-media" aria-hidden="true">
-      <img src={href(image)} alt="" width="1200" height="675" fetchpriority="high" decoding="async" style={`object-position:${focus}`} />
+      <img {...photo(image)} sizes="(min-width: 900px) 58vw, 100vw" alt="" fetchpriority="high" decoding="async" style={`object-position:${focus}`} />
     </div>
   )}
   <div class="container page-head-body">
