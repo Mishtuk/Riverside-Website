@@ -1,5 +1,6 @@
 ---
-import { NAV, href } from '../lib/site';
+import { CHURCH, NAV, href } from '../lib/site';
+const tel = `tel:+1${CHURCH.phone.replace(/\D/g, '')}`;
 
 interface Props {
   /** Transparent header over a full-bleed hero (home page). Solid cream otherwise. */
@@ -32,18 +33,37 @@ const isCurrent = (path: string) => here === href(path) || here.startsWith(href(
           <span class="burger" aria-hidden="true"><span></span></span>
           <span class="menu-label">Menu</span>
         </summary>
-        <nav aria-label="Main menu">
-          <ul>
-            {NAV.map((l) => (
-              <li><a href={href(l.path)} aria-current={isCurrent(l.path) ? 'page' : undefined}>{l.label}</a></li>
-            ))}
-            <li><a href={href('/give')}>Give</a></li>
-          </ul>
-        </nav>
+        <div class="sheet">
+          <nav aria-label="Main menu">
+            <ul>
+              {NAV.map((l) => (
+                <li><a href={href(l.path)} aria-current={isCurrent(l.path) ? 'page' : undefined}>{l.label}</a></li>
+              ))}
+            </ul>
+          </nav>
+          <div class="sheet-info">
+            <p class="sheet-times">{CHURCH.times}<span>{CHURCH.timesNote}</span></p>
+            <a href={CHURCH.mapsUrl} rel="noopener">{CHURCH.street}, {CHURCH.city}, {CHURCH.region}</a>
+            <a href={tel}>Call {CHURCH.phone}</a>
+            <a class="btn" href={href('/give')}>Give online</a>
+          </div>
+        </div>
       </details>
     </div>
   </div>
 </header>
+
+<script is:inline>
+  // Phone menu: focus moves in on open; Escape or tapping a link closes it.
+  (() => {
+    const d = document.querySelector('.nav-mobile');
+    if (!d) return;
+    const sum = d.querySelector('summary');
+    d.addEventListener('toggle', () => { if (d.open) d.querySelector('.sheet a').focus(); });
+    d.addEventListener('click', (e) => { if (e.target.closest('.sheet a')) d.open = false; });
+    addEventListener('keydown', (e) => { if (e.key === 'Escape' && d.open) { d.open = false; sum.focus(); } });
+  })();
+</script>
 
 {overlay && (
   <script is:inline>
@@ -124,25 +144,51 @@ const isCurrent = (path: string) => here === href(path) || here.startsWith(href(
   details[open] .burger span { opacity: 0; }
   details[open] .burger::after { transform: translateY(-6px) rotate(-45deg); }
 
-  .nav-mobile nav {
+  /* Full-screen sheet below the header bar. Fixed would be trapped by the header's backdrop-filter, so absolute + viewport height. */
+  .sheet {
     position: absolute; left: 0; right: 0; top: 100%;
+    height: calc(100dvh - var(--header-h) - var(--live-off, 0px) - env(safe-area-inset-top));
+    display: flex; flex-direction: column; gap: 1.5rem;
+    padding: 0.5rem max(var(--gutter), env(safe-area-inset-right)) calc(1.5rem + env(safe-area-inset-bottom)) max(var(--gutter), env(safe-area-inset-left));
     background: var(--cream); border-top: 1px solid var(--line);
-    box-shadow: var(--shadow-l);
-    max-height: calc(100dvh - var(--header-h)); overflow-y: auto;
+    overflow-y: auto; overscroll-behavior: contain;
   }
-  .nav-mobile ul { width: min(100% - 2 * var(--gutter), var(--container)); margin: 0 auto; padding-block: 0.75rem 1.5rem; }
-  .nav-mobile li + li { border-top: 1px solid var(--line); }
-  .nav-mobile nav a {
-    display: flex; align-items: center; justify-content: space-between; min-height: 56px;
-    font-family: var(--font-display); font-size: 1.6rem; color: var(--ink); text-decoration: none;
+  .sheet > * { width: 100%; max-width: 40rem; margin-inline: auto; }
+  .sheet li + li { border-top: 1px solid var(--line); }
+  .sheet nav a {
+    display: flex; align-items: center; justify-content: space-between; min-height: 60px;
+    font-family: var(--font-display); font-size: clamp(1.6rem, 1.3rem + 1.5vw, 2rem); color: var(--ink); text-decoration: none;
   }
-  .nav-mobile nav a::after { content: '\2192'; font-family: var(--font-body); font-size: 1.1rem; color: var(--gold-ink); }
-  .nav-mobile nav a[aria-current='page'] { color: var(--gold-ink); }
+  .sheet nav a::after { content: '\2192'; font-family: var(--font-body); font-size: 1.1rem; color: var(--gold-ink); }
+  .sheet nav a[aria-current='page'] { color: var(--gold-ink); }
+  .sheet nav a:active { opacity: 0.6; }
+
+  .sheet-info {
+    display: grid; gap: 0.25rem; margin-top: auto; padding: 1.25rem 1.25rem 1.25rem;
+    background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow-s);
+  }
+  .sheet-times { font-family: var(--font-display); font-size: var(--step-2); line-height: 1.2; }
+  .sheet-times span { display: block; margin-top: 0.2rem; font-family: var(--font-body); font-size: var(--step--1); color: var(--muted); }
+  .sheet-info a:not(.btn) {
+    display: flex; align-items: center; min-height: 48px; color: var(--gold-ink); font-weight: 700;
+    text-decoration: underline 1.5px var(--line-gold); text-underline-offset: 4px;
+  }
+  .sheet-info a:not(.btn) + a:not(.btn) { border-top: 1px solid var(--line); }
+  .sheet-info .btn { margin-top: 0.75rem; min-height: 52px; font-size: 1.05rem; }
+
+  @media (max-width: 1079px) {
+    :global(html:has(.nav-mobile[open])), :global(html:has(.nav-mobile[open]) body) { overflow: hidden; }
+  }
 
   @media (prefers-reduced-motion: no-preference) {
-    details[open] nav { animation: drop 0.35s var(--ease); }
-    @keyframes drop { from { opacity: 0; transform: translateY(-8px); } }
+    details[open] .sheet { animation: sheet-in 0.35s var(--ease); }
+    @keyframes sheet-in { from { opacity: 0; transform: translateY(-10px); } }
   }
+
+  /* Phones: the bottom bar carries Give, so the header is just logo + menu. Landscape phones: compact bar. */
+  @media (max-width: 699px) { .header-actions > .btn-sm { display: none; } }
+  @media (orientation: landscape) and (max-height: 500px) { .brand img { height: 40px; } }
+  .site-header { padding-top: env(safe-area-inset-top); }
 
   @media (max-width: 420px) {
     .menu-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }

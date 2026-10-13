@@ -121,12 +121,12 @@ const chips = [
           <summary class="btn btn-dark">Get daily prayer emails</summary>
           <form class="mc" action={MAILCHIMP_PRAYER.action} method="post" target="_blank">
             <p>Daily prayer emails, plus a note when there are requests from the church, our members or the community.</p>
-            <label>Email address <input type="email" name="EMAIL" required autocomplete="email" /></label>
+            <label>Email address <input type="email" name="EMAIL" required autocomplete="email" inputmode="email" autocapitalize="off" /></label>
             <div class="mc-names">
               <label>First name <input type="text" name="FNAME" required autocomplete="given-name" /></label>
               <label>Last name <input type="text" name="LNAME" required autocomplete="family-name" /></label>
             </div>
-            <div class="hp" aria-hidden="true"><input type="text" name={MAILCHIMP_PRAYER.honeypot} tabindex="-1" /></div>
+            <div class="hp" aria-hidden="true"><input type="text" name={MAILCHIMP_PRAYER.honeypot} tabindex="-1" autocomplete="off" /></div>
             <button class="btn btn-dark" type="submit">Sign up</button>
           </form>
         </details>
@@ -240,7 +240,7 @@ const chips = [
   .request > summary::after { content: '+'; margin-left: 0.6rem; font-size: 1.25em; line-height: 1; }
   .request[open] > summary::after { content: '\2212'; }
   .request :global(.embed) { margin-inline: calc(-1 * clamp(1.25rem, 1rem + 1vw, 2rem)); box-shadow: none; }
-  .pair { grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); margin-top: 3rem; }
+  .pair { grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); margin-top: 3rem; }
   .pair .card { height: 100%; }
   .pair .card h3 { font-size: var(--step-2); }
   .prose.small { font-size: max(1rem, var(--step-0)); max-width: none; }
@@ -253,7 +253,7 @@ const chips = [
   .mc button { justify-self: start; }
   .mc label { display: grid; gap: 0.3rem; font-weight: 700; font-size: var(--step--1); }
   .mc label { min-width: 0; }
-  .mc input { width: 100%; min-width: 0; padding: 0.75rem 1rem; min-height: 48px; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; font-weight: 400; }
+  .mc input { width: 100%; min-width: 0; padding: 0.75rem 1rem; min-height: 48px; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; font-weight: 400; font-size: max(1rem, 16px); }
   .hp { position: absolute; left: -5000px; }
   .vids { display: grid; gap: 1.5rem; margin-top: 2.5rem; }
   @media (min-width: 700px) { .vids { grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); } }
@@ -278,7 +278,8 @@ const chips = [
   }
   .more { align-items: center; gap: 1rem 1.5rem; }
   .yt { font-weight: 700; color: var(--gold-ink); }
-  @media (min-width: 900px) { .prayer { grid-template-columns: 1fr 1fr; } .prayer .section-head { margin-bottom: 0; } }
+  @media (min-width: 720px) and (max-width: 1023px) { .hello { font-size: var(--step-3); } }
+  @media (min-width: 720px) { .prayer { grid-template-columns: 1fr 1fr; } .prayer .section-head { margin-bottom: 0; } }
   .start { margin-top: clamp(1.75rem, 1.25rem + 2vw, 3rem); padding-top: 1.5rem; border-top: 1px solid var(--line-gold); font-size: var(--step-1); line-height: 1.5; }
   .start strong { font-family: var(--font-display); font-weight: 400; }
   .start .link { font-weight: 700; color: var(--gold-ink); }

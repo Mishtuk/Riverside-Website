@@ -30,7 +30,8 @@ export const CHURCH = {
   services: [{ label: '9:00am', start: '09:00' }, { label: '10:30am', start: '10:30' }],
   prayerTime: '9:30–10:30am',
   timesNote: 'Livestream & kids at 10:30',
-  mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Riverside+Community+Church+239+Columbia+Ave+Horsham+PA+19044',
+  mapsUrl: 'https://www.google.com/maps/dir/?api=1&destination=Riverside%20Community%20Church%2C%20239%20Columbia%20Ave%2C%20Horsham%2C%20PA%2019044',
+  appleMapsUrl: 'https://maps.apple.com/?daddr=239%20Columbia%20Ave%2C%20Horsham%2C%20PA%2019044&q=Riverside%20Community%20Church',
   mapsEmbed: 'https://www.google.com/maps?q=Riverside+Community+Church,+239+Columbia+Ave,+Horsham,+PA+19044&z=15&output=embed',
   socials: {
     instagram: 'https://www.instagram.com/riversidechurch_horsham',

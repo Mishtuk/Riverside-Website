@@ -46,3 +46,14 @@
 
 ## Out of scope (unless asked)
 CMS or login, an events calendar library, a translation system, a store, a custom podcast host.
+
+## Round 7: mobile-first polish (started 2026-10-13)
+The goal is for the phone version to feel like a native app, not a shrunken desktop site. There is one responsive site; there is no separate m. site.
+| # | Task | Owner |
+|---|---|---|
+| 1 | A sticky bottom action bar on phones (Plan a visit · Watch · Give · Call/Directions) that hides while scrolling down and returns on scroll up | designer |
+| 2 | A full-screen phone menu with quick info (times, address, tap to call, directions) and 48px targets | designer |
+| 3 | Safe-area insets for notched phones, a typography and spacing tune at 360/390/430, plus tablet (768) and landscape-phone layouts | designer |
+| 4 | A portrait hero video for phones (9:16), cropped scene by scene so a person is always in frame | coder |
+| 5 | Add to Home Screen: web manifest, icons and theme colour | coder |
+| 6 | Directions open the phone's maps app; form inputs ≥16px so iOS doesn't zoom; a device-matrix QA | coder |

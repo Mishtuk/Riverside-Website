@@ -4,13 +4,17 @@ import { CHURCH, href } from '../../lib/site';
 
 <section class="hero on-dark" aria-labelledby="hero-title">
   <div class="hero-media" aria-hidden="true">
-    <video id="hero-video" autoplay muted loop playsinline preload="metadata" poster={href('/media/hero-poster.jpg')}>
+    <video id="hero-video" autoplay muted loop playsinline preload="metadata" poster={href('/media/hero-poster.jpg')} data-poster-portrait={href('/media/hero-poster-portrait.jpg')}>
+      <source media="(max-width: 700px) and (orientation: portrait)" src={href('/media/hero-portrait.mp4')} type="video/mp4" />
       <source media="(max-width: 700px)" src={href('/media/hero-720.mp4')} type="video/mp4" />
       <source src={href('/media/hero.av1.mp4')} type='video/mp4; codecs="av01.0.08M.08"' />
       <source src={href('/media/hero.mp4')} type="video/mp4" />
     </video>
     <script is:inline>
+      // Portrait phones get the 9:16 file, so give them its poster too (video poster has no media attribute).
       // Reduced motion: never autoplay, the poster stays. Runs during parse, before playback starts.
+      const v0 = document.getElementById('hero-video');
+      if (matchMedia('(max-width: 700px) and (orientation: portrait)').matches) v0.poster = v0.dataset.posterPortrait;
       if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
         const v = document.getElementById('hero-video');
         v.removeAttribute('autoplay'); v.preload = 'none'; v.pause();
@@ -75,8 +79,6 @@ import { CHURCH, href } from '../../lib/site';
   .hero-media, .hero-media video { position: absolute; inset: 0; width: 100%; height: 100%; }
   .hero-media { z-index: -1; }
   .hero-media video { object-fit: cover; }
-  /* Portrait phones crop the 16:9 frame to its middle; the speaker sits at the far left, so anchor there. */
-  @media (max-width: 700px) { .hero-media video { object-position: 8% 50%; } }
   .hero-media::after { /* scrim: legible copy over any frame, warmed toward the brand */
     content: ''; position: absolute; inset: 0;
     background:

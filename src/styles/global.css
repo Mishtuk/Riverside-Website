@@ -41,7 +41,7 @@
   --space-xl: 2rem;
   --space-2xl: 3rem;
   --space-3xl: 4.5rem;
-  --section: clamp(4rem, 2.5rem + 6vw, 8rem);
+  --section: clamp(3.25rem, 1.5rem + 7vw, 8rem);
   --gutter: clamp(1.25rem, 0.8rem + 2vw, 2.5rem);
   --container: 76rem;
 
@@ -57,12 +57,24 @@
 
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --header-h: 76px;
+  /* Notch: landscape phones put the notch on one side; reserve both so centred containers stay centred. */
+  --safe-x: calc(2 * max(env(safe-area-inset-left), env(safe-area-inset-right)));
+  --bar-h: 0px; /* phone bottom bar height (set below 700px) */
 }
+html[data-live] { --live-off: 38px; }
+@media (max-width: 699px) { :root { --bar-h: calc(62px + env(safe-area-inset-bottom)); } }
+@media (orientation: landscape) and (max-height: 500px) { :root { --header-h: 58px; } }
 
 /* ---------- Reset ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 * { margin: 0; }
-html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-top: calc(var(--header-h) + 1rem); }
+html {
+  -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--header-h) + 1rem); scroll-padding-bottom: calc(var(--bar-h) + 1rem);
+  -webkit-tap-highlight-color: rgb(199 163 89 / 0.22);
+}
+/* Native feel: no double-tap zoom delay on controls. */
+a, button, summary, label, [role='button'] { touch-action: manipulation; }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 body {
   min-height: 100dvh;
@@ -105,8 +117,8 @@ a { color: inherit; }
 }
 
 /* ---------- Layout ---------- */
-.container { width: min(100% - 2 * var(--gutter), var(--container)); margin-inline: auto; }
-.container-narrow { width: min(100% - 2 * var(--gutter), 46rem); margin-inline: auto; }
+.container { width: min(100% - 2 * var(--gutter) - var(--safe-x), var(--container)); margin-inline: auto; }
+.container-narrow { width: min(100% - 2 * var(--gutter) - var(--safe-x), 46rem); margin-inline: auto; }
 .section { padding-block: var(--section); }
 .page-head + .section { padding-top: clamp(2.25rem, 1rem + 5vw, 6rem); }
 .stack > * + * { margin-top: var(--flow, 1rem); }
@@ -307,7 +319,7 @@ a:hover > .media img, a:focus-visible > .media img, .media:hover img { transform
 .cards-grid { display: grid; gap: clamp(1rem, 0.5rem + 1.5vw, 1.75rem); grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); }
 .cards-grid .card h3 { font-size: var(--step-1); }
 .split { display: grid; gap: clamp(2rem, 1.5rem + 3vw, 4.5rem); align-items: center; }
-@media (min-width: 900px) { .split { grid-template-columns: 1fr 1fr; } .split.flip > :first-child { order: 2; } }
+@media (min-width: 720px) { .split { grid-template-columns: 1fr 1fr; } .split.flip > :first-child { order: 2; } }
 .chips { display: flex; flex-wrap: wrap; gap: 0.6rem; list-style: none; padding: 0; }
 .chips a {
   display: inline-flex; align-items: center; min-height: 44px; padding: 0.4rem 1.1rem; border-radius: var(--radius-pill);
@@ -377,4 +389,35 @@ a:hover > .media img, a:focus-visible > .media img, .media:hover img { transform
 @media (prefers-reduced-motion: no-preference) {
   .readmore > summary::after { transition: rotate 0.3s var(--ease), translate 0.3s var(--ease); }
   .readmore[open] .readmore-body { animation: fade-up 0.5s var(--ease) both; }
+}
+
+/* ==========================================================================
+   Round 7: phones feel native (designer)
+   ========================================================================== */
+/* Pressed states: quick, subtle feedback under a thumb. */
+a.card:active, .chips a:active { transform: scale(0.985); transition-duration: 0.1s; }
+.link:active, .faq summary:active, .readmore > summary:active { opacity: 0.65; }
+
+/* Phones: button rows fill the width (pairs share a row, wrapped buttons go full-width), thumb-sized. */
+@media (max-width: 479px) {
+  .btn-row > .btn:not(.btn-sm) { flex: 1 1 auto; }
+}
+
+/* Phones: hero leaves room for the bottom bar so the service-times strip is never covered on load.
+   (Hero.astro is the coder's; this only adjusts its height.) */
+@media (max-width: 699px) {
+  :root .hero.on-dark { min-height: max(560px, calc(100svh - var(--bar-h))); }
+}
+
+/* Landscape phones: compact header, hero fits one screen (no 600px floor), tighter page heads. */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root .hero.on-dark { min-height: 100svh; }
+  :root .hero .hero-content { padding-top: calc(var(--header-h) + 1rem); padding-bottom: 1.25rem; }
+  :root .hero .hero-title { font-size: clamp(1.8rem, 1.2rem + 2.4vw, 2.4rem); max-width: 30ch; margin-top: 0.5rem; }
+  :root .hero .hero-sub { display: none; }
+  :root .hero .btn-row { margin-top: 1.1rem; }
+  :root .hero .strip-inner { min-height: 0; padding-block: 0.5rem; }
+  .page-head { padding-block: 2.25rem 2rem; }
+  .page-head-media { height: 12rem; }
+  .page-head h1 { font-size: var(--step-4); }
 }

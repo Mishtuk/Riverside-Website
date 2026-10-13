@@ -45,8 +45,9 @@ import { CHURCH, href } from '../../lib/site';
   .pod-copy .btn-row { margin-top: 2rem; }
   .more { margin-top: 1.5rem; }
 
+  @media (max-width: 699px) { .cover { width: 13rem; padding: 1.5rem; } }
+  @media (min-width: 700px) { .pod-grid { grid-template-columns: 1fr 1.2fr; } }
   @media (min-width: 900px) {
-    .pod-grid { grid-template-columns: 1fr 1.2fr; }
     .cover { width: min(100% - 1.5rem, 25rem); margin-inline: 0 auto; }
   }
 </style>

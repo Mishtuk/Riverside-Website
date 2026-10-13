@@ -1,0 +1,73 @@
+---
+/** Phone-only bottom action bar (<700px). Hides on scroll down, returns on scroll up / near the end. No JS: always shown. */
+import { CHURCH, href } from '../lib/site';
+const here = Astro.url.pathname.replace(/\/$/, '');
+const cur = (p: string) => (here === href(p) || here.startsWith(href(p) + '/') ? 'page' : undefined);
+---
+
+<nav class="mobile-bar" aria-label="Quick actions">
+  <a href={href('/im-new')} aria-current={cur('/im-new')}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20h-5.5v-5.5h-5V20H4z" /></svg>
+    <span>Visit</span>
+  </a>
+  <a href={href('/watch')} aria-current={cur('/watch')}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="13" rx="2.5" /><path d="m10.5 9 4 2.5-4 2.5z" /><path d="M8 21h8" /></svg>
+    <span>Watch</span>
+  </a>
+  <a href={href('/give')} aria-current={cur('/give')}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z" /></svg>
+    <span>Give</span>
+  </a>
+  <a href={CHURCH.mapsUrl} rel="noopener">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z" /><circle cx="12" cy="10" r="2.3" /></svg>
+    <span>Directions</span>
+  </a>
+</nav>
+
+<script is:inline>
+  (() => {
+    const bar = document.querySelector('.mobile-bar');
+    let last = scrollY, ticking = false;
+    const update = () => {
+      const y = scrollY, nearEnd = innerHeight + y >= document.documentElement.scrollHeight - 120;
+      if (nearEnd || y < 80 || y < last - 6) bar.classList.remove('is-hidden');
+      else if (y > last + 6) bar.classList.add('is-hidden');
+      if (Math.abs(y - last) > 6) last = y;
+      ticking = false;
+    };
+    addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  })();
+</script>
+
+<style>
+  .mobile-bar { display: none; }
+  @media (max-width: 699px) {
+    .mobile-bar {
+      position: fixed; inset: auto 0 0; z-index: 45;
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      padding: 0.3rem max(0.5rem, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(0.5rem, env(safe-area-inset-left));
+      background: rgb(250 248 243 / 0.88);
+      backdrop-filter: saturate(1.4) blur(14px);
+      -webkit-backdrop-filter: saturate(1.4) blur(14px);
+      border-top: 1px solid var(--line);
+      box-shadow: 0 -6px 20px rgb(60 45 20 / 0.06);
+      transition: transform 0.35s var(--ease);
+    }
+    .mobile-bar.is-hidden { transform: translateY(calc(100% + 2px)); }
+    .mobile-bar a {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+      min-height: 56px; color: var(--muted); text-decoration: none;
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.01em;
+    }
+    .mobile-bar svg {
+      width: 44px; height: 30px; padding: 4px 10px; border-radius: var(--radius-pill);
+      fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linejoin: round; stroke-linecap: round;
+      transition: background-color 0.25s var(--ease), transform 0.2s var(--ease);
+    }
+    .mobile-bar a[aria-current='page'] { color: var(--gold-ink-sm); }
+    .mobile-bar a[aria-current='page'] svg { background: var(--gold-soft); color: var(--ink); }
+    .mobile-bar a:active svg { transform: scale(0.9); background: rgb(199 163 89 / 0.25); }
+    .mobile-bar a:focus-visible { outline-offset: -3px; border-radius: var(--radius-s); }
+  }
+  @media (prefers-reduced-motion: reduce) { .mobile-bar { transition: none; } }
+</style>

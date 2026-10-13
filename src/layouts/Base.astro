@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import LiveBanner from '../components/LiveBanner.astro';
+import MobileBar from '../components/MobileBar.astro';
 
 interface Props {
   title: string;
@@ -37,13 +38,17 @@ const fontCss = [
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/png" sizes="32x32" href={`${base}/favicon-32.png`} />
     <link rel="icon" type="image/png" sizes="512x512" href={`${base}/icon-512.png`} />
     <link rel="apple-touch-icon" sizes="180x180" href={`${base}/apple-touch-icon.png`} />
+    <link rel="manifest" href={`${base}/manifest.webmanifest`} />
+    <meta name="apple-mobile-web-app-title" content="Riverside" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#1c1c1c" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Riverside Community Church" />
@@ -66,5 +71,6 @@ const fontCss = [
     <slot name="header" />
     <main id="main"><slot /></main>
     <slot name="footer" />
+    <MobileBar />
   </body>
 </html>

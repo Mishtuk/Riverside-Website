@@ -19,8 +19,8 @@ const { entry, Content } = await page('email');
       <div class="prose"><Content /></div>
       <form class="card" action={MAILCHIMP_NEWS.action} method="post" target="_blank">
         <h2 class="h3">Subscribe</h2>
-        <label>Email address <input type="email" name="EMAIL" required autocomplete="email" placeholder="you@example.com" /></label>
-        <div class="hp" aria-hidden="true"><input type="text" name={MAILCHIMP_NEWS.honeypot} tabindex="-1" /></div>
+        <label>Email address <input type="email" name="EMAIL" required autocomplete="email" inputmode="email" autocapitalize="off" placeholder="you@example.com" /></label>
+        <div class="hp" aria-hidden="true"><input type="text" name={MAILCHIMP_NEWS.honeypot} tabindex="-1" autocomplete="off" /></div>
         <button class="btn" type="submit">Subscribe</button>
         <p class="muted small">Opens Mailchimp to confirm. Looking for prayer emails? <a class="link" href={href('/get-involved#prayer')}>Sign up here</a>.</p>
       </form>
@@ -33,7 +33,7 @@ const { entry, Content } = await page('email');
 <style>
   form { display: grid; gap: 1rem; }
   label { display: grid; gap: 0.3rem; font-weight: 700; font-size: var(--step--1); }
-  input[type='email'] { padding: 0.75rem 1rem; min-height: 48px; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; font-weight: 400; }
+  input[type='email'] { padding: 0.75rem 1rem; min-height: 48px; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; font-weight: 400; font-size: max(1rem, 16px); }
   button { justify-self: start; }
   .hp { position: absolute; left: -5000px; }
   .small { font-size: var(--step--1); }
