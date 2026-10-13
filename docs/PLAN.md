@@ -47,7 +47,7 @@
 ## Out of scope (unless asked)
 CMS or login, an events calendar library, a translation system, a store, a custom podcast host.
 
-## Round 7: mobile-first polish (started 2026-10-13)
+## Round 7: mobile-first polish (done 2026-10-13, commit ff45615)
 The goal is for the phone version to feel like a native app, not a shrunken desktop site. There is one responsive site; there is no separate m. site.
 | # | Task | Owner |
 |---|---|---|
