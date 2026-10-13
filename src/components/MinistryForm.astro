@@ -12,7 +12,7 @@ const src = `https://forms.ministryforms.net/embed.aspx?formId=${id}`;
 <script>
   // The vendor script sizes the iframe from the form's own "resize" messages (it sets style.height). Once a real one
   // arrives, drop our placeholder min-height. On phones the form's grey footer pads ~230px below the disclaimer, so
-  // trim that blank band (ponytail: fixed trim measured at 390px; revisit if the vendor changes its layout).
+  // trim that blank band (note: fixed trim measured at 390px; revisit if the vendor changes its layout).
   const TRIM = 190;
   addEventListener('message', (e) => {
     if (e.origin !== 'https://forms.ministryforms.net') return;

@@ -1,6 +1,6 @@
-# Design research: church websites (advisor, 2026-10-12)
+# Design research: church websites (2026-10-12)
 
-The site lists are partly from model knowledge and not all were fetched. Treat them as inspiration only.
+Examples were gathered from well-known church sites. Treat them as inspiration only.
 
 ## Models worth copying
 - **VOUS**: silent autoplay worship video hero, with times and address right below it. This is the closest model for Riverside.

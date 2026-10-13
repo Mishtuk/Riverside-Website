@@ -1,112 +1,153 @@
-# Riverside Website Revamp: Handoff
+# Riverside Community Church website: handoff
 
-Freelance project: rebuild https://www.riversideconnect.com (desktop + mobile).
-Repo: https://github.com/Mishtuk/Riverside-Website (public), local clone `V:\RiversideWebsite`.
-GitHub account: `Mishtuk` (gh CLI is logged in with repo scope).
-**Commits:** author is `Mish <113945444+Mishtuk@users.noreply.github.com>` (the GitHub noreply address, so commits link to @Mishtuk), set in the repo's git config. No Claude co-author trailer and no "Generated with Claude Code" line.
+This is a rebuild of https://www.riversideconnect.com for desktop and mobile.
 
-## Status (2026-10-12)
-- Repo was empty (README only). The agent team and this handoff have been added, but no site code exists yet.
-- The live site was surveyed (see below).
-- **Decided:** hosting is GitHub Pages. Reuse the existing logos; the user will get the church's permission when presenting.
-- **v1 built 2026-10-12. Rounds 2–6 done 2026-10-13. Boss verdict: SHIP-READY. Live at https://mishtuk.github.io/Riverside-Website/ (auto-deploys on push to main).** See docs/PLAN.md for the rounds.
-  - Pages:
-    - home: hero video, new-here, latest YouTube message, podcast teaser, get involved, give band, visit/map
-    - /im-new, /about (+5 subpages), /watch, /podcast, /get-involved, /events, /give, /connect, /subscribe, 404
-    - sitemap.xml, robots.txt, 26 old-URL redirects
-  - Lighthouse (mobile): home 99/97/100/100; /give 92/95/73/100. The 73 comes from the MinistryForms vendor and can't be fixed on our side.
-  - Facts live in `src/lib/site.ts` (`CHURCH`, `NAV`, `href()`). Never hard-code times, address or phone.
-  - Domain switch: build with env `SITE=https://www.riversideconnect.com BASE=/`.
-  - **Pending user decision:** should the Give band and footer stay dark or go light cream?
-  - **Needs client input** (from the boss review, 2026-10-13):
-    - Headshots of Katrina, Paul and Martry.
-    - 15–20 recent high-res photos: exterior and sign, lobby, worship, kids, baptisms, people.
-    - Real sermon titles or series names on YouTube.
-    - Podcast: restart it or retire the Apple listing.
-    - Upcoming events, or a calendar source.
-    - Whether to keep the "Southern Baptist Convention" wording prominent on About.
-    - Whether the MinistryForms/SimpleChurch form colours can be set to gold.
-    - Men's ministry copy and the Hebrews study schedule.
-  - Screenshots and the link checker (`linkcheck.mjs`) were in the session scratchpad. Regenerate them with headless Chrome against `npx astro preview`.
+- **Preview (live):** https://mishtuk.github.io/Riverside-Website/. It redeploys automatically on every push to `main`.
+- **Repo:** https://github.com/Mishtuk/Riverside-Website. The local copy is `V:\RiversideWebsite`.
+- **Commits:** authored as `Mish <113945444+Mishtuk@users.noreply.github.com>`, set in the repo's git config.
 
-## User's design brief (2026-10-12, verbatim intent)
-- Modern, refined, cleaned up, and **impressive**: "flashier and more eye-appealing" for the church's demographic.
-- **The light theme always stays.** Keep the existing palette (gold/cream/near-black) unless a change is clearly called for.
-- **Hero video on the front page** (the existing montage, re-encoded for the web).
-- A new **podcast section**. The feed is /feeds/sermons (about 150 items), and Apple Podcasts id 387370044.
-- Learn from popular, high-traffic church websites and borrow their design choices.
-- Give the user a list of things to add on top of this.
+## Quick start
+```
+npm install
+npm run dev       # http://localhost:4321/Riverside-Website/
+npm run build     # static output in dist/
+npm run preview   # serve dist/ locally
+```
+
+## Stack
+- **Astro 7**, static output. Plain CSS (`src/styles/global.css` plus component `<style>` blocks). No client framework. The only JavaScript is small inline scripts.
+- **Hosting:** GitHub Pages via GitHub Actions (`.github/workflows/deploy.yml`, using `withastro/action` and `deploy-pages`). Pages source = "GitHub Actions".
+- **CSS:** inlined into each page (`build.inlineStylesheets: 'always'`).
+- **Fonts:** self-hosted woff2 in `public/fonts/` (DM Serif Text for headings, Source Sans 3 for body), with size-matched fallbacks so the page doesn't jump while fonts load.
+- **Page transitions:** native cross-document view transitions. All motion is turned off for visitors with reduced motion enabled.
+
+## Where things live
+| What | Where |
+|---|---|
+| Church facts (times, address, phone, email, text-to-give, map links, socials), nav, livestream window | `src/lib/site.ts`. **Change facts here only; never hard-code them in pages.** |
+| Base-aware links and photo srcsets | `href()` and `photo()` in `src/lib/site.ts` |
+| Latest YouTube videos (read at build time) | `src/lib/youtube.ts`, from the channel RSS feed. No API key needed. |
+| Podcast archive (read at build time) | `src/lib/podcast.ts`, from `riversideconnect.com/feeds/sermons` |
+| Page copy ported from the old site | `src/content/pages/*.md`, plus `staff.json` and `images.json` |
+| Layout, meta tags, Open Graph, JSON-LD, favicons, manifest link | `src/layouts/Base.astro` |
+| Header and phone menu, footer, phone bottom bar, live banner | `src/components/Header.astro`, `Footer.astro`, `MobileBar.astro`, `LiveBanner.astro` |
+| Home page sections | `src/components/home/*` |
+| Embedded vendor forms | `src/components/MinistryForm.astro` |
+| Old URL → new URL redirects (26) | `moves` in `astro.config.mjs` |
+| sitemap.xml, robots.txt, manifest.webmanifest | `src/pages/*.ts` |
+| Design research and the reasoning behind the layout | `docs/research.md` |
+
+## Pages
+- **Home (`/`):**
+  - hero video with service times
+  - New here
+  - latest message
+  - podcast
+  - get involved
+  - give
+  - visit/map
+- **Inner pages:**
+  - `/im-new`
+  - `/about` with its subpages: beliefs, core-values, gospel, faith-and-politics, partnerships
+  - `/watch`, `/podcast`, `/get-involved`, `/events`, `/give`, `/connect`, `/subscribe`, 404
+
+## Design system
+- **Always a light theme.** The palette comes from the original site. Tokens are at the top of `global.css`.
+  - Backgrounds:
+    - cream `#efede8`
+    - paper `#faf8f3`
+    - stone `#e1ddd7`
+    - parchment `#f4ecda` (Give and CTA bands)
+  - Text: ink `#1c1c1c`.
+  - Gold `#c7a359` is for decoration and buttons only. It fails contrast as text on light backgrounds.
+  - Gold text on light backgrounds uses `--gold-ink #7a5c14` (`#6b4f10` for small text). This keeps the site at WCAG AA.
+  - The footer is the only dark band.
+- **Logos:** `public/brand/`. They are black line art, so they need a light background. The header uses `logo-header.webp`.
+- **Icons:**
+  - favicon-32
+  - apple-touch-icon
+  - icon-192 and icon-512
+  - icon-maskable-512 (Android)
+
+## Media
+- **Hero video:** `public/media/`. Built from the church's original 1080p60 montage with a light denoise and sharpen only (no upscaling, no frame interpolation, no colour changes). The loop starts at 8 s, so the first frame isn't dark.
+  - `hero.av1.mp4`: 1080p desktop, served first.
+  - `hero.mp4`: 1080p H.264, the fallback.
+  - `hero-720.mp4`: phones in landscape.
+  - `hero-portrait.mp4`: 720×1280 for portrait phones. Each scene is cropped separately so a person stays in frame. It has its own poster.
+- **Photos:** `public/media/photos/`. Each is a 1920px file plus a `-960` copy, served with srcset via `photo()`. They are stills from the hero video, so swap in real photos when the church provides them. Keep the same names, or add new ones in both sizes.
+- **Social preview image:** `public/media/og.jpg`.
+
+## Mobile
+- One responsive site; there is no separate mobile site. Tuned at 360, 390 and 430px widths, at tablet width (768), and for phones in landscape.
+- **Bottom action bar** (phones under 700px): Visit · Watch · Give · Directions. It hides while scrolling down.
+- **Full-screen menu** with service times, the address, tap-to-call and Give. The page can't scroll while it's open.
+- Notch-safe layout (`viewport-fit=cover` plus safe-area insets). The hero height is `100svh` minus the bar.
+- **Add to Home Screen** is supported (manifest plus icons). Its name is "Riverside".
+- Directions open the phone's maps app. Form inputs are at least 16px, so iOS doesn't zoom in.
+
+## Integrations (embed only, never rebuild)
+- **MinistryForms (SimpleChurch):**
+  - Giving `1950c935-d9f8-431c-b8ef-f3ff1d8a42ae`
+  - Response/connect `a2ba1737-d3fa-4331-aae5-391e389ce543`
+  - Prayer `d3b02759-c0de-4d32-8f29-b8ef1398bb7d`
+  - The script loads only when needed. On phones the form's empty space at the bottom is trimmed by 190px. Re-check that trim if the vendor changes its layout.
+- **Mailchimp:** email signup and daily prayer emails (`riversideconnect.us2.list-manage.com`).
+- **Wufoo:** discipleship. **Google Form:** ESL. **Email:** baptisms.
+- **YouTube:**
+  - channel `UCWcjfHPkDfMiiGgp0L8zDjQ`
+  - previous-livestreams playlist `PLbS1l_W_y15idxZN2oJY6xpN-6NlCaRNE`
+  - Videos are embedded with a facade, so nothing loads from YouTube until a visitor clicks.
+  - The "We're live" banner shows on Sundays 10:25am–12:00pm ET. Add `?live=1` to any URL to preview it.
+- **Podcast:** Apple Podcasts id 387370044. The feed is stale: the last episode is from 2020-06-14.
+- **Text to give:** 267-274-2425.
 
 ## The church
-- Riverside Community Church, branded "Riverside Connect". 239 Columbia Avenue, Horsham, PA 19044
-- 215-441-0404, riverside@riversideconnect.com. Text-to-give number: 267-274-2425
-- Tagline: "People Equipping People to Reflect the Transformational Love of Jesus."
-- Sundays: 9:00am & 10:30am. Kids' classes and the livestream run during the 10:30am service. Prayer group meets 9:30–10:30am in the Counseling Office.
-- Staff: Ezra Strickhouser (Lead Pastor), Katrina Strickhouser (Office Admin, does church design work), Paul Leese (Elder), Martry Julias (Elder, Project Nicaragua)
-- Socials: instagram.com/riversidechurch_horsham, youtube.com/channel/UCWcjfHPkDfMiiGgp0L8zDjQ, Facebook page id 150401978326964
+- Riverside Community Church ("Riverside Connect"), 239 Columbia Avenue, Horsham, PA 19044
+- 215-441-0404 · riverside@riversideconnect.com
+- **Sundays:** 9:00am and 10:30am.
+  - The livestream and kids' classes run during the 10:30am service.
+  - The prayer group meets 9:30–10:30am in the Counseling Office.
+- **Staff:**
+  - Ezra Strickhouser, Lead Pastor
+  - Katrina Strickhouser, Office Admin
+  - Paul Leese, Elder
+  - Martry Julias, Elder (Project Nicaragua)
+- **Socials:**
+  - instagram.com/riversidechurch_horsham
+  - the YouTube channel above
+  - Facebook page id 150401978326964
+- Don't invent facts or times. If something is unknown, write "Contact us".
 
-## Current site (what we're replacing)
-- Platform: Church Plant Media CMS. Assets live on cpmfiles1/cpmfiles4.com. It uses jQuery, Alpine v2, and a deprecated Universal Analytics tag (UA-5005041-2, which is dead).
-- Brand tokens pulled from its CSS: gold `#C7A359`, near-black `#1c1c1c`/`#2c2c2c`, cream `#efede8`, warm greys `#E1DDD7` `#D3CDC6`, slate `#7A8D9A`. Fonts: DM Serif Text (Google) and an Adobe Typekit kit (`ocb0rqs`).
-- **Integrations to keep (embed only, never rebuild):**
-  - Giving: MinistryForms iframe `formId=1950c935-d9f8-431c-b8ef-f3ff1d8a42ae`
-  - Response form: MinistryForms iframe `formId=a2ba1737-d3fa-4331-aae5-391e389ce543`
-  - Prayer: MinistryForms `d3b02759-c0de-4d32-8f29-b8ef1398bb7d`
-  - Other forms: email signup and daily prayer emails use Mailchimp (riversideconnect.us2.list-manage.com). Discipleship uses Wufoo (riverside.wufoo.com/forms/kqoyyfg1rlvat6). ESL uses a Google Form. Baptisms is by email.
-  - The podcast RSS is **stale**: the newest item is 2020-06-14, there are no durations or images, and items are listed oldest first. YouTube is current, with weekly livestreams.
-  - Content was ported to `src/content/pages/*.md` (25 pages) along with `staff.json` and `images.json`. Typos were fixed during the port.
-  - Livestream and sermons: YouTube channel above, previous-livestreams playlist `PLbS1l_W_y15idxZN2oJY6xpN-6NlCaRNE`. The keyless channel RSS feed `https://www.youtube.com/feeds/videos.xml?channel_id=UCWcjfHPkDfMiiGgp0L8zDjQ` can supply the latest videos at build time.
-  - A podcast feed exists at /subscriptions. Find out whether it's still updated.
-- Problems found:
-  - Service times conflict: the home page says the livestream starts at 10am, but the livestream page says 10:30. The prayer group is listed "at 10am" but runs 9:30–10:30.
-  - The sermon archive stops at Jul 20, 2025.
-  - Links are http-only, and the Facebook URL uses the old `#!` format. Several links point to `#`.
-  - Copy typo: "it's timeless truth" should be "its".
-  - The 3-level nested menu has about 25 items.
+## Quality bar (2026-10-13)
+- **Lighthouse (mobile):** home 98 performance / 100 accessibility / 100 best practices / 100 SEO.
+- **/give:** best practices is 73 because of the MinistryForms iframe, which can't be fixed on our side.
+- **Link check:** 0 broken links across all pages.
+- **To re-check:** run `npm run build && npm run preview`, then `npx lighthouse <url> --form-factor=mobile`.
 
-## Brand assets (in repo, `public/`)
-These were copied from the live site. Black line art on transparent, so they need a light background or a CSS `filter: invert(1)` on dark.
-- `brand/riversidelogo2.png` (600x200): church badge + "Riverside" script wordmark + "Community Church". Use for the header.
-- `brand/logo-ret.png` (557x260): wordmark only
-- `brand/church-reduce.png` (622x622): circular church-building badge. Use for the favicon/social icon.
-- `favicon.ico`: 16x16 only. Generate larger icons from the badge.
+## Launching on riversideconnect.com (after the church approves)
+1. In `.github/workflows/deploy.yml`, set the build env to `SITE=https://www.riversideconnect.com` and `BASE=/`. Links, redirects, the sitemap and the manifest all follow these two values.
+2. Add `public/CNAME` containing `www.riversideconnect.com`, and set the custom domain under repo Settings → Pages. Tick "Enforce HTTPS".
+3. Point the church's DNS at GitHub Pages:
+   - a `CNAME` record from `www` to `mishtuk.github.io`
+   - apex `A` records 185.199.108.153, .109.153, .110.153 and .111.153
+4. Keep the old Church Plant Media site live until DNS has switched. The redirects in `astro.config.mjs` keep the old URLs working.
 
-## Plan
-- **Stack:** Astro (static output), plain CSS, no client framework. One layout, with content in `src/content/` as markdown. Deploy to GitHub Pages with the official Astro GitHub Action. The custom domain gets set up at launch.
-- **Proposed navigation** (6 top-level items instead of about 25):
-  - **I'm New:** what to expect, directions & times, kids
-  - **About:** beliefs, core values, what is the gospel, faith & politics, staff, partnerships
-  - **Watch:** livestream, sermons (YouTube)
-  - **Get Involved:** discipleship (men/women), ESL, serving, prayer, baptisms, events, RightNow Media, study guides
-  - **Events**
-  - **Give** (button)
-- **Home page priorities:** service times, location, and Watch Live above the fold on mobile; then I'm New; latest sermon; events; give.
-- Keep every old URL working (redirects) so Google rankings and printed links don't break.
-- Add Church JSON-LD, per-page meta, a sitemap, and a GA4 tag if they want analytics.
+## Still needed from the church
+- Headshots of Katrina, Paul and Martry, and a larger photo of Ezra.
+- 15–20 recent high-res photos: exterior and sign, lobby, worship, kids, baptisms, people.
+- Real sermon titles or series names on YouTube. Livestreams currently show as "Sunday Service".
+- The podcast: restart it (for example with Spotify for Creators) or retire the Apple listing.
+- Upcoming events, or a calendar source.
+- Men's ministry copy and the Hebrews study schedule.
+- Whether to keep the "Southern Baptist Convention" wording prominent on About.
+- Whether the MinistryForms form colours can be set to the site's gold.
+- Who controls the DNS for riversideconnect.com.
 
-## Plugins (project scope, `.claude/settings.json`)
-- **frontend-design**: Anthropic's design skill. It works alongside the user-level design-taste-frontend skill.
-- **chrome-devtools-mcp**: drives a headless Chrome. Used for screenshots at phone and desktop widths, Lighthouse audits, and console/network checks.
-- **context7**: current Astro docs. It needs a one-time sign-in via `/mcp`.
-- **Claude in Chrome** (the user's browser) is available too. Prefer chrome-devtools so the user's tabs aren't touched.
+## Suggestions for the church (not code)
+- Claim and complete the Google Business Profile, with photos and service times.
+- Post one new sermon a week to YouTube. The site picks it up on the next deploy. To make that automatic, add a weekly `schedule:` trigger to the deploy workflow.
+- Add GA4 or Plausible if they want visitor stats.
 
-## Agent team (`.claude/agents/`)
-Project agents only load when Claude Code starts in the repo folder. If they're missing, spawn a general-purpose agent with the same role text and model/effort from the table.
-Each agent uses the cheapest model and effort that does its job well.
-
-| Agent | Model / effort | Owns |
-|---|---|---|
-| boss | opus / medium | Picks the next step, enforces scope and file ownership. Read-only. |
-| designer | opus / high | Visual design, `src/styles/`. Uses the design-taste-frontend skill. |
-| coder | sonnet / medium | Astro pages, components, layouts, build, deploy |
-| content-porter | haiku / low | Mechanical copy migration into `src/content/` |
-| advisor | sonnet / medium | Reviews facts, a11y, mobile, SEO, and performance. Read-only. |
-| mediator | sonnet / low | Rules on conflicts between agents against this brief. Read-only. |
-
-Workflow: boss picks a task → designer/coder/porter do it (at most about 3 agents at once, and never two on the same file) → advisor reviews → mediator only if two agents disagree → the main session verifies and updates this file.
-
-## Open questions for the user
-1. At launch: who can change the DNS for riversideconnect.com?
-2. Is the Typekit font licensed to the church? If not, switch to Google Fonts.
-3. Which service time is correct for the livestream, 10:00 or 10:30?
-4. Should the sermon archive stay on-site (Jul 2025 and earlier) or move to YouTube only?
+## Out of scope unless requested
+A CMS or logins, an events-calendar system, translation, a store, or podcast hosting.

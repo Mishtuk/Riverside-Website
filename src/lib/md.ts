@@ -8,7 +8,7 @@ export const page = async (id: string) => {
 };
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-// ponytail: handles only **bold**, [text](url) and paragraphs, which is all these pages use.
+// Note: handles only **bold**, [text](url) and paragraphs, which is all these pages use.
 const inline = (s: string) =>
   esc(s)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
