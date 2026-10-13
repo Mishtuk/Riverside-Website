@@ -13,6 +13,8 @@ export interface Video {
   service: boolean;
   /** "Sunday, October 11, 2026": the service date from the title when present, else published */
   dateLabel: string;
+  /** "Sun, Oct 11, 2026": compact, for cards */
+  dateCard: string;
   /** "Oct 11" */
   dateShort: string;
   dateISO: string;
@@ -31,6 +33,7 @@ function describe(title: string, published: Date) {
     service,
     displayTitle: service ? 'Sunday Service' : clean(title),
     dateLabel: fmt(d, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
+    dateCard: fmt(d, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
     dateShort: fmt(d, { month: 'short', day: 'numeric' }),
     dateISO: d.toISOString().slice(0, 10),
   };

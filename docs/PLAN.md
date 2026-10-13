@@ -25,7 +25,13 @@
 | 5 | A lighter hero video for phones (720p, about 1.5–2 MB) via `<source media>` | coder |
 | 6 | Full favicon set: 32px, 180px apple-touch, 512px | coder |
 
-## Round 3: verify
+## Rounds 3–6 (done 2026-10-13)
+- R3: self-hosted fonts and inline CSS (local Lighthouse perf 98–100, a11y/SEO 100); audit fixes.
+- R4: branded sermon cards, custom podcast player, staff redesign, Get Involved trimmed, Events rebuilt, Give layout.
+- R5: HD hero video (1080p AV1 + H.264) and 1920px stills with srcset.
+- R6: boss verdict **SHIP-READY**. Final polish: podcast archive first, Give phone height, no date pills, short card dates, photo variety, phone hero crop.
+
+## Ongoing verify loop (repeat as needed)
 - Advisor: Lighthouse on every page (mobile), screenshots of every page at 390px and 1440px, and a facts re-check.
 - Boss: judges against the brief ("extremely satisfactory": would the church be wowed?) and lists the remaining gaps.
 - Fix the gaps, then repeat Round 3 until the boss reports no gaps that matter.

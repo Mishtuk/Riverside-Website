@@ -9,9 +9,19 @@ import { CHURCH, href } from '../lib/site';
 import { APPLE_PODCASTS_URL, getSermons } from '../lib/podcast';
 import { getVideos } from '../lib/youtube';
 
-const [videos, sermons] = await Promise.all([getVideos(6), getSermons()]);
+const [videos, sermons] = await Promise.all([getVideos(3), getSermons()]);
 const date = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
 const year = (d: Date) => d.getUTCFullYear();
+const SMALL = new Set(['a', 'an', 'the', 'and', 'but', 'or', 'nor', 'for', 'of', 'in', 'on', 'at', 'to', 'by', 'as', 'is', 'vs']);
+// Old titles are often ALL CAPS: title-case those for display (mixed-case titles pass through). Scripture refs and
+// short acronyms (ESV, NT...) are kept; Roman numerals stay upper.
+const nice = (t: string) => {
+  t = t.replace(/\b(?:[A-Za-z] ){2,}[A-Za-z]\b/g, (m) => m.replace(/ /g, '')).replace(/\s+/g, ' ').trim(); // "J O H N  17" -> "JOHN 17"
+  if (t !== t.toUpperCase() || !/[A-Z]/.test(t)) return t;
+  return t.toLowerCase().replace(/[a-z0-9][a-z0-9'’]*/g, (w, i) =>
+    /^[ivx]+$/.test(w) || /^(esv|niv|nt|ot|ad|bc|usa|tv)$/.test(w) ? w.toUpperCase()
+    : i > 0 && SMALL.has(w) ? w : w[0].toUpperCase() + w.slice(1));
+};
 const shown = sermons.slice(0, 6);
 const rest = sermons.slice(6);
 const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${year(sermons[0].pubDate)}` : '';
@@ -23,17 +33,64 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
 >
   <Header slot="header" />
 
-  <PageHead eyebrow="Podcast" title="Listen anywhere." image="/media/photos/worship.jpg" focus="center" lede="Take Sunday with you: on your commute, on a walk, or at home.">
+  <PageHead eyebrow="Podcast" title="Listen anywhere." image="/media/photos/pulpit.jpg" focus="center" lede="Take Sunday with you: on your commute, on a walk, or at home.">
     <div class="btn-row" style="margin-top:2rem">
       <a class="btn btn-dark" href={CHURCH.socials.youtube} rel="noopener">Watch &amp; listen on YouTube</a>
       <a class="btn btn-outline" href={APPLE_PODCASTS_URL} rel="noopener">Podcast archive on Apple</a>
     </div>
   </PageHead>
 
-  <section class="section" id="latest">
+  <section class="section" id="archive">
     <div class="container">
       <div class="section-head">
-        <p class="eyebrow">Latest messages</p>
+        <p class="eyebrow">Audio archive</p>
+        <h2 class="h1">Riverside Sunday <span class="accent">Messages</span> {span && <span class="muted">({span})</span>}</h2>
+        <p class="muted">These recordings are from our previous podcast (2017–2020). New messages are on YouTube.</p>
+      </div>
+
+      {sermons.length === 0 ? (
+        <p class="muted">The audio archive is unavailable right now. Try <a class="link" href={CHURCH.socials.youtube} rel="noopener">YouTube</a>.</p>
+      ) : (
+        <>
+          <audio id="pod-audio" preload="none"></audio>
+          <ol class="episodes" role="list">
+            {shown.map((s) => (
+              <li class="ep">
+      <a class="ep-btn" href={s.audioUrl} aria-label={`Play ${nice(s.title)}`}></a>
+      <div class="ep-info">
+        <h3>{nice(s.title)}</h3>
+        <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time><span class="ep-time" aria-live="off"></span></p>
+        <input class="ep-seek" type="range" min="0" max="100" step="1" value="0" aria-label={`Seek ${nice(s.title)}`} />
+      </div>
+    </li>
+            ))}
+          </ol>
+          {rest.length > 0 && (
+            <details class="older">
+              <summary class="btn btn-outline">Show {rest.length} more episodes</summary>
+              <ol class="episodes" role="list">
+                {rest.map((s) => (
+                  <li class="ep">
+      <a class="ep-btn" href={s.audioUrl} aria-label={`Play ${nice(s.title)}`}></a>
+      <div class="ep-info">
+        <h3>{nice(s.title)}</h3>
+        <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time><span class="ep-time" aria-live="off"></span></p>
+        <input class="ep-seek" type="range" min="0" max="100" step="1" value="0" aria-label={`Seek ${nice(s.title)}`} />
+      </div>
+    </li>
+                ))}
+              </ol>
+            </details>
+          )}
+        </>
+      )}
+    </div>
+  </section>
+
+  <section class="section band-paper" id="latest">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Latest on YouTube</p>
         <h2 class="h1">Fresh from <span class="accent">Sunday.</span></h2>
         <p>Current messages are on YouTube.</p>
       </div>
@@ -46,53 +103,7 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
       ) : (
         <p class="muted">Recent videos are unavailable right now. Please visit <a class="link" href={CHURCH.socials.youtube} rel="noopener">our YouTube channel</a>.</p>
       )}
-      <p class="more"><a class="link link-arrow" href={href('/watch')}>See all messages</a></p>
-    </div>
-  </section>
-
-  <section class="section band-paper" id="archive">
-    <div class="container">
-      <div class="section-head">
-        <h2 class="h1">Audio archive {span && <span class="accent">({span})</span>}</h2>
-        <p class="muted">These recordings are from our previous podcast (2017–2020). New messages are on YouTube.</p>
-      </div>
-
-      {sermons.length === 0 ? (
-        <p class="muted">The audio archive is unavailable right now. Try <a class="link" href={CHURCH.socials.youtube} rel="noopener">YouTube</a>.</p>
-      ) : (
-        <>
-          <audio id="pod-audio" preload="none"></audio>
-          <ol class="episodes" role="list">
-            {shown.map((s) => (
-              <li class="ep">
-      <a class="ep-btn" href={s.audioUrl} aria-label={`Play ${s.title}`}></a>
-      <div class="ep-info">
-        <h3>{s.title}</h3>
-        <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time><span class="ep-time" aria-live="off"></span></p>
-        <input class="ep-seek" type="range" min="0" max="100" step="1" value="0" aria-label={`Seek ${s.title}`} />
-      </div>
-    </li>
-            ))}
-          </ol>
-          {rest.length > 0 && (
-            <details class="older">
-              <summary class="btn btn-outline">Show {rest.length} more episodes</summary>
-              <ol class="episodes" role="list">
-                {rest.map((s) => (
-                  <li class="ep">
-      <a class="ep-btn" href={s.audioUrl} aria-label={`Play ${s.title}`}></a>
-      <div class="ep-info">
-        <h3>{s.title}</h3>
-        <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time><span class="ep-time" aria-live="off"></span></p>
-        <input class="ep-seek" type="range" min="0" max="100" step="1" value="0" aria-label={`Seek ${s.title}`} />
-      </div>
-    </li>
-                ))}
-              </ol>
-            </details>
-          )}
-        </>
-      )}
+      <p class="more"><a class="link link-arrow" href={href('/watch')}>See all on Watch</a></p>
     </div>
   </section>
 

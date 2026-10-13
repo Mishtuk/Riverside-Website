@@ -75,6 +75,8 @@ import { CHURCH, href } from '../../lib/site';
   .hero-media, .hero-media video { position: absolute; inset: 0; width: 100%; height: 100%; }
   .hero-media { z-index: -1; }
   .hero-media video { object-fit: cover; }
+  /* Portrait phones crop the 16:9 frame to its middle; the speaker sits at the far left, so anchor there. */
+  @media (max-width: 700px) { .hero-media video { object-position: 8% 50%; } }
   .hero-media::after { /* scrim: legible copy over any frame, warmed toward the brand */
     content: ''; position: absolute; inset: 0;
     background:

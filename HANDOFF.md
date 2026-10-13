@@ -9,7 +9,7 @@ GitHub account: `Mishtuk` (gh CLI is logged in with repo scope).
 - Repo was empty (README only). The agent team and this handoff have been added, but no site code exists yet.
 - The live site was surveyed (see below).
 - **Decided:** hosting is GitHub Pages. Reuse the existing logos; the user will get the church's permission when presenting.
-- **v1 built 2026-10-12. Round 2 polish done 2026-10-13. Pushed to GitHub.** See docs/PLAN.md for the rounds.
+- **v1 built 2026-10-12. Rounds 2–6 done 2026-10-13. Boss verdict: SHIP-READY. Live at https://mishtuk.github.io/Riverside-Website/ (auto-deploys on push to main).** See docs/PLAN.md for the rounds.
   - Pages:
     - home: hero video, new-here, latest YouTube message, podcast teaser, get involved, give band, visit/map
     - /im-new, /about (+5 subpages), /watch, /podcast, /get-involved, /events, /give, /connect, /subscribe, 404
