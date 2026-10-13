@@ -37,7 +37,7 @@ const sms = `sms:+1${CHURCH.textToGive.replace(/\D/g, '')}`;
       </div>
       <div class="cards-grid ways">
         <a class="card" href="#online"><h3>Online</h3><p>One-time or recurring, by card, debit or bank account.</p><span class="link link-arrow">Give online</span></a>
-        <a class="card" href={sms}><h3>Text</h3><p>Text an amount to <strong>{CHURCH.textToGive}</strong>. Add a fund name to choose where it goes (ex: $50 General).</p></a>
+        <a class="card" href={sms}><h3>Text</h3><p>Text an amount to <strong>{CHURCH.textToGive}</strong>. Add a fund name to choose where it goes (ex: $50 General).</p><span class="link link-arrow">Text to give</span></a>
         <div class="card"><h3>By mail</h3><p>Make checks payable to <strong>{CHURCH.name}</strong><br />{CHURCH.street}<br />{CHURCH.city}, {CHURCH.region} {CHURCH.zip}</p></div>
         <div class="card"><h3>Bill pay</h3><p>Set up one-time or recurring payments through your bank's online bill pay, with no fees. You can also use the offering basket on Sunday.</p></div>
       </div>
@@ -58,7 +58,6 @@ const sms = `sms:+1${CHURCH.textToGive.replace(/\D/g, '')}`;
   <section class="section" id="faq">
     <div class="container">
       <div class="section-head">
-        <p class="eyebrow">Giving FAQ</p>
         <h2 class="h1">Common <span class="accent">questions.</span></h2>
       </div>
       <Faq items={faq} />

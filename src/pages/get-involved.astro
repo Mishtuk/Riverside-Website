@@ -18,6 +18,7 @@ const serving = await page('serving');
 const bapt = await page('baptisms');
 const rightnow = await page('rightnow');
 const guides = await page('study-guides');
+const guideCount = (guides.entry.body ?? '').match(/^- \[/gm)?.length ?? 0;
 
 const ids = (bapt.entry.data.youtube ?? '').split(',').map((s) => s.trim());
 const names = (bapt.entry.body ?? '').split('## Testimonies')[1]?.split('<!--')[0].trim().split(/,\s*/) ?? [];
@@ -108,7 +109,7 @@ const chips = [
         <h2 class="h1">Get into <span class="accent">gear.</span></h2>
         <div set:html={intro(serving.entry.body)} />
       </div>
-      <div class="cards-grid">
+      <div class="cards-grid snap-row" tabindex="0" role="region" aria-label="Serving teams">
         {sections(serving.entry.body).map((s) => (
           <article class="card"><h3>{s.title}</h3><div set:html={s.html} /></article>
         ))}
@@ -123,8 +124,8 @@ const chips = [
         <p class="eyebrow">Baptisms</p>
         <h2 class="h1">Take the <span class="accent">next step.</span></h2>
       </div>
-      <div class="prose"><bapt.Content /></div>
-      <div class="vids">
+      <div class="prose" set:html={intro(bapt.entry.body)} />
+      <div class="vids snap-row">
         {testimonies.map((t) => (
           <figure>
             <Facade
@@ -158,7 +159,11 @@ const chips = [
         </article>
         <article class="card" id="study-guides">
           <h3>Study guides</h3>
-          <div class="prose small"><guides.Content /></div>
+          <p class="guides-intro">Free printable PDF guides for small groups and personal study, from Deuteronomy to Revelation.</p>
+          <details class="guides">
+            <summary class="btn btn-sm btn-outline">Browse {guideCount} study guides</summary>
+            <div class="prose small"><guides.Content /></div>
+          </details>
         </article>
       </div>
     </div>
@@ -187,8 +192,15 @@ const chips = [
   .mc input { padding: 0.75rem 1rem; min-height: 48px; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; font-weight: 400; }
   .mc button { justify-self: start; }
   .hp { position: absolute; left: -5000px; }
-  .vids { display: grid; gap: 1.5rem; margin-top: 2.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); }
+  .vids { display: grid; gap: 1.5rem; margin-top: 2.5rem; }
+  @media (min-width: 700px) { .vids { grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); } }
   figure { margin: 0; }
   figcaption { margin-top: 0.6rem; font-weight: 700; }
   .more { margin-top: 2rem; }
+  .guides-intro { font-size: var(--step--1); color: var(--ink) !important; }
+  .guides { margin-top: 1.25rem; }
+  .guides summary { list-style: none; }
+  .guides summary::-webkit-details-marker { display: none; }
+  .guides[open] summary { margin-bottom: 1rem; }
+  .guides :global(li a) { display: inline-block; padding-block: 0.3rem; }
 </style>

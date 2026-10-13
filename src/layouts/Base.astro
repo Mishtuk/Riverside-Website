@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import LiveBanner from '../components/LiveBanner.astro';
 
 interface Props {
   title: string;
@@ -16,7 +17,6 @@ const {
 
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const imageUrl = new URL(`${base}/${image}`, Astro.site);
-const icon = `${base}/brand/church-reduce.png`;
 ---
 
 <!doctype html>
@@ -27,7 +27,9 @@ const icon = `${base}/brand/church-reduce.png`;
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
-    <link rel="icon" type="image/png" href={icon} />
+    <link rel="icon" type="image/png" sizes="32x32" href={`${base}/favicon-32.png`} />
+    <link rel="icon" type="image/png" sizes="512x512" href={`${base}/icon-512.png`} />
+    <link rel="apple-touch-icon" sizes="180x180" href={`${base}/apple-touch-icon.png`} />
     <meta name="theme-color" content="#1c1c1c" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Riverside Community Church" />
@@ -49,6 +51,7 @@ const icon = `${base}/brand/church-reduce.png`;
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
+    <LiveBanner />
     <slot name="header" />
     <main id="main"><slot /></main>
     <slot name="footer" />

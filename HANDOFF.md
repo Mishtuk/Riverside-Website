@@ -1,15 +1,15 @@
 # Riverside Website Revamp: Handoff
 
 Freelance project: rebuild https://www.riversideconnect.com (desktop + mobile).
-Repo: https://github.com/Mishtuk/Riverside-Website (public), local clone `C:\Users\alexm\Riverside-Website`.
+Repo: https://github.com/Mishtuk/Riverside-Website (public), local clone `V:\RiversideWebsite`.
 GitHub account: `Mishtuk` (gh CLI is logged in with repo scope).
-**Commits:** author is `Alex Mishtuk <alexmishtuk@gmail.com>`, set in the repo's git config. No Claude co-author trailer and no "Generated with Claude Code" line.
+**Commits:** author is `Mish <113945444+Mishtuk@users.noreply.github.com>` (the GitHub noreply address, so commits link to @Mishtuk), set in the repo's git config. No Claude co-author trailer and no "Generated with Claude Code" line.
 
 ## Status (2026-10-12)
 - Repo was empty (README only). The agent team and this handoff have been added, but no site code exists yet.
 - The live site was surveyed (see below).
 - **Decided:** hosting is GitHub Pages. Reuse the existing logos; the user will get the church's permission when presenting.
-- **v1 built 2026-10-12** (not committed or pushed yet).
+- **v1 built 2026-10-12. Round 2 polish done 2026-10-13. Pushed to GitHub.** See docs/PLAN.md for the rounds.
   - Pages:
     - home: hero video, new-here, latest YouTube message, podcast teaser, get involved, give band, visit/map
     - /im-new, /about (+5 subpages), /watch, /podcast, /get-involved, /events, /give, /connect, /subscribe, 404

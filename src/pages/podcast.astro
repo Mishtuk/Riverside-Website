@@ -12,8 +12,8 @@ const [videos, sermons] = await Promise.all([getVideos(6), getSermons()]);
 const clean = (t: string) => t.replace(/^Riverside Community Church\s*\|\s*/i, '');
 const date = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
 const year = (d: Date) => d.getUTCFullYear();
-const shown = sermons.slice(0, 20);
-const rest = sermons.slice(20);
+const shown = sermons.slice(0, 10);
+const rest = sermons.slice(10);
 const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${year(sermons[0].pubDate)}` : '';
 ---
 
@@ -59,7 +59,6 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
   <section class="section band-paper" id="archive">
     <div class="container">
       <div class="section-head">
-        <p class="eyebrow">Archive</p>
         <h2 class="h1">Audio archive {span && <span class="accent">({span})</span>}</h2>
         <p>This is an archive of older sermon audio. The podcast feed is no longer updated, so for recent messages see YouTube above.</p>
       </div>
@@ -114,6 +113,16 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
   .vid .date { margin-top: 1rem; }
   .more { margin-top: 2rem; }
   .episodes { list-style: none; padding: 0; display: grid; gap: 1rem; }
+  @media (min-width: 900px) { .episodes { grid-template-columns: 1fr 1fr; } }
+  /* Phones: compact list rows (thumb + title) instead of six full-width cards */
+  @media (max-width: 599px) {
+    .vids { gap: 0.75rem; }
+    .vid { display: grid; grid-template-columns: 8.5rem 1fr; grid-template-rows: auto 1fr; column-gap: 0.9rem; padding: 0.6rem; align-items: start; }
+    .vid .media { grid-row: span 2; border-radius: var(--radius-s); }
+    .vid .date, .vid h3 { padding-inline: 0; }
+    .vid .date { margin-top: 0.1rem; }
+    .vid h3 { font-size: 1.05rem; margin: 0.15rem 0 0; }
+  }
   .ep { background: var(--cream); display: grid; gap: 0.35rem; }
   .ep h3 { font-size: var(--step-1); margin: 0; color: var(--ink); }
   audio { width: 100%; margin-top: 0.6rem; }

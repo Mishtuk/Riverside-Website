@@ -35,3 +35,12 @@ export const NAV = [
   { label: 'Get Involved', path: '/get-involved' },
   { label: 'Events', path: '/events' },
 ] as const;
+
+/** Livestream schedule, evaluated in America/New_York. day: 0 = Sunday. */
+export const LIVE = {
+  tz: 'America/New_York',
+  day: 0,
+  banner: { start: '10:25', end: '12:00' }, // banner + "Live now" window
+  service: '10:30', // shown as "10:30am"
+  serviceLabel: '10:30am',
+} as const;

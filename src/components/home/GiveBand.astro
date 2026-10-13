@@ -3,10 +3,10 @@ import { CHURCH, href } from '../../lib/site';
 const sms = `sms:+1${CHURCH.textToGive.replace(/\D/g, '')}`;
 ---
 
-<section class="section band-dark give" aria-labelledby="give-title">
+<section class="section band-feature give" aria-labelledby="give-title">
   <img class="give-badge" src={href('/brand/church-reduce.png')} alt="" width="622" height="622" loading="lazy" />
   <div class="container">
-    <h2 id="give-title" class="display give-title">Generosity <em>changes lives.</em></h2>
+    <h2 id="give-title" class="display give-title">Generosity <em class="accent">changes lives.</em></h2>
     <p class="lede">Your giving supports ministry in Horsham and partners around the world. Choose the way that works for you.</p>
 
     <div class="ways">
@@ -30,31 +30,31 @@ const sms = `sms:+1${CHURCH.textToGive.replace(/\D/g, '')}`;
 </section>
 
 <style>
-  .give { position: relative; overflow: hidden; isolation: isolate; }
+  .give { overflow: hidden; }
   .give-badge {
-    position: absolute; z-index: -1; right: -8rem; top: -6rem; width: clamp(22rem, 40vw, 38rem); height: auto;
-    filter: invert(1); opacity: 0.06; pointer-events: none;
+    position: absolute; z-index: -1; right: -7rem; top: -5rem; width: clamp(20rem, 40vw, 38rem); height: auto;
+    opacity: 0.07; pointer-events: none;
   }
-  .give-title { color: var(--cream) !important; max-width: 14ch; }
-  .give-title em { color: var(--gold); }
+  .give-title { max-width: 14ch; }
   .give .lede { margin-top: 1.25rem; max-width: 46ch; }
 
-  .ways { display: grid; gap: 1px; margin-top: clamp(2.5rem, 2rem + 3vw, 4rem); background: rgb(239 237 232 / 0.14); border-block: 1px solid rgb(239 237 232 / 0.14); }
-  .way { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; padding: 2rem 0; background: var(--ink); }
+  .ways { display: grid; margin-top: clamp(2.5rem, 2rem + 3vw, 4rem); border-block: 1px solid var(--line-gold); }
+  .way { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; padding: 2rem 0; }
+  .way + .way { border-top: 1px solid var(--line-gold); }
   .way h3 { font-size: var(--step-2); }
-  .way p { color: var(--on-dark-muted); }
   .way .btn { margin-top: 1rem; }
-  .way address { margin-top: 0.75rem; font-style: normal; font-family: var(--font-display); font-size: var(--step-1); line-height: 1.35; color: var(--cream); }
+  .way address { margin-top: 0.75rem; font-style: normal; font-family: var(--font-display); font-size: var(--step-1); line-height: 1.35; color: var(--ink); }
   .big-number {
-    margin-top: 0.5rem; font-family: var(--font-display); font-size: var(--step-3); line-height: 1.1;
-    color: var(--cream); text-decoration: none; white-space: nowrap;
+    margin-top: 0.5rem; font-family: var(--font-display); font-size: var(--step-4); line-height: 1.05;
+    color: var(--gold-ink); text-decoration: none; white-space: nowrap; letter-spacing: -0.01em;
     background: linear-gradient(var(--gold), var(--gold)) 0 100% / 100% 2px no-repeat; padding-bottom: 4px;
+    transition: color 0.25s var(--ease);
   }
-  .big-number:hover { color: var(--gold); }
+  .big-number:hover { color: var(--ink); }
 
   @media (min-width: 900px) {
     .ways { grid-template-columns: repeat(3, 1fr); }
     .way { padding: 2.5rem 2.5rem 2.5rem 0; }
-    .way + .way { padding-left: 2.5rem; }
+    .way + .way { padding-left: 2.5rem; border-top: 0; border-left: 1px solid var(--line-gold); }
   }
 </style>

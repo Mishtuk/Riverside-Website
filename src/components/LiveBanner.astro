@@ -1,0 +1,49 @@
+---
+import { LIVE, href } from '../lib/site';
+---
+
+<div id="live-banner" class="live-banner" hidden>
+  <span class="dot" aria-hidden="true"></span>
+  <strong>We're live now</strong>
+  <a href={href('/watch')}>Watch the livestream <span aria-hidden="true">→</span></a>
+</div>
+
+<script is:inline define:vars={{ LIVE }}>
+  (() => {
+    const q = new URLSearchParams(location.search).get('live') === '1';
+    const p = Object.fromEntries(
+      new Intl.DateTimeFormat('en-US', { timeZone: LIVE.tz, weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' })
+        .formatToParts(new Date()).map((x) => [x.type, x.value]),
+    );
+    const mins = (hm) => hm.split(':')[0] * 60 + +hm.split(':')[1];
+    const now = +p.hour * 60 + +p.minute;
+    const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday);
+    if (q || (day === LIVE.day && now >= mins(LIVE.banner.start) && now < mins(LIVE.banner.end))) {
+      document.getElementById('live-banner').hidden = false;
+      document.documentElement.dataset.live = '';
+    }
+  })();
+</script>
+
+<style is:global>
+  .live-banner {
+    --live-h: 38px;
+    position: fixed; inset: 0 0 auto; z-index: 60; height: var(--live-h);
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem 0.9rem; padding-inline: 1rem;
+    background: var(--ink); color: var(--cream); font-size: 0.9rem; white-space: nowrap; overflow: hidden;
+  }
+  .live-banner[hidden] { display: none; }
+  .live-banner strong { font-weight: 600; letter-spacing: 0.01em; }
+  .live-banner a { color: var(--gold); text-decoration: underline; text-decoration-color: rgb(199 163 89 / 0.5); text-underline-offset: 4px; }
+  .live-banner a:hover { color: #fff; }
+  .live-banner .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+  @media (prefers-reduced-motion: no-preference) {
+    .live-banner .dot { animation: live-pulse 1.8s ease-out infinite; }
+    @keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgb(199 163 89 / 0.7); } 100% { box-shadow: 0 0 0 9px rgb(199 163 89 / 0); } }
+  }
+  /* Push page content and the (absolute/sticky/fixed) header below the banner. Header.astro untouched. */
+  html[data-live] body { padding-top: 38px; }
+  html[data-live] .site-header { top: 38px; }
+  html[data-live] .site-header.is-overlay { inset: 38px 0 auto; }
+  @media (max-width: 420px) { .live-banner { font-size: 0.82rem; gap: 0.3rem 0.6rem; } }
+</style>

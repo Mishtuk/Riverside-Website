@@ -1,9 +1,11 @@
 ---
+import { href } from '../lib/site';
 interface Props { title: string; text?: string; band?: string }
-const { title, text, band = 'band-dark' } = Astro.props;
+const { title, text, band = 'band-feature' } = Astro.props;
 ---
 <section class={`section cta-band ${band}`}>
   <div class="container">
+    <img class="cta-seal" src={href('/brand/church-reduce.png')} alt="" width="622" height="622" loading="lazy" />
     <h2>{title}</h2>
     {text && <p>{text}</p>}
     <div class="btn-row"><slot /></div>

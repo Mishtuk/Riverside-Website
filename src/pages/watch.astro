@@ -5,7 +5,7 @@ import Footer from '../components/Footer.astro';
 import PageHead from '../components/PageHead.astro';
 import Cta from '../components/Cta.astro';
 import Facade from '../components/Facade.astro';
-import { CHURCH, href } from '../lib/site';
+import { CHURCH, LIVE, href } from '../lib/site';
 import { getVideos } from '../lib/youtube';
 
 const CHANNEL_ID = 'UCWcjfHPkDfMiiGgp0L8zDjQ';
@@ -35,6 +35,21 @@ const date = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'n
       </div>
       <div class="stack">
         <p class="eyebrow">Livestream</p>
+        <p class="next" id="next-live">Sundays at {LIVE.serviceLabel}</p>
+        <script is:inline define:vars={{ LIVE }}>
+          (() => {
+            const el = document.getElementById('next-live');
+            const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: LIVE.tz, weekday: 'short', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date()).map((x) => [x.type, x.value]));
+            const mins = (hm) => hm.split(':')[0] * 60 + +hm.split(':')[1];
+            const now = +p.hour * 60 + +p.minute;
+            const wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday);
+            if (wd === LIVE.day && now >= mins(LIVE.banner.start) && now < mins(LIVE.banner.end)) { el.textContent = 'Live now'; el.dataset.live = ''; return; }
+            let add = (LIVE.day - wd + 7) % 7;
+            if (add === 0 && now >= mins(LIVE.banner.end)) add = 7;
+            const d = new Date(Date.UTC(+p.year, +p.month - 1, +p.day + add));
+            el.textContent = 'Next livestream: ' + d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' }) + ' at ' + LIVE.serviceLabel;
+          })();
+        </script>
         <h2 class="h1">Sundays at <span class="accent">10:30am</span></h2>
         <p class="muted">Press play to join the service. If nothing is streaming right now, the player will show the most recent broadcast or stay blank until we go live.</p>
         <div class="btn-row">
@@ -84,6 +99,8 @@ const date = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'n
 <style>
   .live { display: grid; gap: clamp(2rem, 1.5rem + 3vw, 4rem); align-items: center; }
   .live h2 { margin-top: 0.5rem; }
+  .next { font-weight: 600; color: var(--gold-ink-sm); }
+  .next[data-live] { color: var(--ink); }
   .grid { list-style: none; padding: 0; display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); }
   .vid { height: 100%; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
   .vid .media { aspect-ratio: 16 / 9; border-radius: 0; }

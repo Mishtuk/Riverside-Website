@@ -82,7 +82,7 @@ const isCurrent = (path: string) => here === href(path) || here.startsWith(href(
     background: rgb(239 237 232 / 0.94);
     backdrop-filter: saturate(1.4) blur(12px);
     border-color: var(--line);
-    box-shadow: 0 6px 24px rgb(60 45 20 / 0.08);
+    box-shadow: var(--shadow-s);
   }
 
   .header-bar { display: flex; align-items: center; gap: 1.5rem; min-height: var(--header-h); }
@@ -127,7 +127,7 @@ const isCurrent = (path: string) => here === href(path) || here.startsWith(href(
   .nav-mobile nav {
     position: absolute; left: 0; right: 0; top: 100%;
     background: var(--cream); border-top: 1px solid var(--line);
-    box-shadow: 0 24px 40px rgb(60 45 20 / 0.14);
+    box-shadow: var(--shadow-l);
     max-height: calc(100dvh - var(--header-h)); overflow-y: auto;
   }
   .nav-mobile ul { width: min(100% - 2 * var(--gutter), var(--container)); margin: 0 auto; padding-block: 0.75rem 1.5rem; }

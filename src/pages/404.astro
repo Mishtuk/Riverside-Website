@@ -17,3 +17,8 @@ import { CHURCH, href } from '../lib/site';
   </PageHead>
   <Footer slot="footer" />
 </Base>
+
+<style>
+  /* Fill the phone screen so the 404 doesn't read as a footer with a header on top. */
+  :global(.page-head) { min-height: calc(85svh - var(--header-h)); display: grid; align-content: center; }
+</style>
