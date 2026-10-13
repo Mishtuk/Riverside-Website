@@ -8,15 +8,15 @@ description: "Answers to common questions about giving to Riverside Community Ch
 
 Absolutely. Any personal or financial information you enter is encrypted using SSL security - the same state-of-the-art security measures used by online retailers, banks, and other financial institutions.
 
-## What Payment Methods do you Accept?
+## What payment methods do you accept?
 
 We accept donations from credit/debit cards as well as your **Bank Account** (our recommendation). While we're happy to accept your donation by any means, Bank Account donations cost significantly less, allowing more of your gift to go towards ministry.
 
-## Do I need to Create an Account?
+## Do I need to create an account?
 
 No. That said, we do recommend creating one so that you can view your online giving history. Also, you will be asked to create an account if you'd like to setup recurring donations.
 
-## Will I Receive a Receipt When I Give Online?
+## Will I receive a receipt when I give online?
 
 Yes. You will be emailed a donation receipt each time you give. Again, we recommend creating an account so you can view all your online giving history.
 

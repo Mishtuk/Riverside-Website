@@ -22,8 +22,8 @@
   --on-dark-muted: #bdb6ac; /* ~8:1 on --ink */
 
   /* Type */
-  --font-display: 'DM Serif Text', Georgia, 'Times New Roman', serif;
-  --font-body: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'DM Serif Text', 'DM Serif Fallback', Georgia, 'Times New Roman', serif;
+  --font-body: 'Source Sans 3', 'Source Sans Fallback', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --step--1: clamp(0.9rem, 0.88rem + 0.1vw, 0.95rem);
   --step-0: clamp(1.125rem, 1.1rem + 0.1vw, 1.1875rem); /* 18-19px body */
   --step-1: clamp(1.2rem, 1.13rem + 0.35vw, 1.4rem);

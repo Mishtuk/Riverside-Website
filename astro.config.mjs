@@ -38,5 +38,6 @@ export default defineConfig({
   site: process.env.SITE ?? 'https://mishtuk.github.io',
   base: BASE,
   output: 'static',
+  build: { inlineStylesheets: 'always' },
   redirects,
 });

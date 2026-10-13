@@ -18,7 +18,7 @@ const { entry, Content } = await page('email');
     <div class="container split">
       <div class="prose"><Content /></div>
       <form class="card" action={MAILCHIMP_NEWS.action} method="post" target="_blank">
-        <h3>Subscribe</h3>
+        <h2 class="h3">Subscribe</h2>
         <label>Email address <input type="email" name="EMAIL" required autocomplete="email" placeholder="you@example.com" /></label>
         <div class="hp" aria-hidden="true"><input type="text" name={MAILCHIMP_NEWS.honeypot} tabindex="-1" /></div>
         <button class="btn" type="submit">Subscribe</button>
