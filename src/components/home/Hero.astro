@@ -1,0 +1,144 @@
+---
+import { CHURCH, href } from '../../lib/site';
+---
+
+<section class="hero on-dark" aria-labelledby="hero-title">
+  <div class="hero-media" aria-hidden="true">
+    <video id="hero-video" autoplay muted loop playsinline preload="metadata" poster={href('/media/hero-poster.jpg')}>
+      <source src={href('/media/hero.mp4')} type="video/mp4" />
+    </video>
+    <script is:inline>
+      // Reduced motion: never autoplay, the poster stays. Runs during parse, before playback starts.
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const v = document.getElementById('hero-video');
+        v.removeAttribute('autoplay'); v.preload = 'none'; v.pause();
+      }
+    </script>
+  </div>
+
+  <div class="container hero-content">
+    <p class="eyebrow fade-up">Horsham, PA</p>
+    <h1 id="hero-title" class="hero-title fade-up" style="--i:1">
+      People equipping people to reflect the <em>transformational love</em> of&nbsp;Jesus.
+    </h1>
+    <p class="hero-sub fade-up" style="--i:2">A church family for every age, every stage and every language. Come as you are.</p>
+    <div class="btn-row fade-up" style="--i:3">
+      <a class="btn" href={href('/im-new')}>Plan your visit</a>
+      <a class="btn btn-light" href={href('/watch')}>Watch live</a>
+    </div>
+  </div>
+
+  <div class="hero-strip">
+    <div class="container strip-inner">
+      <p class="strip-times">
+        <strong>{CHURCH.times}</strong>
+        <span class="strip-sep" aria-hidden="true"></span>
+        <span>{CHURCH.timesNote}</span>
+      </p>
+      <a class="strip-addr" href={CHURCH.mapsUrl} rel="noopener">{CHURCH.street}, {CHURCH.city}</a>
+      <button class="video-toggle" type="button" hidden>
+        <span class="icon" aria-hidden="true"></span>
+        <span class="sr-only">Pause background video</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<script is:inline>
+  (() => {
+    const v = document.getElementById('hero-video');
+    const b = document.querySelector('.video-toggle');
+    if (!v || !b) return;
+    const label = b.querySelector('.sr-only');
+    const sync = () => {
+      b.dataset.paused = String(v.paused);
+      label.textContent = v.paused ? 'Play background video' : 'Pause background video';
+    };
+    b.hidden = false;
+    b.addEventListener('click', () => (v.paused ? v.play() : v.pause()));
+    v.addEventListener('play', sync);
+    v.addEventListener('pause', sync);
+    sync();
+  })();
+</script>
+
+<style>
+  .hero {
+    position: relative; isolation: isolate; overflow: hidden;
+    display: grid; grid-template-rows: 1fr auto; grid-template-columns: minmax(0, 1fr);
+    min-height: clamp(600px, 100svh, 940px);
+    background: var(--ink) center / cover no-repeat;
+    color: #fff;
+  }
+  .hero-media, .hero-media video { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .hero-media { z-index: -1; }
+  .hero-media video { object-fit: cover; }
+  .hero-media::after { /* scrim: legible copy over any frame, warmed toward the brand */
+    content: ''; position: absolute; inset: 0;
+    background:
+      linear-gradient(90deg, rgb(28 28 28 / 0.55) 0%, rgb(28 28 28 / 0.15) 65%, transparent),
+      linear-gradient(180deg, rgb(28 28 28 / 0.55) 0%, rgb(28 28 28 / 0.3) 35%, rgb(28 28 28 / 0.82) 100%),
+      linear-gradient(0deg, rgb(90 60 20 / 0.18), rgb(90 60 20 / 0.18));
+  }
+
+  .hero-content {
+    align-self: end;
+    padding-top: calc(var(--header-h) + 2.5rem);
+    padding-bottom: clamp(2rem, 1rem + 4vw, 4rem);
+  }
+  .hero .eyebrow { color: var(--gold); }
+  .hero-title {
+    margin-top: 1.1rem; max-width: 22ch;
+    font-size: clamp(2.4rem, 1.6rem + 3.2vw, 4.4rem); line-height: 1.05; letter-spacing: -0.015em;
+    text-shadow: 0 2px 30px rgb(0 0 0 / 0.25);
+  }
+  .hero-title em { color: var(--gold); padding-right: 0.06em; }
+  .hero-sub {
+    margin-top: 1.25rem; max-width: 40ch;
+    font-size: var(--step-1); line-height: 1.5; color: rgb(255 255 255 / 0.9);
+  }
+  .hero .btn-row { margin-top: 2rem; }
+
+  .hero-strip {
+    position: relative;
+    border-top: 1px solid rgb(255 255 255 / 0.16);
+    background: rgb(28 28 28 / 0.45);
+    backdrop-filter: blur(10px);
+  }
+  .strip-inner {
+    display: flex; align-items: center; gap: 1rem 2rem; min-height: 76px; padding-block: 0.9rem;
+  }
+  .strip-times { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1rem; margin-right: auto; }
+  .strip-times strong { font-family: var(--font-display); font-weight: 400; font-size: var(--step-1); color: #fff; }
+  .strip-times span { color: rgb(255 255 255 / 0.85); }
+  .strip-sep { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+  .strip-addr {
+    display: none; color: rgb(255 255 255 / 0.85); text-decoration: underline;
+    text-decoration-color: rgb(199 163 89 / 0.7); text-underline-offset: 5px;
+  }
+  .strip-addr:hover { color: #fff; text-decoration-color: var(--gold); }
+
+  .video-toggle {
+    flex-shrink: 0; display: grid; place-items: center; width: 48px; height: 48px;
+    border: 1.5px solid rgb(255 255 255 / 0.6); border-radius: 50%; background: transparent; color: #fff;
+    transition: background-color 0.25s var(--ease), border-color 0.25s var(--ease), color 0.25s var(--ease);
+  }
+  .video-toggle:hover { background: var(--cream); border-color: var(--cream); color: var(--ink); }
+  .video-toggle[hidden] { display: none; }
+  .icon { width: 12px; height: 14px; border-inline: 4px solid currentColor; }
+  [data-paused='true'] .icon { /* play triangle */
+    width: 0; height: 0; margin-left: 4px; border: 0;
+    border-block: 8px solid transparent; border-left: 13px solid currentColor;
+  }
+
+  @media (min-width: 900px) { .strip-addr { display: inline; } }
+  @media (max-width: 520px) {
+    .strip-sep { display: none; }
+    .strip-times { flex-direction: column; align-items: flex-start; gap: 0; }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-media video { animation: settle 16s var(--ease) both; }
+    @keyframes settle { from { transform: scale(1.06); } to { transform: none; } }
+  }
+</style>

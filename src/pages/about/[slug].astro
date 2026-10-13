@@ -1,0 +1,81 @@
+---
+import Base from '../../layouts/Base.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import PageHead from '../../components/PageHead.astro';
+import Cta from '../../components/Cta.astro';
+import { CHURCH, href } from '../../lib/site';
+import { page } from '../../lib/md';
+import { ABOUT_PAGES } from '../../lib/about';
+
+export function getStaticPaths() {
+  return ABOUT_PAGES.map((p) => ({ params: { slug: p.slug }, props: { id: p.id } }));
+}
+const { id } = Astro.props;
+const { entry, Content } = await page(id);
+
+// Header photo per subpage (slug -> [photo, focus]).
+const PHOTOS: Record<string, [string, string]> = {
+  beliefs: ['preach', '30% 40%'],
+  'core-values': ['welcome', '60% 40%'],
+  gospel: ['worship', '60% 50%'],
+  'faith-and-politics': ['community', '50% 40%'],
+  partnerships: ['stage', '40% 30%'],
+};
+const [photo, focus] = PHOTOS[Astro.params.slug as string] ?? ['community', 'center'];
+---
+
+<Base title={`${entry.data.title} | Riverside Community Church`} description={entry.data.description}>
+  <Header slot="header" />
+  <PageHead eyebrow="About" title={entry.data.title} image={`/media/photos/${photo}.jpg`} focus={focus} />
+
+  <section class="section">
+    <div class="container article">
+      <div class="prose"><Content /></div>
+      <aside class="aside" aria-label="More about Riverside">
+        <nav class="aside-card">
+          <p class="eyebrow">More about Riverside</p>
+          <ul>
+            <li><a href={href('/about')}>About us</a></li>
+            {ABOUT_PAGES.map((p) => (
+              <li><a href={href(`/about/${p.slug}`)} aria-current={p.id === id ? 'page' : undefined}>{p.label}</a></li>
+            ))}
+            <li><a href={href('/about#staff')}>Staff &amp; elders</a></li>
+          </ul>
+        </nav>
+        <div class="aside-card visit">
+          <p class="visit-title">Visit us this Sunday</p>
+          <p>{CHURCH.times}<br />{CHURCH.street}, {CHURCH.city}</p>
+          <a class="link link-arrow" href={href('/im-new')}>Plan your visit</a>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <Cta title="Questions? We'd love to talk." text="Join us on a Sunday or reach out any time.">
+    <a class="btn" href={href('/im-new')}>Plan your visit</a>
+    <a class="btn btn-light" href={href('/connect')}>Contact us</a>
+  </Cta>
+  <Footer slot="footer" />
+</Base>
+
+<style>
+  .article { display: grid; gap: clamp(2.5rem, 2rem + 3vw, 5rem); align-items: start; }
+  .aside { display: grid; gap: 1rem; }
+  .aside-card { background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow-s); padding: 1.5rem; }
+  .aside ul { list-style: none; padding: 0; margin-top: 1rem; }
+  .aside li a {
+    display: flex; align-items: center; min-height: 44px; padding: 0.35rem 0.75rem; margin-inline: -0.75rem;
+    border-radius: var(--radius-s); text-decoration: none; font-weight: 600;
+    transition: background-color 0.25s var(--ease);
+  }
+  .aside li a:hover { background: var(--cream); }
+  .aside li a[aria-current='page'] { color: var(--gold-ink-sm); box-shadow: inset 3px 0 0 var(--gold); background: var(--cream); }
+  .visit { background: var(--stone); }
+  .visit-title { font-family: var(--font-display); font-size: var(--step-2); line-height: 1.2; }
+  .visit p + p { margin: 0.5rem 0 1rem; color: var(--muted); }
+  @media (min-width: 1000px) {
+    .article { grid-template-columns: minmax(0, 1fr) 19rem; }
+    .aside { position: sticky; top: calc(var(--header-h) + 2rem); }
+  }
+</style>

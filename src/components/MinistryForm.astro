@@ -1,0 +1,38 @@
+---
+// Vendor embed script, injected when the box nears the viewport (it has an async-safe iframe fallback).
+// The script gives the iframe no title, so a MutationObserver adds ours. <noscript> falls back to a plain iframe.
+interface Props { id: string; title: string }
+const { id, title } = Astro.props;
+const src = `https://forms.ministryforms.net/embed.aspx?formId=${id}`;
+---
+<div class="embed" data-src={src} data-title={title}>
+  <p class="embed-loading" role="status">Loading secure giving form&hellip;</p>
+  <noscript><iframe src={src} title={title} loading="lazy" style="width:100%;min-height:900px;border:0"></iframe></noscript>
+</div>
+<script>
+  document.querySelectorAll<HTMLElement>('.embed[data-src]').forEach((box) => {
+    const load = () => {
+      new MutationObserver((_, mo) => {
+        const f = box.querySelector('iframe');
+        if (!f) return;
+        f.title = box.dataset.title!;
+        box.querySelector('.embed-loading')?.remove();
+        mo.disconnect();
+      }).observe(box, { childList: true, subtree: true });
+      const s = document.createElement('script');
+      s.src = box.dataset.src!;
+      box.append(s);
+    };
+    new IntersectionObserver((e, io) => {
+      if (e.some((x) => x.isIntersecting)) { io.disconnect(); load(); }
+    }, { rootMargin: '600px' }).observe(box);
+  });
+</script>
+<style>
+  .embed { min-height: 640px; }
+  .embed-loading {
+    display: grid; place-items: center; min-height: 640px; margin: 0;
+    border: 1px dashed var(--stone, #d8d3c8); border-radius: var(--radius, 12px);
+    color: var(--muted, #5b5b5b); font-family: var(--font-display); font-size: var(--step-1);
+  }
+</style>

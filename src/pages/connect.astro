@@ -1,0 +1,28 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHead from '../components/PageHead.astro';
+import MinistryForm from '../components/MinistryForm.astro';
+import { CHURCH } from '../lib/site';
+import { page } from '../lib/md';
+
+const { entry } = await page('response');
+const tel = `tel:+1${CHURCH.phone.replace(/\D/g, '')}`;
+---
+
+<Base title="Connect | Riverside Community Church" description={entry.data.description}>
+  <Header slot="header" />
+  <PageHead eyebrow="Connect" title="We'd love to hear from you." image="/media/photos/welcome.jpg" focus="60% 40%" lede="Visiting soon, taking a next step in your faith, or just have a question? Let us know." />
+
+  <section class="section">
+    <div class="container">
+      <MinistryForm id={entry.data.form!} title="Response form" />
+      <p class="muted" style="margin-top:1.5rem">
+        Prefer to talk? Call <a class="link" href={tel}>{CHURCH.phone}</a> or email <a class="link" href={`mailto:${CHURCH.email}`}>{CHURCH.email}</a>.
+      </p>
+    </div>
+  </section>
+
+  <Footer slot="footer" />
+</Base>

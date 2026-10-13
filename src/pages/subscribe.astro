@@ -1,0 +1,40 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHead from '../components/PageHead.astro';
+import { href } from '../lib/site';
+import { page } from '../lib/md';
+import { MAILCHIMP_NEWS } from '../lib/links';
+
+const { entry, Content } = await page('email');
+---
+
+<Base title="Subscribe | Riverside Community Church" description={entry.data.description}>
+  <Header slot="header" />
+  <PageHead eyebrow="Stay in touch" title="Get our emails." image="/media/photos/coffee.jpg" focus="center" />
+
+  <section class="section">
+    <div class="container split">
+      <div class="prose"><Content /></div>
+      <form class="card" action={MAILCHIMP_NEWS.action} method="post" target="_blank">
+        <h3>Subscribe</h3>
+        <label>Email address <input type="email" name="EMAIL" required autocomplete="email" placeholder="you@example.com" /></label>
+        <div class="hp" aria-hidden="true"><input type="text" name={MAILCHIMP_NEWS.honeypot} tabindex="-1" /></div>
+        <button class="btn" type="submit">Subscribe</button>
+        <p class="muted small">Opens Mailchimp to confirm. Looking for prayer emails? <a class="link" href={href('/get-involved#prayer')}>Sign up here</a>.</p>
+      </form>
+    </div>
+  </section>
+
+  <Footer slot="footer" />
+</Base>
+
+<style>
+  form { display: grid; gap: 1rem; }
+  label { display: grid; gap: 0.3rem; font-weight: 700; font-size: var(--step--1); }
+  input[type='email'] { padding: 0.75rem 1rem; min-height: 48px; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; font-weight: 400; }
+  button { justify-self: start; }
+  .hp { position: absolute; left: -5000px; }
+  .small { font-size: var(--step--1); }
+</style>

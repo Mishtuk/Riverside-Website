@@ -1,0 +1,95 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHead from '../components/PageHead.astro';
+import Cta from '../components/Cta.astro';
+import Facade from '../components/Facade.astro';
+import { CHURCH, href } from '../lib/site';
+import { getVideos } from '../lib/youtube';
+
+const CHANNEL_ID = 'UCWcjfHPkDfMiiGgp0L8zDjQ';
+const PLAYLIST = 'https://www.youtube.com/playlist?list=PLbS1l_W_y15idxZN2oJY6xpN-6NlCaRNE';
+const videos = await getVideos(12);
+const clean = (t: string) => t.replace(/^Riverside Community Church\s*\|\s*/i, '');
+const date = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
+---
+
+<Base
+  title="Watch | Riverside Community Church"
+  description="Watch Riverside Community Church's Sunday service live at 10:30am, or catch up on recent messages and previous livestreams on YouTube."
+>
+  <Header slot="header" />
+
+  <PageHead eyebrow="Watch" title="Church, wherever you are." image="/media/photos/message.jpg" focus="center" lede="Our Sunday service is livestreamed at 10:30am. Missed it? Every message stays on YouTube." />
+
+  <section class="section" id="live">
+    <div class="container live">
+      <div>
+        <Facade
+          embed={`https://www.youtube-nocookie.com/embed/live_stream?channel=${CHANNEL_ID}&autoplay=1&rel=0`}
+          href={`${CHURCH.socials.youtube}/live`}
+          thumb={href('/media/hero-poster.jpg')}
+          title="Riverside Sunday livestream"
+        />
+      </div>
+      <div class="stack">
+        <p class="eyebrow">Livestream</p>
+        <h2 class="h1">Sundays at <span class="accent">10:30am</span></h2>
+        <p class="muted">Press play to join the service. If nothing is streaming right now, the player will show the most recent broadcast or stay blank until we go live.</p>
+        <div class="btn-row">
+          <a class="btn" href={`${CHURCH.socials.youtube}/live`} rel="noopener">Open on YouTube</a>
+          <a class="btn btn-outline" href={PLAYLIST} rel="noopener">Previous livestreams</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section band-paper" id="messages">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Recent messages</p>
+        <h2 class="h1">Catch up on <span class="accent">Sunday.</span></h2>
+      </div>
+      {videos.length > 0 ? (
+        <ul class="grid" role="list">
+          {videos.map((v) => (
+            <li>
+              <a class="card vid" href={`https://www.youtube.com/watch?v=${v.id}`} rel="noopener">
+                <div class="media"><img src={v.thumbnail} alt="" width="480" height="360" loading="lazy" decoding="async" /></div>
+                <p class="date"><time datetime={v.published.toISOString()}>{date(v.published)}</time></p>
+                <h3>{clean(v.title)}</h3>
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="muted">Recent videos are unavailable right now. Please visit <a class="link" href={CHURCH.socials.youtube} rel="noopener">our YouTube channel</a>.</p>
+      )}
+      <div class="btn-row more">
+        <a class="btn btn-outline" href={PLAYLIST} rel="noopener">Previous livestreams playlist</a>
+        <a class="btn btn-outline" href={CHURCH.socials.youtube} rel="noopener">Visit our YouTube channel</a>
+      </div>
+    </div>
+  </section>
+
+  <Cta title="Prefer to listen?" text="Take Sunday with you on the go.">
+    <a class="btn" href={href('/podcast')}>Podcast</a>
+    <a class="btn btn-light" href={href('/im-new')}>Visit in person</a>
+  </Cta>
+
+  <Footer slot="footer" />
+</Base>
+
+<style>
+  .live { display: grid; gap: clamp(2rem, 1.5rem + 3vw, 4rem); align-items: center; }
+  .live h2 { margin-top: 0.5rem; }
+  .grid { list-style: none; padding: 0; display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); }
+  .vid { height: 100%; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .vid .media { aspect-ratio: 16 / 9; border-radius: 0; }
+  .vid .date, .vid h3 { padding-inline: 1.15rem; }
+  .vid .date { margin-top: 1rem; font-size: var(--step--1); font-weight: 700; color: var(--gold-ink-sm); }
+  .vid h3 { font-size: var(--step-1); line-height: 1.25; margin: 0.3rem 0 1.25rem; color: var(--ink); }
+  .more { margin-top: 2.5rem; }
+  @media (min-width: 900px) { .live { grid-template-columns: 1.6fr 1fr; } }
+</style>

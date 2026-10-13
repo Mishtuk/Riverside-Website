@@ -1,0 +1,81 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHead from '../components/PageHead.astro';
+import Cta from '../components/Cta.astro';
+import Faq from '../components/Faq.astro';
+import MinistryForm from '../components/MinistryForm.astro';
+import { CHURCH } from '../lib/site';
+import { page, sections } from '../lib/md';
+
+const giving = await page('giving');
+const faq = sections((await page('giving-faq')).entry.body).filter((s) => !/still have more/i.test(s.title));
+const tel = `tel:+1${CHURCH.phone.replace(/\D/g, '')}`;
+const sms = `sms:+1${CHURCH.textToGive.replace(/\D/g, '')}`;
+---
+
+<Base
+  title="Give | Riverside Community Church"
+  description="Give to Riverside Community Church online, by text to 267-274-2425, by check, or through your bank's bill pay."
+>
+  <Header slot="header" />
+
+  <PageHead eyebrow="Give" title="Generosity is our language." image="/media/photos/preach.jpg" focus="center">
+    <blockquote class="verse fade-up" style="--i:2">
+      &ldquo;Each one must give as he has decided in his heart, not reluctantly or under compulsion, for God loves a cheerful giver.&rdquo;
+      <cite>2 Corinthians 9:7</cite>
+    </blockquote>
+  </PageHead>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Ways to give</p>
+        <h2 class="h1">Choose what's <span class="accent">easiest for you.</span></h2>
+        <p>Jesus was generous with us beyond measure. We want to be known as a generous church.</p>
+      </div>
+      <div class="cards-grid ways">
+        <a class="card" href="#online"><h3>Online</h3><p>One-time or recurring, by card, debit or bank account.</p><span class="link link-arrow">Give online</span></a>
+        <a class="card" href={sms}><h3>Text</h3><p>Text an amount to <strong>{CHURCH.textToGive}</strong>. Add a fund name to choose where it goes (ex: $50 General).</p></a>
+        <div class="card"><h3>By mail</h3><p>Make checks payable to <strong>{CHURCH.name}</strong><br />{CHURCH.street}<br />{CHURCH.city}, {CHURCH.region} {CHURCH.zip}</p></div>
+        <div class="card"><h3>Bill pay</h3><p>Set up one-time or recurring payments through your bank's online bill pay, with no fees. You can also use the offering basket on Sunday.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section band-paper" id="online">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Online giving</p>
+        <h2 class="h1">Simple and <span class="accent">secure.</span></h2>
+        <p>Use different payment methods including credit card, debit card and even a check online.</p>
+      </div>
+      <MinistryForm id={giving.entry.data.form!} title="Online giving form" />
+    </div>
+  </section>
+
+  <section class="section" id="faq">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Giving FAQ</p>
+        <h2 class="h1">Common <span class="accent">questions.</span></h2>
+      </div>
+      <Faq items={faq} />
+    </div>
+  </section>
+
+  <Cta title="Still have questions?" text="We are happy to help.">
+    <a class="btn" href={`mailto:${CHURCH.email}`}>Email us</a>
+    <a class="btn btn-light" href={tel}>Call {CHURCH.phone}</a>
+  </Cta>
+
+  <Footer slot="footer" />
+</Base>
+
+<style>
+  .verse { margin-top: 1.5rem; max-width: 40ch; border-left: 3px solid var(--gold); padding-left: 1.25rem; font-family: var(--font-display); font-size: var(--step-1); line-height: 1.45; }
+  .verse cite { display: block; margin-top: 0.5rem; font-family: var(--font-body); font-size: var(--step--1); font-style: normal; font-weight: 700; letter-spacing: 0.04em; color: var(--gold-ink-sm); }
+  .ways .card { height: 100%; }
+  .ways .link { display: inline-block; margin-top: 0.75rem; font-weight: 700; }
+</style>

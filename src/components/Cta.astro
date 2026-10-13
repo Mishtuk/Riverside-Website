@@ -1,0 +1,11 @@
+---
+interface Props { title: string; text?: string; band?: string }
+const { title, text, band = 'band-dark' } = Astro.props;
+---
+<section class={`section cta-band ${band}`}>
+  <div class="container">
+    <h2>{title}</h2>
+    {text && <p>{text}</p>}
+    <div class="btn-row"><slot /></div>
+  </div>
+</section>

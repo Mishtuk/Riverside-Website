@@ -1,0 +1,233 @@
+---
+import Base from '../../layouts/Base.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import PageHead from '../../components/PageHead.astro';
+import Cta from '../../components/Cta.astro';
+import { CHURCH, href } from '../../lib/site';
+import { page } from '../../lib/md';
+import staff from '../../content/staff.json';
+import { ABOUT_PAGES } from '../../lib/about';
+
+const { entry } = await page('about');
+// The old CMS copy points at a sidebar we no longer have; drop that sentence if it is still there.
+const story = (entry.rendered?.html ?? '').replace(/\s*Click on any of the links on the left side of this page to learn more\.?/i, '');
+const subs = await Promise.all(
+  ABOUT_PAGES.map(async (p) => ({ ...p, description: (await page(p.id)).entry.data.description })),
+);
+const [lead, rest] = CHURCH.tagline.replace(/\.$/, '').split(' to reflect ');
+
+const values = [
+  { title: 'Relationships', text: 'With Jesus and with each other. We need both to grow.' },
+  { title: 'Gospel-focused teaching', text: 'Every sermon and group points back to Jesus.' },
+  { title: 'Faith & dependence', text: 'Following God into uncomfortable territory.' },
+  { title: 'Transformation', text: 'Reaching the lost and growing those who know Him.' },
+  { title: 'Community', text: 'Loving and serving our neighbors in Horsham.' },
+  { title: 'Church planting', text: 'Developing leaders and sending them out.' },
+  { title: 'Generous', text: 'Jesus was generous with us beyond measure.' },
+  { title: 'Simple', text: 'A few things, done really well.' },
+];
+
+const initials = (n: string) => n.split(' ').map((w) => w[0]).slice(0, 2).join('');
+const slug = (n: string) => n.split(' ')[0].toLowerCase();
+const pad = (i: number) => String(i + 1).padStart(2, '0');
+---
+
+<Base
+  title="About | Riverside Community Church"
+  description="Who we are: the story of Riverside Community Church in Horsham, PA, what we believe, our values, and the people who lead us."
+>
+  <Header slot="header" />
+
+  <PageHead
+    eyebrow="About"
+    title="Who we are"
+    lede="A church family in Horsham, PA, centered on Jesus since 2000."
+    image="/media/photos/stage.jpg"
+    focus="40% 30%"
+  />
+
+  <section class="section story-section">
+    <div class="container story">
+      <div class="story-text">
+        <p class="eyebrow">Our story</p>
+        <h2 class="h1">It started in a <span class="accent">movie theater.</span></h2>
+        <div class="prose" set:html={story} />
+      </div>
+      <figure class="story-media reveal">
+        <div class="media"><img src={href('/media/photos/community.jpg')} alt="The Riverside congregation gathering before a Sunday service" width="1200" height="675" loading="lazy" /></div>
+        <ol class="milestones">
+          <li><strong>2000</strong><span>First service at the Regal 22, Warrington</span></li>
+          <li><strong>2013</strong><span>A building of our own on Columbia Avenue</span></li>
+          <li><strong>Today</strong><span>{CHURCH.times}</span></li>
+        </ol>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section band-paper mission" aria-labelledby="mission-title">
+    <div class="container">
+      <p class="eyebrow" id="mission-title">Our mission</p>
+      <blockquote class="reveal">
+        <p>{rest ? <>{lead} to reflect <span class="accent">{rest}.</span></> : CHURCH.tagline}</p>
+      </blockquote>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container beliefs">
+      <div class="section-head beliefs-head">
+        <p class="eyebrow">Our identity</p>
+        <h2 class="h1">What we believe, <span class="accent">and why.</span></h2>
+        <p>The most important thing about any church is what it believes about Jesus: who He is, what He has done, and how we live in response.</p>
+      </div>
+      <ol class="index">
+        {subs.map((s, i) => (
+          <li>
+            <a href={href(`/about/${s.slug}`)}>
+              <span class="num" aria-hidden="true">{pad(i)}</span>
+              <span class="index-body">
+                <span class="index-title">{s.label}</span>
+                {s.description && <span class="index-desc">{s.description}</span>}
+              </span>
+              <span class="arrow" aria-hidden="true">&rarr;</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <section class="section band-stone" aria-labelledby="values-title">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Core values</p>
+        <h2 class="h1" id="values-title">What shapes <span class="accent">everything we do.</span></h2>
+      </div>
+      <ol class="values">
+        {values.map((v, i) => (
+          <li class="card reveal">
+            <span class="num" aria-hidden="true">{pad(i)}</span>
+            <h3>{v.title}</h3>
+            <p>{v.text}</p>
+          </li>
+        ))}
+      </ol>
+      <p class="values-more"><a class="link link-arrow" href={href('/about/core-values')}>Read our core values in full</a></p>
+    </div>
+  </section>
+
+  <section class="section" id="staff">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Staff &amp; elders</p>
+        <h2 class="h1">Meet the <span class="accent">people.</span></h2>
+      </div>
+      <div class="people">
+        {staff.map((p) => (
+          <article class="person card" id={slug(p.name)}>
+            {p.photo
+              ? <img class="avatar" src={href('/media/photos/ezra.jpg')} alt={p.name} width="160" height="160" loading="lazy" />
+              : <div class="avatar mono" aria-hidden="true">{initials(p.name)}</div>}
+            <div>
+              <h3>{p.name}</h3>
+              <p class="role">{p.title}</p>
+              <p>{p.bio}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <Cta title="Come see for yourself." text="Everyone is welcome. Join us any Sunday.">
+    <a class="btn" href={href('/im-new')}>Plan your visit</a>
+    <a class="btn btn-light" href={href('/connect')}>Say hello</a>
+  </Cta>
+
+  <Footer slot="footer" />
+</Base>
+
+<style>
+  /* Story: text + photo with milestone card */
+  .story { display: grid; gap: clamp(2.5rem, 2rem + 3vw, 5rem); align-items: start; }
+  .story-text h2 { margin: 0.75rem 0 1.75rem; max-width: 16ch; }
+  .story-text .prose :global(p:first-child::first-letter) {
+    float: left; margin: 0.08em 0.12em 0 0; font-family: var(--font-display); font-size: 3.6em; line-height: 0.8; color: var(--gold-ink);
+  }
+  .story-media { position: relative; }
+  .story-media .media { aspect-ratio: 4 / 3; box-shadow: var(--shadow-l); }
+  .story-media .media img { object-position: 55% 50%; }
+  .milestones {
+    list-style: none; padding: 1.5rem 1.75rem; display: grid; gap: 1.1rem;
+    background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow-m);
+    margin: -4rem 1rem 0; position: relative;
+  }
+  .milestones li { display: grid; grid-template-columns: 5.5rem 1fr; gap: 1rem; align-items: baseline; }
+  .milestones li + li { padding-top: 1.1rem; border-top: 1px solid var(--line); }
+  .milestones strong { font-family: var(--font-display); font-weight: 400; font-size: var(--step-2); color: var(--gold-ink); line-height: 1; }
+  .milestones span { color: var(--muted); line-height: 1.4; }
+
+  /* Mission pull-quote */
+  .mission { text-align: center; position: relative; overflow: hidden; background: radial-gradient(50% 70% at 50% 55%, rgb(228 210 166 / 0.4), rgb(228 210 166 / 0) 100%), var(--paper); }
+  .mission .eyebrow::after { content: ''; width: 2rem; height: 2px; background: var(--gold); }
+  .mission blockquote { margin: 2.5rem auto 0; position: relative; }
+  .mission blockquote::before {
+    content: '\201C'; position: absolute; left: 50%; top: -0.2em; translate: -50% 0; z-index: 0;
+    font-family: var(--font-display); font-size: clamp(9rem, 6rem + 12vw, 16rem); line-height: 1; color: var(--gold); opacity: 0.3;
+  }
+  .mission blockquote p { position: relative; max-width: 22ch; margin-inline: auto; font-family: var(--font-display); font-size: var(--step-4); line-height: 1.15; text-wrap: balance; }
+
+  /* Beliefs index */
+  .beliefs { display: grid; gap: clamp(1.5rem, 1rem + 2vw, 3rem); }
+  .index { list-style: none; padding: 0; border-top: 1px solid var(--line); }
+  .index li { border-bottom: 1px solid var(--line); }
+  .index a {
+    display: grid; grid-template-columns: 2.75rem 1fr auto; gap: 1rem; align-items: start;
+    padding: 1.5rem 0.5rem; text-decoration: none; border-radius: var(--radius-s);
+    transition: background-color 0.3s var(--ease), padding 0.4s var(--ease);
+  }
+  .index a:hover { background: var(--paper); padding-inline: 1.25rem; }
+  .num { font-family: var(--font-display); font-size: var(--step-1); color: var(--gold-ink); line-height: 1.4; }
+  .index-title { display: block; font-family: var(--font-display); font-size: var(--step-2); line-height: 1.2; }
+  .index-desc { display: block; margin-top: 0.4rem; color: var(--muted); font-size: var(--step--1); line-height: 1.5; max-width: 56ch; }
+  .arrow { font-size: 1.4rem; color: var(--gold-ink); line-height: 1.6; transition: transform 0.3s var(--ease); }
+  .index a:hover .arrow { transform: translateX(6px); }
+
+  /* Values */
+  .values { list-style: none; padding: 0; display: grid; gap: clamp(0.75rem, 0.5rem + 1vw, 1.25rem); }
+  .values .card { display: grid; grid-template-columns: 2.5rem 1fr; column-gap: 0.75rem; row-gap: 0.2rem; padding-block: 1.1rem; }
+  .values .num { grid-row: span 2; }
+  .values h3 { font-size: var(--step-1); margin: 0; }
+  .values p { font-size: var(--step--1); line-height: 1.5; }
+  .values-more { margin-top: clamp(1.5rem, 1rem + 1.5vw, 2.25rem); }
+
+  /* Staff */
+  .people { display: grid; gap: 1.5rem; }
+  .person { display: grid; gap: 1.5rem; align-items: start; }
+  .avatar { width: 7rem; aspect-ratio: 1; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 4px var(--paper), 0 0 0 6px var(--gold); }
+  .mono {
+    display: grid; place-items: center; background: var(--stone); color: var(--gold-ink);
+    font-family: var(--font-display); font-size: 2.25rem; letter-spacing: 0.03em;
+  }
+  .person h3 { margin-bottom: 0; }
+  .role { font-weight: 700; font-size: var(--step--1); letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold-ink-sm) !important; margin-bottom: 0.75rem; }
+
+  @media (min-width: 560px) {
+    .values { grid-template-columns: 1fr 1fr; }
+    .values .card { display: flex; flex-direction: column; gap: 0.35rem; padding-block: clamp(1.25rem, 1rem + 1vw, 2rem); }
+    .values h3 { margin-top: 0.35rem; }
+  }
+  @media (min-width: 720px) {
+    .people { grid-template-columns: 1fr 1fr; }
+    .person { grid-template-columns: 7rem 1fr; }
+  }
+  @media (min-width: 900px) {
+    .story { grid-template-columns: 1.15fr 0.85fr; }
+    .story-media { margin-top: 2.5rem; }
+    .story-media .media { aspect-ratio: 4 / 5; }
+    .beliefs { grid-template-columns: 0.8fr 1.2fr; align-items: start; }
+    .beliefs-head { position: sticky; top: calc(var(--header-h) + 2rem); }
+  }
+  @media (min-width: 1024px) { .values { grid-template-columns: repeat(4, 1fr); } }
+</style>

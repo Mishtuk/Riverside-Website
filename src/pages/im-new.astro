@@ -1,0 +1,176 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHead from '../components/PageHead.astro';
+import Cta from '../components/Cta.astro';
+import Faq from '../components/Faq.astro';
+import { CHURCH, href } from '../lib/site';
+import { page, sections } from '../lib/md';
+
+const expect = sections((await page('what-to-expect')).entry.body);
+const kids = expect.find((s) => /kids/i.test(s.title))!;
+const cards = expect.filter((s) => s !== kids);
+const parking = sections((await page('directions-and-times')).entry.body).find((s) => s.title === 'Parking')!;
+const tel = `tel:+1${CHURCH.phone.replace(/\D/g, '')}`;
+
+const long = (t: RegExp) => cards.find((c) => t.test(c.title))!.html;
+const faq = [
+  { title: 'What should I wear?', html: long(/dress/i) },
+  { title: 'Will I be asked to stand up or introduce myself?', html: long(/welcoming/i) },
+  { title: 'What is the music like?', html: long(/guitars/i) },
+  { title: 'What is the teaching like?', html: long(/teaching/i) },
+  { title: 'How long is the service?', html: long(/length/i) },
+  { title: 'Is there coffee?', html: long(/coffee/i) },
+  { title: 'Is there something for my kids?', html: `<p>Yes. Children&rsquo;s classes run during the 10:30am service for ages 0&ndash;2, 2&ndash;3, 4&ndash;5 and 6&ndash;12. <a href="#kids">Read more below.</a></p>` },
+  { title: 'Can I watch online first?', html: `<p>Of course. The service is livestreamed at 10:30am and recorded. <a href="${href('/watch')}">Watch here</a>.</p>` },
+  { title: 'Who can I ask a question?', html: `<p>Call <a href="${tel}">${CHURCH.phone}</a> or email <a href="mailto:${CHURCH.email}">${CHURCH.email}</a>.</p>` },
+];
+
+// Short, scannable "what to expect" cards. Long copy lives in the FAQ below. Icons: Lucide (ISC).
+const expectCards = [
+  { title: 'Come as you are', text: 'Jeans or Sunday best. There is no dress code.', icon: '<path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>' },
+  { title: 'No spotlight', text: 'No one will ask you to stand up or introduce yourself.', icon: '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/>' },
+  { title: 'A live band', text: 'Modern anthems and fresh takes on timeless hymns.', icon: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>' },
+  { title: 'Real-life teaching', text: 'Practical messages, verse by verse through the Bible.', icon: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>' },
+  { title: 'About an hour', text: 'Music, a 30-minute message, then more music.', icon: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>' },
+  { title: 'Breakfast is on us', text: 'Free coffee, bagels, donuts and fruit at the Cafe.', icon: '<path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><path d="M6 2v2M10 2v2M14 2v2"/>' },
+];
+---
+
+<Base
+  title="I'm New | Riverside Community Church"
+  description="Planning a first visit to Riverside Community Church in Horsham, PA? Service times, what to expect, kids' classes, parking and directions."
+>
+  <Header slot="header" />
+
+  <PageHead eyebrow="I'm New" title="We saved you a seat." lede="Come as you are. Here is everything you need to know before your first Sunday." image="/media/photos/welcome.jpg" focus="60% 40%" />
+
+  <section class="section">
+    <div class="container visit">
+      <div>
+        <p class="eyebrow">Plan your visit</p>
+        <h2 class="h1">Join us on <span class="accent">Sunday morning.</span></h2>
+        <dl class="facts">
+          <div><dt>When</dt><dd>{CHURCH.times}</dd></div>
+          <div><dt>Kids &amp; livestream</dt><dd>{CHURCH.timesNote}</dd></div>
+          <div><dt>Where</dt><dd>{CHURCH.street}<br />{CHURCH.city}, {CHURCH.region} {CHURCH.zip}</dd></div>
+          <div><dt>Questions?</dt><dd><a href={tel}>{CHURCH.phone}</a></dd></div>
+        </dl>
+        <div class="btn-row">
+          <a class="btn" href={CHURCH.mapsUrl} rel="noopener">Get directions</a>
+          <a class="btn btn-outline" href={href('/connect')}>Let us know you&rsquo;re coming</a>
+        </div>
+      </div>
+      <div class="media photo reveal"><img src={href('/media/photos/coffee.jpg')} alt="Fresh donuts at the Riverside Cafe on a Sunday morning" width="1200" height="900" loading="lazy" /></div>
+    </div>
+  </section>
+
+  <section class="section band-stone">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">What to expect</p>
+        <h2 class="h1">No surprises, <span class="accent">just a warm welcome.</span></h2>
+      </div>
+      <div class="expect">
+        {expectCards.map((c) => (
+          <article class="card expect-card reveal">
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" set:html={c.icon} />
+            </span>
+            <h3>{c.title}</h3>
+            <p>{c.text}</p>
+          </article>
+        ))}
+      </div>
+      <p class="expect-more"><a class="link link-arrow" href="#faq">More details in the FAQ</a></p>
+    </div>
+  </section>
+
+  <section class="section" id="kids">
+    <div class="container split flip">
+      <div class="media photo reveal"><img src={href('/media/photos/kids.jpg')} alt="Kids having fun in a Riverside children's class" width="1200" height="900" loading="lazy" /></div>
+      <div class="stack">
+        <p class="eyebrow">Kids</p>
+        <h2 class="h1">Fun for your kids, <span class="accent">peace for you.</span></h2>
+        <div class="prose" set:html={kids.html} />
+        <p class="muted">Classes for ages 0&ndash;2, 2&ndash;3, 4&ndash;5 and 6&ndash;12 &middot; {CHURCH.timesNote}.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section band-stone" id="directions">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Parking &amp; directions</p>
+        <h2 class="h1">Finding <span class="accent">us.</span></h2>
+        <p>{CHURCH.street}, {CHURCH.city}, {CHURCH.region} {CHURCH.zip}</p>
+      </div>
+      <div class="split">
+        <div class="stack prose" set:html={parking.html} />
+        <div class="map">
+          <iframe
+            src={CHURCH.mapsEmbed}
+            title="Map showing Riverside Community Church at 239 Columbia Avenue, Horsham"
+            width="800" height="600" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+          ></iframe>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="faq">
+    <div class="container faq-wrap">
+      <div class="section-head">
+        <p class="eyebrow">Questions</p>
+        <h2 class="h1">First-timer <span class="accent">FAQ.</span></h2>
+        <p>The longer answers, for anyone who likes to know exactly what they are walking into.</p>
+      </div>
+      <Faq items={faq} />
+    </div>
+  </section>
+
+  <Cta title="Tell us you're coming." text="Let us know you're visiting, or take a next step in your faith, and someone will reach out.">
+    <a class="btn" href={href('/connect')}>Fill out the response form</a>
+    <a class="btn btn-light" href={href('/watch')}>Watch online first</a>
+  </Cta>
+
+  <Footer slot="footer" />
+</Base>
+
+<style>
+  .visit { display: grid; gap: clamp(2.5rem, 2rem + 3vw, 4.5rem); align-items: center; }
+  .visit h2 { margin-top: 0.75rem; }
+  .facts { display: grid; gap: 1.5rem; margin: 2.25rem 0; }
+  .facts div { padding-left: 1.25rem; border-left: 2px solid var(--gold); }
+  dt { font-size: var(--step--1); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold-ink-sm); }
+  dd { margin-top: 0.2rem; font-family: var(--font-display); font-size: var(--step-1); line-height: 1.35; }
+  dd a { color: inherit; text-decoration-color: var(--gold); text-underline-offset: 4px; }
+  .photo { aspect-ratio: 4 / 3; box-shadow: var(--shadow-l); }
+  .map { overflow: hidden; aspect-ratio: 4 / 3; border-radius: var(--radius); box-shadow: var(--shadow-l); background: var(--stone); }
+  .map iframe { width: 100%; height: 100%; border: 0; }
+  .expect { display: grid; gap: clamp(1rem, 0.5rem + 1.5vw, 1.5rem); }
+  /* Phone: compact row (icon left). Wider: equal-height stacked cards. */
+  .expect-card { display: grid; grid-template-columns: auto 1fr; column-gap: 1.1rem; row-gap: 0.2rem; align-items: start; border: 1px solid var(--line); }
+  .expect-card .icon { grid-row: span 2; }
+  .expect-card h3 { font-size: var(--step-2); margin: 0.15rem 0 0; }
+  .expect-card p { font-size: var(--step-0); line-height: 1.5; }
+  .icon {
+    display: grid; place-items: center; width: 3.5rem; aspect-ratio: 1; border-radius: 50%;
+    background: radial-gradient(circle at 30% 25%, #fff, var(--gold-soft)); color: var(--gold-ink-sm);
+    box-shadow: inset 0 0 0 1px rgb(199 163 89 / 0.45);
+  }
+  .expect-more { margin-top: clamp(1.5rem, 1rem + 1.5vw, 2.25rem); }
+  @media (min-width: 560px) {
+    .expect { grid-template-columns: 1fr 1fr; }
+    .expect-card { display: flex; flex-direction: column; gap: 0.6rem; }
+    .expect-card h3 { margin-top: 0.6rem; }
+  }
+  @media (min-width: 1024px) { .expect { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 640px) { .facts { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 900px) {
+    .visit { grid-template-columns: 1.1fr 1fr; }
+    .faq-wrap { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: clamp(2rem, 1rem + 3vw, 4.5rem); align-items: start; }
+    .faq-wrap .section-head { position: sticky; top: calc(var(--header-h) + 2rem); }
+  }
+</style>

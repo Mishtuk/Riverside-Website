@@ -1,0 +1,74 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import Hero from '../components/home/Hero.astro';
+import NewHere from '../components/home/NewHere.astro';
+import LatestMessage from '../components/home/LatestMessage.astro';
+import PodcastTeaser from '../components/home/PodcastTeaser.astro';
+import GetInvolved from '../components/home/GetInvolved.astro';
+import GiveBand from '../components/home/GiveBand.astro';
+import Visit from '../components/home/Visit.astro';
+import { CHURCH, href } from '../lib/site';
+
+const url = new URL(href('/'), Astro.site).href;
+const service = (name: string, startTime: string) => ({
+  '@type': 'Event',
+  name,
+  eventAttendanceMode: 'https://schema.org/MixedEventAttendanceMode',
+  eventSchedule: {
+    '@type': 'Schedule',
+    byDay: 'https://schema.org/Sunday',
+    repeatFrequency: 'P1W',
+    startTime,
+    scheduleTimezone: 'America/New_York',
+  },
+  location: { '@type': 'Place', name: CHURCH.name, address: `${CHURCH.street}, ${CHURCH.city}, ${CHURCH.region} ${CHURCH.zip}` },
+});
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Church',
+  name: CHURCH.name,
+  alternateName: 'Riverside Connect',
+  slogan: CHURCH.tagline,
+  url,
+  logo: new URL(href('/brand/church-reduce.png'), Astro.site).href,
+  image: new URL(href('/media/hero-poster.jpg'), Astro.site).href,
+  telephone: `+1-${CHURCH.phone}`,
+  email: CHURCH.email,
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: CHURCH.street,
+    addressLocality: CHURCH.city,
+    addressRegion: CHURCH.region,
+    postalCode: CHURCH.zip,
+    addressCountry: 'US',
+  },
+  openingHoursSpecification: {
+    '@type': 'OpeningHoursSpecification',
+    dayOfWeek: 'https://schema.org/Sunday',
+    opens: '09:00',
+    closes: '12:00',
+  },
+  sameAs: Object.values(CHURCH.socials),
+  event: [service(`Sunday Service, ${CHURCH.services[0].label}`, CHURCH.services[0].start), service(`Sunday Service, ${CHURCH.services[1].label} (livestream and kids)`, CHURCH.services[1].start)],
+};
+---
+
+<Base title="Riverside Community Church | Horsham, PA">
+  <Fragment slot="head">
+    <link rel="preload" as="image" href={href('/media/hero-poster.jpg')} fetchpriority="high" />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </Fragment>
+  <Header slot="header" overlay />
+
+  <Hero />
+  <NewHere />
+  <LatestMessage />
+  <PodcastTeaser />
+  <GetInvolved />
+  <GiveBand />
+  <Visit />
+
+  <Footer slot="footer" />
+</Base>

@@ -1,0 +1,90 @@
+---
+import { CHURCH, NAV, href } from '../lib/site';
+const tel = `tel:+1${CHURCH.phone.replace(/\D/g, '')}`;
+---
+
+<footer class="site-footer on-dark">
+  <div class="container footer-grid">
+    <div class="footer-brand">
+      <a href={href('/')} aria-label="Riverside Community Church home">
+        <img src={href('/brand/riversidelogo2.png')} alt="" width="600" height="200" loading="lazy" />
+      </a>
+      <p class="footer-tagline">{CHURCH.tagline}</p>
+      <ul class="socials" aria-label="Social media">
+        <li><a href={CHURCH.socials.instagram} rel="noopener">Instagram</a></li>
+        <li><a href={CHURCH.socials.youtube} rel="noopener">YouTube</a></li>
+        <li><a href={CHURCH.socials.facebook} rel="noopener">Facebook</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <p class="fh">Visit</p>
+      <address>
+        <a href={CHURCH.mapsUrl} rel="noopener">{CHURCH.street}<br />{CHURCH.city}, {CHURCH.region} {CHURCH.zip}</a>
+      </address>
+      <p class="times">{CHURCH.times}<br /><span>{CHURCH.timesNote}</span></p>
+    </div>
+
+    <div>
+      <p class="fh">Contact</p>
+      <ul>
+        <li><a href={tel}>{CHURCH.phone}</a></li>
+        <li><a href={`mailto:${CHURCH.email}`}>{CHURCH.email}</a></li>
+      </ul>
+    </div>
+
+    <nav aria-label="Footer">
+      <p class="fh">Explore</p>
+      <ul>
+        {NAV.map((l) => <li><a href={href(l.path)}>{l.label}</a></li>)}
+        <li><a href={href('/give')}>Give</a></li>
+      </ul>
+    </nav>
+  </div>
+
+  <div class="container footer-bottom">
+    <p>&copy; 2026 {CHURCH.name}. All rights reserved.</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer { background: var(--ink); color: var(--on-dark); padding-top: clamp(3.5rem, 2rem + 5vw, 6rem); }
+  .footer-grid { display: grid; gap: 2.5rem; grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 1024px) { .footer-grid { grid-template-columns: 1.6fr 1fr 1.1fr 0.8fr; gap: 3rem; } }
+
+  .footer-brand img { width: 210px; height: auto; filter: invert(1); }
+  .footer-tagline {
+    margin-top: 1.25rem; max-width: 26ch;
+    font-family: var(--font-display); font-size: var(--step-2); line-height: 1.25; color: var(--cream);
+  }
+
+  .fh {
+    margin-bottom: 1rem; font-family: var(--font-body); font-size: var(--step--1); font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold);
+  }
+  ul { list-style: none; padding: 0; }
+  nav ul { columns: 2; }
+  @media (min-width: 1024px) { nav ul { columns: 1; } }
+  li + li { margin-top: 0.15rem; }
+  address { font-style: normal; }
+  a { color: var(--on-dark); text-decoration: none; overflow-wrap: anywhere; }
+  .footer-grid li a, address a { display: inline-block; padding-block: 0.4rem; }
+  .footer-grid a:hover { color: var(--gold); text-decoration: underline; text-underline-offset: 4px; }
+  .times { margin-top: 0.75rem; color: var(--on-dark); }
+  .times span { color: var(--on-dark-muted); }
+
+  .socials { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.75rem; }
+  .socials li + li { margin: 0; }
+  .footer-grid .socials a {
+    display: inline-flex; align-items: center; min-height: 44px; padding: 0 1.1rem;
+    border: 1px solid rgb(239 237 232 / 0.28); border-radius: var(--radius-pill); font-size: 0.95rem;
+    transition: border-color 0.25s var(--ease), background-color 0.25s var(--ease), color 0.25s var(--ease);
+  }
+  .footer-grid .socials a:hover { border-color: var(--gold); background: var(--gold); color: var(--ink); text-decoration: none; }
+
+  .footer-bottom {
+    margin-top: clamp(3rem, 2rem + 4vw, 5rem); padding-block: 1.5rem 2rem;
+    border-top: 1px solid rgb(239 237 232 / 0.14); color: var(--on-dark-muted); font-size: var(--step--1);
+  }
+</style>

@@ -1,0 +1,194 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHead from '../components/PageHead.astro';
+import Cta from '../components/Cta.astro';
+import Facade from '../components/Facade.astro';
+import MinistryForm from '../components/MinistryForm.astro';
+import { CHURCH, href } from '../lib/site';
+import { page, sections, intro } from '../lib/md';
+import { MAILCHIMP_PRAYER, ESL_FORM, DISCIPLESHIP_FORM, RIGHTNOW_URL } from '../lib/links';
+
+const mail = `mailto:${CHURCH.email}`;
+const disc = await page('discipleship');
+const women = await page('women');
+const prayer = await page('prayer');
+const serving = await page('serving');
+const bapt = await page('baptisms');
+const rightnow = await page('rightnow');
+const guides = await page('study-guides');
+
+const ids = (bapt.entry.data.youtube ?? '').split(',').map((s) => s.trim());
+const names = (bapt.entry.body ?? '').split('## Testimonies')[1]?.split('<!--')[0].trim().split(/,\s*/) ?? [];
+const testimonies = ids.map((id, i) => ({ id, name: names[i] ?? 'Baptism testimony' })).slice(0, 6);
+const titleCase = (s: string) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+
+const chips = [
+  ['discipleship', 'Discipleship'], ['esl', 'ESL'], ['prayer', 'Prayer'],
+  ['serving', 'Serving'], ['baptisms', 'Baptisms'], ['resources', 'Resources'],
+];
+---
+
+<Base
+  title="Get Involved | Riverside Community Church"
+  description="Grow, belong and serve at Riverside: discipleship groups, ESL classes, prayer, serving teams, baptisms, RightNow Media and Bible study guides."
+>
+  <Header slot="header" />
+
+  <PageHead eyebrow="Get involved" title="Grow, belong and serve." image="/media/photos/community.jpg" focus="center" lede="There is a place for you at Riverside. Pick a next step." />
+
+  <nav class="subnav" aria-label="On this page">
+    <div class="container">
+      <ul class="chips">{chips.map(([id, label]) => <li><a href={`#${id}`}>{label}</a></li>)}</ul>
+    </div>
+  </nav>
+
+  <section class="section" id="discipleship">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Discipleship</p>
+        <h2 class="h1">Follow Jesus <span class="accent">together.</span></h2>
+      </div>
+      <div class="prose"><disc.Content /></div>
+
+      <div class="cards-grid pair">
+        <article class="card" id="men">
+          <h3>Men</h3>
+          <div class="prose small"><p>Men At The River is our men&rsquo;s group. Email us and we will help you get connected.</p></div>
+          <p><a class="link link-arrow" href={mail}>Ask about the men&rsquo;s group</a></p>
+        </article>
+        <article class="card" id="women">
+          <h3>Women</h3>
+          <div class="prose small"><women.Content /></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section band-paper" id="esl">
+    <div class="container split">
+      <div class="stack">
+        <p class="eyebrow">ESL</p>
+        <h2 class="h1">English classes, <span class="accent">everyone welcome.</span></h2>
+        <p class="muted">Practice English in a friendly, patient class. Register for our ESL program with the form below.</p>
+        <div class="btn-row"><a class="btn" href={ESL_FORM} rel="noopener">Register for ESL</a></div>
+      </div>
+      <p class="hello" aria-hidden="true">Hello <span>Hola</span> Ol&aacute; <span>Bonjour</span> &#20320;&#22909;</p>
+    </div>
+  </section>
+
+  <section class="section" id="prayer">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Prayer</p>
+        <h2 class="h1">We would love to <span class="accent">pray with you.</span></h2>
+        <p>Our Sunday morning prayer group meets {CHURCH.prayerTime} in the Counseling Office.</p>
+      </div>
+      <div class="prose"><prayer.Content /></div>
+
+      <form class="mc card" action={MAILCHIMP_PRAYER.action} method="post" target="_blank">
+        <h3>Daily prayer emails</h3>
+        <label>Email address <input type="email" name="EMAIL" required autocomplete="email" /></label>
+        <label>First name <input type="text" name="FNAME" required autocomplete="given-name" /></label>
+        <label>Last name <input type="text" name="LNAME" required autocomplete="family-name" /></label>
+        <div class="hp" aria-hidden="true"><input type="text" name={MAILCHIMP_PRAYER.honeypot} tabindex="-1" /></div>
+        <button class="btn btn-dark" type="submit">Sign up</button>
+      </form>
+
+      <h3 class="h3 sub">Send a prayer request or praise</h3>
+      <MinistryForm id={prayer.entry.data.form!} title="Prayer request form" />
+    </div>
+  </section>
+
+  <section class="section band-stone" id="serving">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Serving</p>
+        <h2 class="h1">Get into <span class="accent">gear.</span></h2>
+        <div set:html={intro(serving.entry.body)} />
+      </div>
+      <div class="cards-grid">
+        {sections(serving.entry.body).map((s) => (
+          <article class="card"><h3>{s.title}</h3><div set:html={s.html} /></article>
+        ))}
+      </div>
+      <div class="btn-row more"><a class="btn btn-dark" href={mail}>Email us to serve</a></div>
+    </div>
+  </section>
+
+  <section class="section" id="baptisms">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Baptisms</p>
+        <h2 class="h1">Take the <span class="accent">next step.</span></h2>
+      </div>
+      <div class="prose"><bapt.Content /></div>
+      <div class="vids">
+        {testimonies.map((t) => (
+          <figure>
+            <Facade
+              embed={`https://www.youtube-nocookie.com/embed/${t.id}?autoplay=1&rel=0`}
+              href={`https://www.youtube.com/watch?v=${t.id}`}
+              thumb={`https://i.ytimg.com/vi/${t.id}/hqdefault.jpg`}
+              title={`${titleCase(t.name)} baptism testimony`}
+            />
+            <figcaption>{titleCase(t.name)}</figcaption>
+          </figure>
+        ))}
+      </div>
+      <div class="btn-row more">
+        <a class="btn btn-outline" href={CHURCH.socials.youtube} rel="noopener">More testimonies on YouTube</a>
+        <a class="btn btn-dark" href={mail}>Ask about baptism</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section band-paper" id="resources">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Resources</p>
+        <h2 class="h1">Keep <span class="accent">growing.</span></h2>
+      </div>
+      <div class="cards-grid pair">
+        <article class="card" id="rightnow">
+          <h3>RightNow Media</h3>
+          <div class="prose small"><rightnow.Content /></div>
+          <div class="btn-row"><a class="btn btn-sm" href={RIGHTNOW_URL} rel="noopener">Create a free account</a></div>
+        </article>
+        <article class="card" id="study-guides">
+          <h3>Study guides</h3>
+          <div class="prose small"><guides.Content /></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <Cta title="Not sure where to start?" text="Tell us a little about yourself and we will help you find your place.">
+    <a class="btn" href={href('/connect')}>Contact us</a>
+    <a class="btn btn-light" href={href('/im-new')}>Plan a visit</a>
+  </Cta>
+
+  <Footer slot="footer" />
+</Base>
+
+<style>
+  .pair { grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); margin-top: 3rem; }
+  .pair .card { height: 100%; }
+  .pair .card h3 { font-size: var(--step-2); }
+  .prose.small { font-size: var(--step--1); max-width: none; }
+  .prose.small p { color: var(--ink); }
+  .prose :global(h2) { font-size: var(--step-2); }
+  .hello { font-family: var(--font-display); font-size: var(--step-5); line-height: 1.1; color: var(--gold-ink); }
+  .hello span { color: var(--ink); }
+  .sub { margin: 3rem 0 1rem; }
+  .mc { display: grid; gap: 1rem; max-width: 34rem; margin-top: 2rem; }
+  .mc label { display: grid; gap: 0.3rem; font-weight: 700; font-size: var(--step--1); }
+  .mc input { padding: 0.75rem 1rem; min-height: 48px; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; font-weight: 400; }
+  .mc button { justify-self: start; }
+  .hp { position: absolute; left: -5000px; }
+  .vids { display: grid; gap: 1.5rem; margin-top: 2.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); }
+  figure { margin: 0; }
+  figcaption { margin-top: 0.6rem; font-weight: 700; }
+  .more { margin-top: 2rem; }
+</style>

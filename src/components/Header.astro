@@ -1,0 +1,155 @@
+---
+import { NAV, href } from '../lib/site';
+
+interface Props {
+  /** Transparent header over a full-bleed hero (home page). Solid cream otherwise. */
+  overlay?: boolean;
+}
+const { overlay = false } = Astro.props;
+const here = Astro.url.pathname.replace(/\/$/, '');
+const isCurrent = (path: string) => here === href(path) || here.startsWith(href(path) + '/');
+---
+
+{overlay && <div class="header-sentinel" aria-hidden="true"></div>}
+<header class:list={['site-header', { 'is-overlay': overlay }]} data-overlay={overlay ? '' : undefined}>
+  <div class="container header-bar">
+    <a class="brand" href={href('/')}>
+      <img src={href('/brand/logo-header.webp')} alt="Riverside Community Church home" width="156" height="52" />
+    </a>
+
+    <nav class="nav-desktop" aria-label="Main">
+      <ul>
+        {NAV.map((l) => (
+          <li><a href={href(l.path)} aria-current={isCurrent(l.path) ? 'page' : undefined}>{l.label}</a></li>
+        ))}
+      </ul>
+    </nav>
+
+    <div class="header-actions">
+      <a class="btn btn-sm" href={href('/give')}>Give</a>
+      <details class="nav-mobile">
+        <summary>
+          <span class="burger" aria-hidden="true"><span></span></span>
+          <span class="menu-label">Menu</span>
+        </summary>
+        <nav aria-label="Main menu">
+          <ul>
+            {NAV.map((l) => (
+              <li><a href={href(l.path)} aria-current={isCurrent(l.path) ? 'page' : undefined}>{l.label}</a></li>
+            ))}
+            <li><a href={href('/give')}>Give</a></li>
+          </ul>
+        </nav>
+      </details>
+    </div>
+  </div>
+</header>
+
+{overlay && (
+  <script is:inline>
+    // Solid header once the hero top scrolls away. No JS: header stays absolute and scrolls off.
+    (() => {
+      const h = document.querySelector('.site-header[data-overlay]');
+      const s = document.querySelector('.header-sentinel');
+      if (!h || !s || !('IntersectionObserver' in window)) return;
+      h.classList.add('is-fixed');
+      new IntersectionObserver(([e]) => h.classList.toggle('is-solid', !e.isIntersecting)).observe(s);
+    })();
+  </script>
+)}
+
+<style>
+  .header-sentinel { position: absolute; inset: 0 0 auto; height: 120px; pointer-events: none; }
+
+  .site-header {
+    --fg: var(--ink);
+    position: sticky; top: 0; z-index: 50;
+    background: rgb(239 237 232 / 0.92);
+    backdrop-filter: saturate(1.4) blur(12px);
+    border-bottom: 1px solid var(--line);
+    color: var(--fg);
+    transition: background-color 0.35s var(--ease), border-color 0.35s var(--ease), box-shadow 0.35s var(--ease);
+  }
+  .site-header.is-overlay {
+    --fg: #fff;
+    position: absolute; inset: 0 0 auto;
+    background: transparent; border-color: transparent; backdrop-filter: none;
+  }
+  .site-header.is-overlay.is-fixed { position: fixed; }
+  .site-header.is-overlay.is-solid,
+  .site-header.is-overlay:has(details[open]) {
+    --fg: var(--ink);
+    background: rgb(239 237 232 / 0.94);
+    backdrop-filter: saturate(1.4) blur(12px);
+    border-color: var(--line);
+    box-shadow: 0 6px 24px rgb(60 45 20 / 0.08);
+  }
+
+  .header-bar { display: flex; align-items: center; gap: 1.5rem; min-height: var(--header-h); }
+  .brand { display: block; flex-shrink: 0; margin-right: auto; padding-block: 0.4rem; }
+  .brand img { height: 52px; width: auto; transition: filter 0.35s var(--ease); }
+  .is-overlay:not(.is-solid):not(:has(details[open])) .brand img { filter: invert(1); }
+
+  ul { list-style: none; padding: 0; }
+
+  .nav-desktop { display: none; }
+  .nav-desktop ul { display: flex; gap: clamp(0.25rem, 1vw, 1rem); }
+  .nav-desktop a {
+    position: relative; display: inline-flex; align-items: center; min-height: 44px; padding-inline: 0.6rem;
+    color: var(--fg); text-decoration: none; font-weight: 600; font-size: 1.02rem; white-space: nowrap;
+  }
+  .nav-desktop a::after {
+    content: ''; position: absolute; left: 0.6rem; right: 0.6rem; bottom: 6px; height: 2px;
+    background: var(--gold); transform: scaleX(0); transform-origin: left; transition: transform 0.35s var(--ease);
+  }
+  .nav-desktop a:hover::after, .nav-desktop a[aria-current='page']::after { transform: scaleX(1); }
+
+  .header-actions { display: flex; align-items: center; gap: 0.5rem; }
+
+  /* Mobile menu (native details) */
+  .nav-mobile summary {
+    display: flex; align-items: center; gap: 0.5rem; min-height: 44px; min-width: 44px; padding: 0 0.75rem;
+    border-radius: var(--radius-pill); color: var(--fg); font-weight: 700; list-style: none; cursor: pointer;
+  }
+  .nav-mobile summary::-webkit-details-marker { display: none; }
+  .burger { position: relative; display: block; width: 22px; height: 14px; }
+  .burger::before, .burger::after, .burger span {
+    content: ''; position: absolute; left: 0; right: 0; height: 2px; border-radius: 2px; background: currentColor;
+    transition: transform 0.3s var(--ease), opacity 0.2s;
+  }
+  .burger::before { top: 0; }
+  .burger span { top: 6px; }
+  .burger::after { top: 12px; }
+  details[open] .burger::before { transform: translateY(6px) rotate(45deg); }
+  details[open] .burger span { opacity: 0; }
+  details[open] .burger::after { transform: translateY(-6px) rotate(-45deg); }
+
+  .nav-mobile nav {
+    position: absolute; left: 0; right: 0; top: 100%;
+    background: var(--cream); border-top: 1px solid var(--line);
+    box-shadow: 0 24px 40px rgb(60 45 20 / 0.14);
+    max-height: calc(100dvh - var(--header-h)); overflow-y: auto;
+  }
+  .nav-mobile ul { width: min(100% - 2 * var(--gutter), var(--container)); margin: 0 auto; padding-block: 0.75rem 1.5rem; }
+  .nav-mobile li + li { border-top: 1px solid var(--line); }
+  .nav-mobile nav a {
+    display: flex; align-items: center; justify-content: space-between; min-height: 56px;
+    font-family: var(--font-display); font-size: 1.6rem; color: var(--ink); text-decoration: none;
+  }
+  .nav-mobile nav a::after { content: '\2192'; font-family: var(--font-body); font-size: 1.1rem; color: var(--gold-ink); }
+  .nav-mobile nav a[aria-current='page'] { color: var(--gold-ink); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    details[open] nav { animation: drop 0.35s var(--ease); }
+    @keyframes drop { from { opacity: 0; transform: translateY(-8px); } }
+  }
+
+  @media (max-width: 420px) {
+    .menu-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .brand img { height: 44px; }
+  }
+  @media (min-width: 1080px) {
+    .nav-desktop { display: block; }
+    .nav-mobile { display: none; }
+  }
+</style>

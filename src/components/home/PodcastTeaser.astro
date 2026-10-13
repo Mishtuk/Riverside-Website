@@ -1,0 +1,52 @@
+---
+import { APPLE_PODCASTS_URL } from '../../lib/podcast';
+import { CHURCH, href } from '../../lib/site';
+---
+
+<section class="section band-stone podcast" aria-labelledby="podcast-title">
+  <div class="container pod-grid">
+    <a class="cover reveal" href={href('/podcast')} aria-label="Riverside Sunday Messages podcast">
+      <img src={href('/brand/church-reduce.png')} alt="" width="622" height="622" loading="lazy" />
+      <span class="cover-title">Riverside<br />Sunday Messages</span>
+    </a>
+
+    <div class="pod-copy">
+      <h2 id="podcast-title" class="display">Listen <span class="accent">anywhere.</span></h2>
+      <p class="lede">Take Sunday with you. Hear messages from Riverside on your commute, on a walk, or at home.</p>
+      <div class="btn-row">
+        <a class="btn btn-dark" href={APPLE_PODCASTS_URL} rel="noopener">Apple Podcasts</a>
+        <a class="btn btn-outline" href={CHURCH.socials.youtube} rel="noopener">YouTube</a>
+      </div>
+      <p class="more"><a class="link link-arrow" href={href('/podcast')}>Explore the podcast and archive</a></p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .podcast { overflow: hidden; }
+  .pod-grid { display: grid; gap: clamp(2.5rem, 2rem + 3vw, 5rem); align-items: center; }
+
+  .cover {
+    position: relative; display: grid; place-items: center; align-content: center; gap: 1.25rem;
+    width: min(100% - 1.5rem, 16rem); aspect-ratio: 1; margin-inline: auto; padding: 2rem;
+    border-radius: var(--radius); text-decoration: none; color: var(--ink);
+    background:
+      radial-gradient(circle at 30% 20%, rgb(255 255 255 / 0.35), transparent 55%),
+      var(--gold);
+    box-shadow: 1.1rem 1.1rem 0 var(--ink), var(--shadow-l);
+    rotate: -3deg;
+    transition: rotate 0.5s var(--ease), transform 0.5s var(--ease);
+  }
+  .cover:hover { rotate: 0deg; transform: translateY(-4px); }
+  .cover img { width: 42%; height: auto; mix-blend-mode: multiply; }
+  .cover-title { font-family: var(--font-display); font-size: clamp(1.4rem, 1rem + 1.5vw, 2rem); line-height: 1.15; text-align: center; }
+
+  .pod-copy .lede { margin-top: 1.25rem; }
+  .pod-copy .btn-row { margin-top: 2rem; }
+  .more { margin-top: 1.5rem; }
+
+  @media (min-width: 900px) {
+    .pod-grid { grid-template-columns: 1fr 1.2fr; }
+    .cover { width: min(100% - 1.5rem, 25rem); margin-inline: 0 auto; }
+  }
+</style>

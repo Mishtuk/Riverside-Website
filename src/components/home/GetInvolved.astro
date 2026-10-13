@@ -1,0 +1,109 @@
+---
+import { href, CHURCH } from '../../lib/site';
+const gi = href('/get-involved');
+---
+
+<section class="section involved" aria-labelledby="involved-title">
+  <div class="container">
+    <h2 id="involved-title" class="h1 involved-title">Grow, belong <span class="accent">and serve.</span></h2>
+
+    <div class="bento">
+      <a class="tile tile-photo disc reveal" href={`${gi}#discipleship`}>
+        <img src={href('/media/photos/message.jpg')} alt="" width="1200" height="675" loading="lazy" decoding="async" />
+        <div class="tile-body">
+          <h3>Discipleship</h3>
+          <p>Men’s and women’s groups that study the Bible together and help each other follow Jesus every day.</p>
+          <span class="tile-cta">Find a group</span>
+        </div>
+      </a>
+
+      <a class="tile esl reveal" href={`${gi}#esl`}>
+        <p class="hello" aria-hidden="true">Hello <span>Hola</span> Olá <span>Bonjour</span> 你好</p>
+        <div class="tile-body">
+          <h3>ESL classes</h3>
+          <p>Practice English in a friendly, patient class. Everyone is welcome.</p>
+          <span class="tile-cta">Register</span>
+        </div>
+      </a>
+
+      <a class="tile tile-photo prayer reveal" href={`${gi}#prayer`}>
+        <img src={href('/media/photos/community.jpg')} alt="" width="1200" height="675" loading="lazy" decoding="async" />
+        <div class="tile-body">
+          <h3>Prayer</h3>
+          <p>Sundays {CHURCH.prayerTime}, or send us a request.</p>
+        </div>
+      </a>
+
+      <a class="tile tile-photo serve reveal" href={`${gi}#serving`}>
+        <img src={href('/media/photos/worship.jpg')} alt="" width="1200" height="675" loading="lazy" decoding="async" />
+        <div class="tile-body">
+          <h3>Serving</h3>
+          <p>Kids, worship, caf&eacute;, greeters and more.</p>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .involved-title { max-width: 14ch; margin-bottom: clamp(2rem, 1.5rem + 2vw, 3rem); }
+
+  .bento { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+
+  .tile {
+    position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
+    min-height: 15rem; padding: clamp(1.25rem, 1rem + 1vw, 2rem);
+    border-radius: var(--radius); color: var(--ink); text-decoration: none;
+    box-shadow: var(--shadow-s);
+    transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease);
+  }
+  .tile:hover { transform: translateY(-4px); box-shadow: var(--shadow-l); }
+  .tile h3 { font-size: var(--step-3); }
+  .tile p { margin-top: 0.4rem; max-width: 36ch; }
+
+  .tile-photo { color: #fff; background: var(--ink); }
+  .tile-photo img {
+    position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover;
+    transition: transform 0.9s var(--ease);
+  }
+  .tile-photo::before {
+    content: ''; position: absolute; inset: 0; z-index: -1;
+    background: linear-gradient(180deg, rgb(28 28 28 / 0) 25%, rgb(28 28 28 / 0.88) 100%);
+  }
+  .tile-photo:hover img { transform: scale(1.05); }
+  .tile-photo p { color: rgb(255 255 255 / 0.88); }
+
+  .tile-cta {
+    display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 1.25rem; font-weight: 700;
+  }
+  .tile-cta::after { content: '\2192'; transition: transform 0.3s var(--ease); }
+  .tile:hover .tile-cta::after { transform: translateX(4px); }
+  .tile-photo .tile-cta { color: var(--gold); }
+
+  .esl { background: var(--gold); justify-content: space-between; gap: 1.5rem; }
+  .esl .tile-cta { color: var(--ink); }
+  .hello {
+    margin: 0; font-family: var(--font-display); font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.4rem); line-height: 1.15;
+    color: var(--ink); max-width: none;
+  }
+  .hello span { font-style: italic; opacity: 0.78; } /* ~4.7:1 on gold (AA); .55 was 2.85:1 */
+
+  .disc { min-height: 26rem; }
+  .disc img { object-position: 78% 40%; }
+
+  @media (min-width: 720px) {
+    .bento { grid-template-columns: 1fr 1fr; }
+  }
+  @media (min-width: 720px) and (max-width: 1023px) { .disc { grid-column: 1 / -1; } }
+  @media (min-width: 1024px) {
+    .bento {
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, minmax(17rem, auto));
+      grid-template-areas: 'disc disc esl esl' 'disc disc prayer serve';
+    }
+    .disc { grid-area: disc; min-height: 0; }
+    .esl { grid-area: esl; }
+    .prayer { grid-area: prayer; }
+    .serve { grid-area: serve; }
+  }
+</style>

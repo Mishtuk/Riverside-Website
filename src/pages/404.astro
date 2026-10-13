@@ -1,0 +1,19 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHead from '../components/PageHead.astro';
+import { CHURCH, href } from '../lib/site';
+---
+
+<Base title="Page not found | Riverside Community Church" description="That page could not be found.">
+  <Header slot="header" />
+  <PageHead eyebrow="404" title="We couldn't find that page." lede={`It may have moved. Here are a few places to start. We meet ${CHURCH.times}.`}>
+    <div class="btn-row" style="margin-top:2rem">
+      <a class="btn" href={href('/')}>Go home</a>
+      <a class="btn btn-outline" href={href('/im-new')}>Service times</a>
+      <a class="btn btn-outline" href={href('/watch')}>Watch</a>
+    </div>
+  </PageHead>
+  <Footer slot="footer" />
+</Base>

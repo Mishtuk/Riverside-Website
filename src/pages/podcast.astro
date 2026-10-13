@@ -1,0 +1,124 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHead from '../components/PageHead.astro';
+import Cta from '../components/Cta.astro';
+import { CHURCH, href } from '../lib/site';
+import { APPLE_PODCASTS_URL, getSermons } from '../lib/podcast';
+import { getVideos } from '../lib/youtube';
+
+const [videos, sermons] = await Promise.all([getVideos(6), getSermons()]);
+const clean = (t: string) => t.replace(/^Riverside Community Church\s*\|\s*/i, '');
+const date = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
+const year = (d: Date) => d.getUTCFullYear();
+const shown = sermons.slice(0, 20);
+const rest = sermons.slice(20);
+const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${year(sermons[0].pubDate)}` : '';
+---
+
+<Base
+  title="Podcast | Riverside Community Church"
+  description="Listen to messages from Riverside Community Church on Apple Podcasts or YouTube, plus an archive of older sermon audio."
+>
+  <Header slot="header" />
+
+  <PageHead eyebrow="Podcast" title="Listen anywhere." image="/media/photos/worship.jpg" focus="center" lede="Take Sunday with you: on your commute, on a walk, or at home.">
+    <div class="btn-row" style="margin-top:2rem">
+      <a class="btn btn-dark" href={APPLE_PODCASTS_URL} rel="noopener">Apple Podcasts</a>
+      <a class="btn btn-outline" href={CHURCH.socials.youtube} rel="noopener">YouTube</a>
+    </div>
+  </PageHead>
+
+  <section class="section" id="latest">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Latest messages</p>
+        <h2 class="h1">Fresh from <span class="accent">Sunday.</span></h2>
+        <p>Current messages are on YouTube.</p>
+      </div>
+      {videos.length > 0 ? (
+        <ul class="vids" role="list">
+          {videos.map((v) => (
+            <li>
+              <a class="card vid" href={`https://www.youtube.com/watch?v=${v.id}`} rel="noopener">
+                <div class="media"><img src={v.thumbnail} alt="" width="480" height="360" loading="lazy" decoding="async" /></div>
+                <p class="date"><time datetime={v.published.toISOString()}>{date(v.published)}</time></p>
+                <h3>{clean(v.title)}</h3>
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="muted">Recent videos are unavailable right now. Please visit <a class="link" href={CHURCH.socials.youtube} rel="noopener">our YouTube channel</a>.</p>
+      )}
+      <p class="more"><a class="link link-arrow" href={href('/watch')}>See all messages</a></p>
+    </div>
+  </section>
+
+  <section class="section band-paper" id="archive">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Archive</p>
+        <h2 class="h1">Audio archive {span && <span class="accent">({span})</span>}</h2>
+        <p>This is an archive of older sermon audio. The podcast feed is no longer updated, so for recent messages see YouTube above.</p>
+      </div>
+
+      {sermons.length === 0 ? (
+        <p class="muted">The audio archive is unavailable right now. Try <a class="link" href={APPLE_PODCASTS_URL} rel="noopener">Apple Podcasts</a> or YouTube.</p>
+      ) : (
+        <>
+          <ol class="episodes" role="list">
+            {shown.map((s) => (
+              <li class="card ep">
+                <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time></p>
+                <h3>{s.title}</h3>
+                <audio controls preload="none" src={s.audioUrl}></audio>
+              </li>
+            ))}
+          </ol>
+          {rest.length > 0 && (
+            <details class="older">
+              <summary class="btn btn-outline">Show {rest.length} older episodes</summary>
+              <ol class="episodes" role="list">
+                {rest.map((s) => (
+                  <li class="card ep">
+                    <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time></p>
+                    <h3>{s.title}</h3>
+                    <audio controls preload="none" src={s.audioUrl}></audio>
+                  </li>
+                ))}
+              </ol>
+            </details>
+          )}
+        </>
+      )}
+    </div>
+  </section>
+
+  <Cta title="Join us in person." text={`${CHURCH.times}. ${CHURCH.timesNote}.`}>
+    <a class="btn" href={href('/im-new')}>Plan your visit</a>
+    <a class="btn btn-light" href={href('/watch')}>Watch live</a>
+  </Cta>
+
+  <Footer slot="footer" />
+</Base>
+
+<style>
+  .vids { list-style: none; padding: 0; display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); }
+  .vid { height: 100%; padding: 0; overflow: hidden; }
+  .vid .media { aspect-ratio: 16 / 9; border-radius: 0; }
+  .vid .date, .vid h3 { padding-inline: 1.15rem; }
+  .vid h3 { font-size: var(--step-1); line-height: 1.25; margin: 0.3rem 0 1.25rem; color: var(--ink); }
+  .date { font-size: var(--step--1); font-weight: 700; color: var(--gold-ink-sm); }
+  .vid .date { margin-top: 1rem; }
+  .more { margin-top: 2rem; }
+  .episodes { list-style: none; padding: 0; display: grid; gap: 1rem; }
+  .ep { background: var(--cream); display: grid; gap: 0.35rem; }
+  .ep h3 { font-size: var(--step-1); margin: 0; color: var(--ink); }
+  audio { width: 100%; margin-top: 0.6rem; }
+  .older { margin-top: 1.5rem; }
+  .older summary { cursor: pointer; list-style: none; margin-bottom: 1.5rem; }
+  .older summary::-webkit-details-marker { display: none; }
+  .older[open] summary { display: none; }
+</style>

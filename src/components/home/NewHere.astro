@@ -1,0 +1,81 @@
+---
+import { CHURCH, href } from '../../lib/site';
+
+const items = [
+  {
+    title: 'What to expect',
+    text: 'Casual dress, a one-hour service, guitars and voices, and a practical message from the Bible. No one will single you out.',
+    img: 'welcome.jpg',
+    alt: 'Two women greeting each other with a hug before the service',
+    link: { label: 'Your first Sunday', url: href('/im-new') },
+  },
+  {
+    title: 'Kids are welcome',
+    text: 'Kids’ classes run during the 10:30am service, so children learn about Jesus at their level while you worship.',
+    img: 'kids.jpg',
+    alt: 'Children sitting on a rug listening to a Bible story',
+    link: { label: 'About Riverside Kids', url: href('/im-new#kids') },
+  },
+  {
+    title: 'Getting here',
+    text: `We meet at ${CHURCH.street} in Horsham. Free coffee and breakfast are waiting when you arrive.`,
+    img: 'coffee.jpg',
+    alt: 'Donuts and coffee set out for Sunday morning',
+    link: { label: 'Get directions', url: CHURCH.mapsUrl },
+  },
+];
+---
+
+<section class="section new-here" aria-labelledby="new-here-title">
+  <div class="container new-grid">
+    <div class="intro">
+      <h2 id="new-here-title" class="h1">New here? <span class="accent">We saved you a seat.</span></h2>
+      <p class="lede">Visiting a church for the first time can feel like a lot. Here is what a Sunday at Riverside looks like.</p>
+      <a class="btn btn-dark" href={href('/im-new')}>Plan your visit</a>
+    </div>
+
+    <ol class="steps" role="list">
+      {items.map((it, i) => (
+        <li class="step reveal">
+          <div class="media">
+            <img src={href(`/media/photos/${it.img}`)} alt={it.alt} width="1200" height="675" loading="lazy" decoding="async" />
+          </div>
+          <div class="step-body">
+            <span class="step-num" aria-hidden="true">{i + 1}</span>
+            <h3>{it.title}</h3>
+            <p>{it.text}</p>
+            <a class="link link-arrow" href={it.link.url}>{it.link.label}</a>
+          </div>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>
+
+<style>
+  .new-grid { display: grid; gap: clamp(2.5rem, 1.5rem + 3vw, 4rem); }
+  .intro .lede { margin-top: 1.25rem; }
+  .intro .btn { margin-top: 2rem; }
+  .intro h2 { max-width: 12ch; }
+
+  .steps { list-style: none; padding: 0; display: grid; gap: clamp(2rem, 1.5rem + 2vw, 3rem); }
+  .step { display: grid; gap: 1.25rem; }
+  .step .media { aspect-ratio: 16 / 10; }
+  .step-body { position: relative; }
+  .step-num {
+    display: block; font-family: var(--font-display); font-size: 1rem; line-height: 1;
+    width: 2.25rem; height: 2.25rem; display: grid; place-items: center; margin-bottom: 0.9rem;
+    border: 1.5px solid var(--gold); border-radius: 50%; color: var(--ink);
+  }
+  .step h3 { font-size: var(--step-3); }
+  .step p { margin-top: 0.6rem; color: var(--muted); max-width: 46ch; }
+  .step .link { display: inline-block; margin-top: 1rem; }
+
+  @media (min-width: 720px) {
+    .step { grid-template-columns: 1.1fr 1fr; align-items: center; gap: 2rem; }
+  }
+  @media (min-width: 1100px) {
+    .new-grid { grid-template-columns: 0.8fr 1.5fr; gap: 5rem; align-items: start; }
+    .intro { position: sticky; top: calc(var(--header-h) + 3rem); }
+  }
+</style>
