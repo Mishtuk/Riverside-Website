@@ -19,7 +19,7 @@ npm run preview   # serve dist/ locally
 - **Hosting:** GitHub Pages via GitHub Actions (`.github/workflows/deploy.yml`, using `withastro/action` and `deploy-pages`). Pages source = "GitHub Actions".
 - **CSS:** inlined into each page (`build.inlineStylesheets: 'always'`).
 - **Fonts:** self-hosted woff2 in `public/fonts/` (DM Serif Text for headings, Source Sans 3 for body), with size-matched fallbacks so the page doesn't jump while fonts load.
-- **Page transitions:** native cross-document view transitions. All motion is turned off for visitors with reduced motion enabled.
+- **Page transitions:** native cross-document view transitions. Other motion is turned off for visitors with reduced motion enabled. The hero video still plays for them, without the zoom, and the pause button is always shown. If a phone blocks autoplay (iPhone Low Power Mode, Android Data Saver), the video starts on the first tap.
 
 ## Where things live
 | What | Where |

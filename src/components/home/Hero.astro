@@ -12,13 +12,9 @@ import { CHURCH, href } from '../../lib/site';
     </video>
     <script is:inline>
       // Portrait phones get the 9:16 file, so give them its poster too (video poster has no media attribute).
-      // Reduced motion: never autoplay, the poster stays. Runs during parse, before playback starts.
+      // The video plays under reduced motion too (owner's call); the zoom stays off and the pause button is always there.
       const v0 = document.getElementById('hero-video');
       if (matchMedia('(max-width: 700px) and (orientation: portrait)').matches) v0.poster = v0.dataset.posterPortrait;
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        const v = document.getElementById('hero-video');
-        v.removeAttribute('autoplay'); v.preload = 'none'; v.pause();
-      }
     </script>
   </div>
 
@@ -65,6 +61,12 @@ import { CHURCH, href } from '../../lib/site';
     v.addEventListener('play', sync);
     v.addEventListener('pause', sync);
     sync();
+    // iPhone Low Power Mode / Android Data Saver block autoplay: start on the visitor's first tap instead.
+    v.play().catch(() => {
+      const go = () => v.play().catch(() => {});
+      addEventListener('touchend', go, { once: true, passive: true });
+      addEventListener('click', go, { once: true });
+    });
   })();
 </script>
 
