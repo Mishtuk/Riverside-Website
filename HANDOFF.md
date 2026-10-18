@@ -31,6 +31,7 @@ npm run preview   # serve dist/ locally
 | Page copy ported from the old site | `src/content/pages/*.md`, plus `staff.json` and `images.json` |
 | Layout, meta tags, Open Graph, JSON-LD, favicons, manifest link | `src/layouts/Base.astro` |
 | Header and phone menu, footer, phone bottom bar, live banner | `src/components/Header.astro`, `Footer.astro`, `MobileBar.astro`, `LiveBanner.astro` |
+| Live stream in the home hero (loaded only during the live window) | `public/live-hero.js`, with its markup and styles in `src/components/home/Hero.astro` |
 | Home page sections | `src/components/home/*` |
 | Embedded vendor forms | `src/components/MinistryForm.astro` |
 | Old URL → new URL redirects (26) | `moves` in `astro.config.mjs` |
@@ -99,6 +100,9 @@ npm run preview   # serve dist/ locally
   - previous-livestreams playlist `PLbS1l_W_y15idxZN2oJY6xpN-6NlCaRNE`
   - Videos are embedded with a facade, so nothing loads from YouTube until a visitor clicks.
   - The "We're live" banner shows on Sundays 10:25am–12:00pm ET. Add `?live=1` to any URL to preview it.
+  - **Live hero (home):** during the same window, the stream replaces the hero video. It plays muted and blurred behind the copy. Clicking it (or "Watch live", or the banner link) brings it into focus with sound and a control bar: Pause, Sound, Mini player, Full screen, Close. Scrolling down turns it into a mini player in the corner. If the stream hasn't started playing within 8 seconds, or YouTube reports an error, the normal hero video comes back. Outside the window nothing loads from YouTube, and the hero video doesn't download while the stream is showing.
+  - **Overrides:** `<html data-live-force="on">` or `"off"` overrides the schedule (banner and hero), and `<html data-live-video="VIDEO_ID">` shows that video instead of the channel's live stream. Staff will set these once the Cloudflare hosting is live. Until then the schedule decides, and `?live=1` previews it.
+  - **Known limit:** a cancelled stream inside the window can't be detected without that toggle, so visitors may see YouTube's offline notice in the hero.
 - **Podcast:** Apple Podcasts id 387370044. The feed is stale: the last episode is from 2020-06-14.
 - **Text to give:** 267-274-2425.
 
