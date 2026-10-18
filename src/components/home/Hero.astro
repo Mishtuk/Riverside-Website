@@ -1,8 +1,20 @@
 ---
 import { CHURCH, href } from '../../lib/site';
+// Live-hero icons (24px, stroked like MobileBar). Controls stay hidden unless public/live-hero.js runs.
+const I = {
+  pause: '<path d="M9 6v12M15 6v12"/>',
+  play: '<path d="M8 5.5v13l10.5-6.5z"/>',
+  sound: '<path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>',
+  mute: '<path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path d="m16 9.5 5 5m0-5-5 5"/>',
+  mini: '<rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="12" width="6" height="4.5" rx="1"/>',
+  full: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>',
+  unfull: '<path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  expand: '<path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/>',
+};
 ---
 
-<section class="hero on-dark" aria-labelledby="hero-title">
+<section class="hero on-dark" aria-labelledby="hero-title" data-live-js={href('/live-hero.js')} data-channel={CHURCH.socials.youtube.split('/').pop()}>
   <div class="hero-media" aria-hidden="true">
     <video id="hero-video" autoplay muted loop playsinline preload="metadata" poster={href('/media/hero-poster.jpg')} data-poster-portrait={href('/media/hero-poster-portrait.jpg')}>
       <source media="(max-width: 700px) and (orientation: portrait)" src={href('/media/hero-portrait.mp4')} type="video/mp4" />
@@ -15,10 +27,27 @@ import { CHURCH, href } from '../../lib/site';
       // The video plays under reduced motion too (owner's call); the zoom stays off and the pause button is always there.
       const v0 = document.getElementById('hero-video');
       if (matchMedia('(max-width: 700px) and (orientation: portrait)').matches) v0.poster = v0.dataset.posterPortrait;
+      // Live window (LiveBanner set html[data-live]): park the sources so no mp4 downloads; live-hero.js restores them if the stream doesn't play.
+      if (document.documentElement.hasAttribute('data-live')) { for (const s of v0.children) { s.dataset.src = s.getAttribute('src'); s.removeAttribute('src'); } v0.load(); }
     </script>
+    <div class="live" hidden>
+      <div class="live-hit"></div>
+      <div class="mini-bar">
+        <button type="button" class="mini-btn" data-act="expand" aria-label="Back to hero"><svg viewBox="0 0 24 24" aria-hidden="true" set:html={I.expand} /></button>
+        <button type="button" class="mini-btn" data-act="sound" aria-label="Turn sound off"><svg class="i-a" viewBox="0 0 24 24" aria-hidden="true" set:html={I.mute} /><svg class="i-b" viewBox="0 0 24 24" aria-hidden="true" set:html={I.sound} /></button>
+        <button type="button" class="mini-btn mini-close" data-act="close" aria-label="Stop watching"><svg viewBox="0 0 24 24" aria-hidden="true" set:html={I.close} /></button>
+      </div>
+    </div>
   </div>
 
+  <p class="live-pill"><span class="dot" aria-hidden="true"></span>Live now</p>
+  <p class="sr-only live-say" aria-live="polite"></p>
+
   <div class="container hero-content">
+    <button class="live-cta" type="button" data-act="watch">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="t-fine">Live now · Click to watch</span><span class="t-coarse">Live now · Tap to watch</span><span class="sr-only"> the live service with sound</span>
+    </button>
     <p class="eyebrow fade-up">Horsham, PA</p>
     <h1 id="hero-title" class="hero-title fade-up" style="--i:1">
       People equipping people to reflect the <em>transformational love</em> of&nbsp;Jesus.
@@ -26,7 +55,7 @@ import { CHURCH, href } from '../../lib/site';
     <p class="hero-sub fade-up" style="--i:2">A church family for every age, every stage and every language. Come as you are.</p>
     <div class="btn-row fade-up" style="--i:3">
       <a class="btn" href={href('/im-new')}>Plan your visit</a>
-      <a class="btn btn-light" href={href('/watch')}>Watch live</a>
+      <a class="btn btn-light" href={href('/watch')} data-act="watch">Watch live</a>
     </div>
   </div>
 
@@ -42,6 +71,14 @@ import { CHURCH, href } from '../../lib/site';
         <span class="icon" aria-hidden="true"></span>
         <span class="sr-only">Pause background video</span>
       </button>
+      <div class="live-bar" role="toolbar" aria-label="Live video controls">
+        <p class="live-status"><span class="dot" aria-hidden="true"></span>Live now</p>
+        <button type="button" class="btn btn-light btn-sm" data-act="pause"><svg class="i-a" viewBox="0 0 24 24" aria-hidden="true" set:html={I.pause} /><svg class="i-b" viewBox="0 0 24 24" aria-hidden="true" set:html={I.play} /><span>Pause</span></button>
+        <button type="button" class="btn btn-light btn-sm" data-act="sound" aria-label="Turn sound off"><svg class="i-a" viewBox="0 0 24 24" aria-hidden="true" set:html={I.mute} /><svg class="i-b" viewBox="0 0 24 24" aria-hidden="true" set:html={I.sound} /><span>Sound off</span></button>
+        <button type="button" class="btn btn-light btn-sm" data-act="mini"><svg viewBox="0 0 24 24" aria-hidden="true" set:html={I.mini} /><span>Mini player</span></button>
+        <button type="button" class="btn btn-light btn-sm" data-act="full"><svg class="i-a" viewBox="0 0 24 24" aria-hidden="true" set:html={I.full} /><svg class="i-b" viewBox="0 0 24 24" aria-hidden="true" set:html={I.unfull} /><span>Full screen</span></button>
+        <button type="button" class="btn btn-light btn-sm" data-act="close" aria-label="Close live video"><svg viewBox="0 0 24 24" aria-hidden="true" set:html={I.close} /><span>Close</span></button>
+      </div>
     </div>
   </div>
 </section>
@@ -67,6 +104,8 @@ import { CHURCH, href } from '../../lib/site';
       addEventListener('touchend', go, { once: true, passive: true });
       addEventListener('click', go, { once: true });
     });
+    // Live window only: the stream player (and any YouTube request) loads from here, never outside it.
+    if (document.documentElement.hasAttribute('data-live')) document.head.append(Object.assign(document.createElement('script'), { src: b.closest('.hero').dataset.liveJs }));
   })();
 </script>
 
@@ -148,5 +187,129 @@ import { CHURCH, href } from '../../lib/site';
   @media (prefers-reduced-motion: no-preference) {
     .hero-media video { animation: settle 16s var(--ease) both; }
     @keyframes settle { from { transform: scale(1.06); } to { transform: none; } }
+  }
+
+  /* ---------- Live hero (public/live-hero.js adds .is-live / .is-focused / .is-mini) ---------- */
+  /* Live window: LiveBanner pushes the page down 38px, so the hero gives that back and the strip/control bar stays on screen. */
+  :global(html[data-live]) .hero { min-height: clamp(600px, calc(100svh - var(--live-off)), 940px); }
+  @media (max-width: 699px) { :global(html[data-live]) .hero.on-dark { min-height: max(560px, calc(100svh - var(--bar-h) - var(--live-off))); } }
+  @media (orientation: landscape) and (max-height: 500px) { :global(html[data-live]) .hero.on-dark { min-height: calc(100svh - var(--live-off)); } }
+  .live-bar, .live-pill, .live-cta, .live-hit, .mini-bar { display: none; }
+  [data-alt] > .i-a, :not([data-alt]) > .i-b { display: none; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+  .live { position: absolute; inset: 0; overflow: hidden; container-type: size; opacity: 0; transition: opacity 0.6s var(--ease); }
+  .is-live .live { opacity: 1; }
+  .live :global(iframe) { /* cover crop, blurred; scale hides the soft blur edge */
+    position: absolute; top: 50%; left: 50%; translate: -50% -50%; border: 0; max-width: none;
+    width: max(100%, 100cqh * 16 / 9); height: max(100%, 100cqw * 9 / 16);
+    filter: blur(8px); scale: 1.06;
+    transition: filter 0.4s var(--ease), scale 0.4s var(--ease), width 0.4s var(--ease), height 0.4s var(--ease);
+  }
+  .is-live:not(.is-focused, .is-mini) .hero-media { cursor: pointer; }
+  .is-live .hero-media::after { transition: opacity 0.4s var(--ease); }
+  .is-live .hero-media::before { /* focused: header-only shade keeps the white logo/nav legible */
+    content: ''; position: absolute; inset: 0; z-index: 1; opacity: 0; pointer-events: none; transition: opacity 0.4s var(--ease);
+    background: linear-gradient(180deg, rgb(28 28 28 / 0.55) 0, transparent calc(var(--live-off, 0px) + var(--header-h) + 48px));
+  }
+  .is-live .hero-content { transition: opacity 0.4s var(--ease), translate 0.4s var(--ease); }
+
+  .live-cta {
+    display: none; align-items: center; gap: 0.5rem; width: fit-content; min-height: 44px; margin-bottom: 1rem;
+    padding: 0.5rem 1.1rem 0.5rem 0.9rem; border: 1px solid rgb(255 255 255 / 0.28); border-radius: var(--radius-pill);
+    background: rgb(28 28 28 / 0.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    color: #fff; font: inherit; font-size: 0.95rem; font-weight: 700; cursor: pointer;
+    transition: background-color 0.25s var(--ease), color 0.25s var(--ease);
+  }
+  .is-live .live-cta { display: flex; }
+  .live-cta:hover, .live-cta:focus-visible { background: var(--cream); color: var(--ink); }
+  .t-coarse { display: none; }
+  @media (pointer: coarse) { .t-fine { display: none; } .t-coarse { display: inline; } }
+
+  /* Focused: sharp, unmuted, copy steps aside, strip becomes the control bar */
+  .is-focused .live :global(iframe), .is-mini .live :global(iframe) { filter: none; scale: 1; }
+  .is-focused .hero-media::after { opacity: 0; }
+  .is-focused .hero-media::before { opacity: 1; }
+  .is-focused .hero-content, .is-mini .hero-content { /* out of flow so the hero drops to one screen and the control bar is visible */
+    position: absolute; left: 0; right: 0; bottom: var(--strip-h, 76px); opacity: 0; translate: 0 16px;
+  }
+  .is-live .hero-strip { grid-row: 2; } /* stays the bottom row while the copy is out of flow */
+  .is-focused .strip-inner > :not(.live-bar) { display: none; }
+  .is-focused .live-bar { display: flex; }
+  .live-bar { align-items: center; gap: 0.5rem; width: 100%; }
+  .live-status { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; font-size: 0.95rem; font-weight: 700; color: #fff; }
+  .live-bar svg, .mini-bar svg {
+    width: 24px; height: 24px; flex-shrink: 0;
+    fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linejoin: round; stroke-linecap: round;
+  }
+  .live-bar [hidden] { display: none; }
+
+  /* Contain (whole 16:9 frame on ink): portrait phones when focused, and full screen */
+  .hero:fullscreen .live { top: 0; bottom: var(--strip-h, 76px); }
+  .hero:fullscreen .live :global(iframe) { width: min(100%, 100cqh * 16 / 9); height: min(100%, 100cqw * 9 / 16); }
+  .hero:fullscreen .hero-media video { visibility: hidden; }
+
+  /* Mini player: same iframe, fixed bottom-right (moving it in the DOM would restart the stream) */
+  .hero.is-mini { z-index: 46; } /* above MobileBar (45), below header (50) */
+  .is-mini .hero-media { z-index: auto; } /* lets .live (z 2) paint over the strip when the hero is still on screen */
+  .is-mini .live {
+    position: fixed; inset: auto max(16px, env(safe-area-inset-right)) calc(var(--bar-h) + 12px) auto;
+    width: 200px; aspect-ratio: 16 / 9; z-index: 2;
+    border-radius: var(--radius); box-shadow: 0 0 0 2px var(--gold), var(--shadow-l);
+  }
+  .is-mini .live-hit { display: block; position: absolute; inset: 0; cursor: pointer; }
+  .is-mini .mini-bar { /* overlay; only the buttons take taps, the rest falls through to .live-hit (= expand) */
+    display: flex; align-items: flex-end; gap: 4px; position: absolute; inset: 0; padding: 4px; pointer-events: none;
+    background: linear-gradient(180deg, transparent 45%, rgb(28 28 28 / 0.8));
+  }
+  .mini-btn {
+    display: grid; place-items: center; width: 40px; height: 40px; padding: 0; pointer-events: auto;
+    border: 0; border-radius: 50%; background: rgb(28 28 28 / 0.45); color: #fff; cursor: pointer;
+  }
+  .mini-btn:hover { background: var(--cream); color: var(--ink); }
+  .mini-btn svg { width: 22px; height: 22px; }
+  .mini-close { position: absolute; top: 4px; right: 4px; }
+  @media (hover: hover) and (pointer: fine) {
+    .mini-bar { opacity: 0; transition: opacity 0.2s; }
+    .live:hover .mini-bar, .live:focus-within .mini-bar { opacity: 1; }
+  }
+
+  @media (min-width: 700px) {
+    .is-mini .live { width: 320px; bottom: 24px; }
+  }
+  @media (max-width: 699px) {
+    .live :global(iframe) { filter: blur(6px); }
+    .is-focused .live-bar { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; }
+    .is-focused .strip-inner { padding-block: 0.6rem; }
+    .live-bar .live-status { display: none; }
+    .live-bar .btn { /* MobileBar pattern, on dark */
+      --btn-bg: transparent; --btn-fg: #fff; --btn-border: transparent;
+      flex-direction: column; gap: 2px; min-height: 56px; padding: 0; border-radius: var(--radius-s);
+      backdrop-filter: none; box-shadow: none; font-size: 0.78rem; white-space: normal; text-align: center;
+    }
+    .live-bar .btn svg { width: 44px; height: 30px; padding: 3px 10px; border-radius: var(--radius-pill); transition: background-color 0.25s var(--ease); }
+    .live-bar .btn:active svg { background: rgb(255 255 255 / 0.16); }
+    .is-focused .live-pill {
+      display: flex; align-items: center; gap: 0.5rem; position: absolute; z-index: 1;
+      top: calc(var(--live-off, 0px) + var(--header-h) + env(safe-area-inset-top) + 12px); left: max(var(--gutter), env(safe-area-inset-left));
+      padding: 0.35rem 0.85rem; border-radius: var(--radius-pill);
+      background: rgb(28 28 28 / 0.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      font-size: 0.95rem; font-weight: 700; color: #fff;
+    }
+  }
+  /* Focused, every width: whole 16:9 frame on ink between header and control bar (YouTube's title stays clear of our logo) */
+  .is-focused .live {
+    top: calc(var(--live-off, 0px) + var(--header-h) + env(safe-area-inset-top)); bottom: var(--strip-h, 76px);
+    transition: opacity 0.6s var(--ease), top 0.4s var(--ease), bottom 0.4s var(--ease);
+  }
+  .is-focused .live :global(iframe) { width: min(100%, 100cqh * 16 / 9); height: min(100%, 100cqw * 9 / 16); }
+  .is-focused .hero-media video { visibility: hidden; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .is-mini .live { animation: mini-in 0.3s var(--ease); }
+    @keyframes mini-in { from { opacity: 0; translate: 0 12px; } }
+    .live-cta .dot, .live-pill .dot, .live-status .dot { animation: live-pulse 1.8s ease-out infinite; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .is-focused .hero-content, .is-mini .hero-content { translate: none; }
   }
 </style>

@@ -9,7 +9,7 @@
     "not_found_handling": "404-page",
     // The alert banner can appear on every page, so page requests run the Worker first.
     // Media, fonts, logos and built scripts never do: they are served straight from the asset store, unmetered.
-    "run_worker_first": ["/*", "!/_astro/*", "!/media/*", "!/fonts/*", "!/brand/*"]
+    "run_worker_first": ["/*", "!/_astro/*", "!/media/*", "!/fonts/*", "!/brand/*", "!/live-hero.js"]
   },
   // No id: Wrangler creates the namespace on first deploy (automatic provisioning).
   "kv_namespaces": [{ "binding": "SITE" }],
