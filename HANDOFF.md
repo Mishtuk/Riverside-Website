@@ -173,7 +173,7 @@ Staff sign in at `/admin` with a one-time code sent to their email (Cloudflare A
 - Then change the nameservers at the registrar. Add `www.riversideconnect.com` (and the bare domain) as Custom Domains on the Worker, and add the same hostnames to the Access application.
 - Keep the old site live until the switch is done. The redirects in `astro.config.mjs` keep old URLs working.
 
-**Monthly cost:** the Cloudflare free plans (Workers, KV, and Access for up to 50 staff) are expected to cover a church this size, so $0. Mailchimp stays on whatever plan the church already pays for. The owner's cost sheet has the verified figures.
+**Monthly cost:** the Cloudflare free plans (Workers, KV, and Access for up to 50 staff) are expected to cover a church this size, so $0. Mailchimp stays on whatever plan the church already pays for. All cost figures are estimates. Check them on the vendors' own pricing pages before quoting them.
 
 **Launching `main` on GitHub Pages instead** (if the church never moves to Cloudflare): set `SITE=https://www.riversideconnect.com` and `BASE=/` in the Pages workflow on `main`, and add `public/CNAME`. Then point `www` at `mishtuk.github.io` with a `CNAME` record, plus apex `A` records 185.199.108.153, .109.153, .110.153 and .111.153. The admin features need the Worker, so they won't exist there.
 
