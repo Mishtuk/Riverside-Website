@@ -1,0 +1,4 @@
+[
+  { "id": "prayer", "name": "Sunday prayer group", "day": 0, "time": "9:30–10:30am", "place": "Counseling Office", "note": "Everyone is welcome.", "status": { "kind": "meeting" } },
+  { "id": "kids", "name": "Kids' classes", "day": 0, "time": "during the 10:30am service", "place": "", "note": "", "status": { "kind": "meeting" } }
+]

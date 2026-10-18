@@ -1,0 +1,53 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHead from '../components/PageHead.astro';
+import { CHURCH, href } from '../lib/site';
+import { boardHtml } from '../lib/state.js';
+import groups from '../content/groups.json';
+
+// Static fallback: every status reads "Check with the office". The worker renders the live board
+// (same boardHtml, from staff edits or this seed) into #groups-board on each request.
+const contact = { email: CHURCH.email, phone: CHURCH.phone, involved: href('/get-involved') };
+---
+
+<Base title="Weekly groups | Riverside Community Church" description="See at a glance which of Riverside's weekly groups are meeting this week.">
+  <Header slot="header" />
+  <PageHead eyebrow="Weekly groups" title="Meeting this week?" image="/media/photos/community.jpg" lede="See at a glance which of our weekly groups are meeting this week. The church office keeps this up to date." />
+
+  <section class="section">
+    <div class="container" id="groups-board" data-email={contact.email} data-phone={contact.phone} data-involved={contact.involved} set:html={boardHtml(groups, null, contact)} />
+  </section>
+
+  <Footer slot="footer" />
+</Base>
+
+<style is:global>
+  #groups-board .board-summary { margin-bottom: clamp(1.5rem, 1rem + 2vw, 2.5rem); font-size: var(--step-1); color: var(--muted); }
+  #groups-board .board-summary strong { color: var(--ink); }
+  #groups-board .groups { list-style: none; padding: 0; grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); }
+  #groups-board .group { height: 100%; display: flex; flex-direction: column; gap: 0.6rem; }
+  #groups-board .group h2 { margin: 0.2rem 0 0; }
+  #groups-board .ic { flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .chip-status {
+    align-self: start; display: inline-flex; align-items: center; gap: 0.4rem; min-height: 32px; padding: 0.3rem 0.8rem;
+    border-radius: var(--radius-pill); font-size: 0.9rem; font-weight: 700; line-height: 1.2; color: var(--ink) !important;
+  }
+  .chip-status.is-meeting { background: var(--gold-soft); border: 1.5px solid var(--gold); }
+  .chip-status.is-off { background: var(--stone); border: 1.5px solid var(--stone-2); }
+  .chip-status.is-break { background: transparent; border: 1.5px dashed var(--muted); color: var(--muted) !important; }
+  .chip-status.is-unknown { background: transparent; border: 1.5px solid var(--stone-2); }
+  #groups-board .group-when { display: flex; gap: 0.5rem; align-items: baseline; color: var(--ink); }
+  #groups-board .group-when .ic { translate: 0 0.15em; }
+  #groups-board .group-note { font-size: 1rem; padding-left: clamp(1rem, 0.75rem + 1vw, 1.5rem); border-left: 2px solid var(--line-gold); }
+  #groups-board .group-about, #groups-board .group-contact { font-size: 1rem; }
+  #groups-board .group-contact { color: var(--ink); }
+  #groups-board .group-events { margin-top: 0.4rem; padding-top: 0.8rem; border-top: 1px solid var(--line); }
+  #groups-board .group-events-h { margin: 0 0 0.5rem; font-family: var(--font-body); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold-ink-sm); }
+  #groups-board .group-events ul { list-style: none; padding: 0; display: grid; gap: 0.6rem; }
+  #groups-board .group-events li { display: grid; font-size: 1rem; line-height: 1.4; color: var(--ink); }
+  #groups-board .group-events li span { color: var(--muted); }
+  #groups-board .group-updated { margin-top: auto; padding-top: 0.4rem; font-size: 0.9rem; }
+  #groups-board .group-empty { max-width: 40rem; display: grid; gap: 0.75rem; }
+</style>

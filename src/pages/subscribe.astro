@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import PageHead from '../components/PageHead.astro';
-import { href } from '../lib/site';
+import { CHURCH, href } from '../lib/site';
 import { page } from '../lib/md';
 import { MAILCHIMP_NEWS } from '../lib/links';
 
@@ -17,12 +17,30 @@ const { entry, Content } = await page('email');
   <section class="section">
     <div class="container split">
       <div class="prose"><Content /></div>
-      <form class="card" action={MAILCHIMP_NEWS.action} method="post" target="_blank">
-        <h2 class="h3">Subscribe</h2>
-        <label>Email address <input type="email" name="EMAIL" required autocomplete="email" inputmode="email" autocapitalize="off" placeholder="you@example.com" /></label>
-        <div class="hp" aria-hidden="true"><input type="text" name={MAILCHIMP_NEWS.honeypot} tabindex="-1" autocomplete="off" /></div>
-        <button class="btn" type="submit">Subscribe</button>
-        <p class="muted small">Opens Mailchimp to confirm. Looking for prayer emails? <a class="link" href={href('/get-involved#prayer')}>Sign up here</a>.</p>
+      <!-- No JS: posts to the Mailchimp signup as before. With JS: topics go to /api/subscribe. -->
+      <form class="card" id="subscribe" action={MAILCHIMP_NEWS.action} method="post" target="_blank" data-api={href('/api/subscribe')}>
+        <div class="form-body">
+          <h2 class="h3">Subscribe</h2>
+          <label>Email address <input type="email" name="EMAIL" required autocomplete="email" inputmode="email" autocapitalize="off" placeholder="you@example.com" aria-describedby="email-err" /></label>
+          <p class="err" id="email-err" hidden><span aria-hidden="true">&#x26A0;</span> Enter an email like name@example.com.</p>
+          <fieldset aria-describedby="topic-err">
+            <legend>What would you like to get?</legend>
+            <p class="err" id="topic-err" hidden><span aria-hidden="true">&#x26A0;</span> Choose at least one topic.</p>
+            <label class="topic"><input type="checkbox" name="topic" value="news" checked /><span><strong>Latest happenings</strong><span class="help">News and upcoming events, usually 1 or 2 emails a week.</span></span></label>
+            <label class="topic"><input type="checkbox" name="topic" value="alerts" checked /><span><strong>Weather &amp; closing alerts</strong><span class="help">Only when weather or a closing changes our plans.</span></span></label>
+          </fieldset>
+          <div class="hp" aria-hidden="true"><input type="text" name={MAILCHIMP_NEWS.honeypot} tabindex="-1" autocomplete="off" /></div>
+          <button class="btn" type="submit">Subscribe</button>
+          <p class="form-error" id="sub-error" role="alert" hidden>Something went wrong. Please try again, or email <a class="link" href={`mailto:${CHURCH.email}`}>{CHURCH.email}</a>.</p>
+          <p class="form-error" id="sub-off" role="alert" hidden>Email signup isn&rsquo;t configured yet. Please email <a class="link" href={`mailto:${CHURCH.email}`}>{CHURCH.email}</a> and we&rsquo;ll add you.</p>
+        </div>
+        <div role="status" class="result">
+          <div id="sub-ok" hidden>
+            <p class="ok-head"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="m8 12.3 2.7 2.7L16 9.6" /></svg><span class="h3">You&rsquo;re on the list.</span></p>
+            <p>Check your inbox to confirm your email address.</p>
+          </div>
+        </div>
+        <p class="muted small">Looking for prayer emails? <a class="link" href={href('/get-involved#prayer')}>Sign up here</a>.</p>
       </form>
     </div>
   </section>
@@ -30,11 +48,57 @@ const { entry, Content } = await page('email');
   <Footer slot="footer" />
 </Base>
 
+<script is:inline>
+  (() => {
+    const f = document.getElementById('subscribe');
+    const $ = (id) => document.getElementById(id);
+    const btn = f.querySelector('button');
+    const email = f.elements.EMAIL;
+    const boxes = [...f.querySelectorAll('[name=topic]')];
+    f.noValidate = true;
+    f.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      ['email-err', 'topic-err', 'sub-error', 'sub-off'].forEach((id) => ($(id).hidden = true));
+      email.removeAttribute('aria-invalid');
+      if (!email.checkValidity()) { $('email-err').hidden = false; email.setAttribute('aria-invalid', 'true'); return email.focus(); }
+      if (!boxes.some((b) => b.checked)) { $('topic-err').hidden = false; return boxes[0].focus(); }
+      btn.disabled = true;
+      btn.textContent = 'Subscribing…';
+      try {
+        const r = await fetch(f.dataset.api, { method: 'POST', body: new FormData(f), headers: { Accept: 'application/json' } });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok) { f.querySelector('.form-body').hidden = true; $('sub-ok').hidden = false; return; }
+        if (j.error === 'email') { $('email-err').hidden = false; return email.focus(); }
+        if (j.error === 'topic') { $('topic-err').hidden = false; return boxes[0].focus(); }
+        $(j.error === 'not_configured' ? 'sub-off' : 'sub-error').hidden = false;
+      } catch {
+        $('sub-error').hidden = false;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Subscribe';
+      }
+    });
+  })();
+</script>
+
 <style>
-  form { display: grid; gap: 1rem; }
+  form, .form-body { display: grid; gap: 1rem; }
+  .form-body[hidden] { display: none; }
   label { display: grid; gap: 0.3rem; font-weight: 700; font-size: var(--step--1); }
   input[type='email'] { padding: 0.75rem 1rem; min-height: 48px; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; font-weight: 400; font-size: max(1rem, 16px); }
+  fieldset { border: 0; padding: 0; display: grid; gap: 0.25rem; }
+  legend { padding: 0; margin-bottom: 0.4rem; font-size: var(--step-0); font-weight: 700; }
+  .topic { display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; align-items: start; min-height: 48px; padding-block: 0.4rem; cursor: pointer; font-size: var(--step-0); }
+  .topic input { width: 22px; height: 22px; margin-top: 0.2rem; accent-color: var(--gold-ink); }
+  .topic strong { display: block; }
+  .help { display: block; font-weight: 400; font-size: var(--step--1); color: var(--muted); }
+  .err { color: var(--ink) !important; font-weight: 700; font-size: var(--step--1); }
+  .card .form-error { color: var(--ink); padding: 0.75rem 1rem; background: var(--parchment); border-left: 3px solid var(--gold); border-radius: 0 var(--radius-s) var(--radius-s) 0; }
+  .ok-head { display: flex; align-items: center; gap: 0.6rem; color: var(--ink) !important; }
+  .ok-head svg { flex: none; fill: none; stroke: var(--gold-ink); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  #sub-ok p + p { margin-top: 0.5rem; }
   button { justify-self: start; }
+  button:disabled { opacity: 0.7; cursor: progress; }
   .hp { position: absolute; left: -5000px; }
   .small { font-size: var(--step--1); }
 </style>

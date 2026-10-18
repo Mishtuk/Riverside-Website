@@ -46,6 +46,7 @@ export const NAV = [
   { label: 'Watch', path: '/watch' },
   { label: 'Podcast', path: '/podcast' },
   { label: 'Get Involved', path: '/get-involved' },
+  { label: 'Groups', path: '/groups' },
   { label: 'Events', path: '/events' },
 ] as const;
 

@@ -1,0 +1,557 @@
+---
+// Staff tool. Static page behind Cloudflare Access; it holds no secrets. Every save goes to /api/admin/*,
+// where the worker checks the Access token again. Videos and episodes are the same build-time feeds the site uses.
+import Base from '../layouts/Base.astro';
+import { href } from '../lib/site';
+import { getVideos } from '../lib/youtube';
+import { getSermons } from '../lib/podcast';
+import { ALERT_CSS, DAYS } from '../lib/state.js';
+
+const [videos, sermons] = await Promise.all([getVideos(12), getSermons()]);
+const fmt = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
+const items = {
+  video: videos.map((v) => ({ id: v.id, title: v.displayTitle, date: v.dateCard, thumb: v.thumbFallback })),
+  podcast: sermons.map((s) => ({ id: s.guid, title: s.title, date: fmt(s.pubDate) })),
+};
+const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">${d}</svg>`;
+---
+
+<Base title="Admin | Riverside Community Church" admin>
+  <Fragment slot="head">
+    <style set:html={ALERT_CSS}></style>
+    <script type="application/json" id="items-data" set:html={JSON.stringify(items).replace(/</g, '\\u003c')}></script>
+  </Fragment>
+
+  <header slot="header" class="admin-top">
+    <div class="container-narrow admin-bar">
+      <a class="admin-brand" href={href('/')}><img src={href('/brand/logo-header.webp')} alt="Riverside Community Church" width="108" height="36" /><span>Admin</span></a>
+      <a class="link" href={href('/')} target="_blank" rel="noopener">View site <span aria-hidden="true">&#x2197;</span></a>
+      <a class="btn btn-sm btn-outline" href="/cdn-cgi/access/logout">Sign out</a>
+    </div>
+  </header>
+
+  <div id="gate" class="container-narrow gate" hidden>
+    <div class="card">
+      <h1 class="h3">Staff sign in</h1>
+      <p>That didn&rsquo;t work. Check your details and try again.</p>
+      <p><a class="btn" href={href('/admin/')}>Sign in</a></p>
+    </div>
+  </div>
+
+  <div id="app" data-api={href('/api/admin')} hidden>
+    <nav class="subnav" aria-label="Admin sections">
+      <div class="container-narrow">
+        <ul class="chips"><li><a href="#alerts">Alerts</a></li><li><a href="#items">Videos &amp; podcast</a></li><li><a href="#groups">Weekly groups</a></li><li><a href="#live">Livestream</a></li></ul>
+      </div>
+    </nav>
+
+    <div class="container-narrow admin-body">
+      <h1 class="sr-only">Admin</h1>
+      <section id="alerts" aria-labelledby="alerts-h">
+        <h2 id="alerts-h" class="h2">Alerts</h2>
+        <h3 class="h3">Active alerts</h3>
+        <div id="active" class="stack-s"></div>
+
+        <form id="compose" class="card form" novalidate>
+          <h3 class="h3">Post an alert</h3>
+          <p id="editing" class="note" hidden>Editing an active alert. Posting replaces it. <button type="button" class="link" id="cancel-edit">Cancel edit</button></p>
+          <fieldset class="types">
+            <legend>Type</legend>
+            <label class="type-card"><input type="radio" name="type" value="urgent" checked /><Fragment set:html={icon('<path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r=".6"/>')} />Weather / closing (urgent)</label>
+            <label class="type-card"><input type="radio" name="type" value="news" /><Fragment set:html={icon('<path d="M3.5 10v4h3l7 4.5v-13l-7 4.5z"/><path d="M17 9.5a3.5 3.5 0 0 1 0 5"/>')} />News / general</label>
+          </fieldset>
+          <label>Message <textarea name="message" rows="3" maxlength="200" required></textarea></label>
+          <p class="hint" id="count">0 / 200</p>
+          <label>Link (optional) <input name="link" type="url" placeholder="https://" /></label>
+          <label>Expires <input name="expires" type="datetime-local" required aria-describedby="exp-help" /></label>
+          <p class="hint" id="exp-help">It disappears from the site automatically after this.</p>
+          <label class="check"><input type="checkbox" name="email" /> <span>Also email subscribers to <strong id="topic-name">Weather &amp; closing alerts</strong></span></label>
+          <p class="hint" id="email-off" hidden>Email isn&rsquo;t configured yet, so alerts can only be posted on the site.</p>
+          <p class="err" id="compose-err" hidden></p>
+          <p class="label">Preview</p>
+          <div id="preview" class="preview"></div>
+          <div class="btn-row">
+            <button class="btn" type="submit" id="post-btn">Post alert</button>
+            <button class="btn btn-sm btn-outline" type="button" id="test-btn">Send a test to me</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="items" aria-labelledby="items-h">
+        <h2 id="items-h" class="h2">Videos &amp; podcast</h2>
+        <p class="muted">Tip: titles fixed on YouTube fix the site automatically. Use this when that isn&rsquo;t possible.</p>
+        <ul class="chips seg" role="list">
+          <li><button type="button" class="chip" data-kind="video" aria-pressed="true">Videos</button></li>
+          <li><button type="button" class="chip" data-kind="podcast" aria-pressed="false">Podcast</button></li>
+        </ul>
+        <ul id="item-list" class="item-list" role="list"></ul>
+      </section>
+
+      <section id="groups" aria-labelledby="groups-h">
+        <h2 id="groups-h" class="h2">Weekly groups</h2>
+        <p><button class="btn" type="button" id="add-group">Add a group</button></p>
+        <div id="group-list" class="stack-s"></div>
+      </section>
+
+      <section id="live" aria-labelledby="live-h">
+        <h2 id="live-h" class="h2">Livestream</h2>
+        <form id="live-form" class="card form">
+          <fieldset>
+            <legend>Home page live video</legend>
+            <label class="check"><input type="radio" name="mode" value="auto" checked /> Automatic, on the usual Sunday schedule</label>
+            <label class="check"><input type="radio" name="mode" value="on" /> Live now: show the stream</label>
+            <label class="check"><input type="radio" name="mode" value="off" /> Not live: hide the stream</label>
+          </fieldset>
+          <label>YouTube video ID (optional) <input name="video" maxlength="11" pattern="[\w\-]{11}" autocapitalize="off" spellcheck="false" aria-describedby="vid-help" /></label>
+          <p class="hint" id="vid-help">Only if the stream doesn&rsquo;t show on its own: the 11 characters after <code>watch?v=</code>.</p>
+          <p><button class="btn btn-sm" type="submit">Save</button></p>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <dialog id="confirm" class="card">
+    <form method="dialog">
+      <h2 class="h3" id="c-title"></h2>
+      <p id="c-text"></p>
+      <div class="btn-row">
+        <button class="btn btn-outline" value="cancel" id="c-cancel">Cancel</button>
+        <button class="btn btn-dark" value="ok" id="c-ok"></button>
+      </div>
+    </form>
+  </dialog>
+  <div class="toasts">
+    <div id="toast" class="toast" role="status"></div>
+    <div id="toast-err" class="toast" role="alert"></div>
+  </div>
+</Base>
+
+<script>
+  import { DAYS, VARIES, TZ, alertCard, activeAlerts, applyOverride, esc, etDay } from '../lib/state.js';
+
+  const $ = <T extends Element = HTMLElement>(s: string, r: ParentNode = document) => r.querySelector(s) as unknown as T;
+  const app = $('#app');
+  const API = app.dataset.api!;
+  const ITEMS = JSON.parse($('#items-data').textContent!);
+  const TOPIC = { urgent: 'Weather & closing alerts', news: 'Latest happenings' } as Record<string, string>;
+  let state: any = {};
+  let emailOn = false;
+
+  async function call(method: string, path: string, body?: unknown, raw?: Blob) {
+    const r = await fetch(API + path, {
+      method,
+      headers: raw ? { 'Content-Type': raw.type } : body ? { 'Content-Type': 'application/json' } : {},
+      body: raw ?? (body === undefined ? undefined : JSON.stringify(body)),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw Object.assign(new Error(j.error || String(r.status)), { data: j });
+    return j;
+  }
+
+  // ---------- feedback ----------
+  let toastTimer = 0;
+  function toast(msg: string) {
+    const t = $('#toast');
+    t.textContent = msg;
+    clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => (t.textContent = ''), 4000);
+  }
+  function fail(retry?: () => void, msg = 'Couldn’t save. Check your connection and try again.') {
+    const t = $('#toast-err');
+    t.innerHTML = `<span>${esc(msg)}</span>`;
+    if (retry) {
+      const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn btn-sm btn-light', textContent: 'Try again' });
+      b.onclick = () => { t.textContent = ''; retry(); };
+      t.append(b);
+    }
+    const x = Object.assign(document.createElement('button'), { type: 'button', className: 'toast-x', textContent: '✕' });
+    x.setAttribute('aria-label', 'Dismiss');
+    x.onclick = () => (t.textContent = '');
+    t.append(x);
+  }
+  // Runs a save; on error keeps the fields as they are and offers "Try again".
+  async function save(fn: () => Promise<void>, ok: string) {
+    try { await fn(); $('#toast-err').textContent = ''; toast(ok); }
+    catch (e: any) { if (e.data?.error === 'forbidden') return gate(); fail(() => save(fn, ok)); }
+  }
+  function ask(title: string, text: string, verb: string): Promise<boolean> {
+    const d = $<HTMLDialogElement>('#confirm');
+    $('#c-title').textContent = title;
+    $('#c-text').textContent = text;
+    $('#c-ok').textContent = verb;
+    d.returnValue = '';
+    d.showModal();
+    $('#c-cancel').focus();
+    return new Promise((res) => d.addEventListener('close', () => res(d.returnValue === 'ok'), { once: true }));
+  }
+  const gate = () => { app.hidden = true; $('#gate').hidden = false; };
+
+  // ---------- alerts ----------
+  const f = $<HTMLFormElement>('#compose');
+  const el = f.elements as any;
+  let editing = '';
+  let expTouched = false;
+  const local = (d: Date) => new Date(+d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
+  const ends = (iso: string) => new Date(iso).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: TZ }).replace(/\s([AP]M)/, (m) => m.trim().toLowerCase());
+  function defaultExpiry() {
+    const d = new Date();
+    if (el.type.value === 'news') d.setDate(d.getDate() + 7);
+    d.setHours(23, 59, 0, 0);
+    el.expires.value = local(d);
+  }
+  function syncCompose() {
+    const type = el.type.value;
+    const n = el.message.value.length;
+    const count = $('#count');
+    count.textContent = `${n} / 200`;
+    if (n >= 180) count.setAttribute('aria-live', 'polite'); else count.removeAttribute('aria-live');
+    $('#topic-name').textContent = TOPIC[type];
+    el.email.disabled = !emailOn;
+    $('#email-off').hidden = emailOn;
+    $('#post-btn').textContent = el.email.checked ? 'Post alert and email' : 'Post alert';
+    ($('#test-btn') as HTMLButtonElement).hidden = !emailOn;
+    let link = '';
+    try { link = el.link.value ? new URL(el.link.value).href : ''; } catch {}
+    $('#preview').innerHTML = alertCard({ id: 'preview', type, message: el.message.value.trim() || 'Your message appears here.', link });
+    $('#preview').classList.toggle('is-empty', !el.message.value.trim());
+  }
+  f.addEventListener('input', (e) => { if (e.target === el.expires) expTouched = true; syncCompose(); });
+  f.addEventListener('change', (e) => { if (e.target === el.type[0] || e.target === el.type[1]) { if (!expTouched) defaultExpiry(); } syncCompose(); });
+
+  function renderAlerts() {
+    const list = activeAlerts(state.alerts);
+    $('#active').innerHTML = list.length
+      ? list.map((a: any) => `<div class="active-row">${alertCard(a)}<p class="hint">Ends ${ends(a.expires)}${a.emailed ? ' · Emailed' : ''}</p><div class="btn-row"><button type="button" class="btn btn-sm btn-outline" data-edit="${esc(a.id)}">Edit</button><button type="button" class="btn btn-sm btn-outline" data-end="${esc(a.id)}">End now</button></div></div>`).join('')
+      : '<p class="muted">No active alerts. The site shows no banner.</p>';
+  }
+  function resetCompose() {
+    f.reset();
+    editing = '';
+    expTouched = false;
+    $('#editing').hidden = true;
+    defaultExpiry();
+    syncCompose();
+  }
+  $('#cancel-edit').onclick = resetCompose;
+  $('#active').addEventListener('click', async (e) => {
+    const b = (e.target as HTMLElement).closest('button');
+    if (!b) return;
+    const a = (state.alerts ?? []).find((x: any) => x.id === (b.dataset.edit ?? b.dataset.end));
+    if (!a) return;
+    if (b.dataset.edit) {
+      el.type.value = a.type; el.message.value = a.message; el.link.value = a.link ?? ''; el.expires.value = local(new Date(a.expires));
+      editing = a.id; expTouched = true; $('#editing').hidden = false; syncCompose();
+      el.message.focus();
+      return;
+    }
+    if (!(await ask('End this alert now?', 'It disappears from every page right away.', 'End alert'))) return;
+    save(async () => { await call('DELETE', `/alerts/${encodeURIComponent(a.id)}`); state.alerts = state.alerts.filter((x: any) => x !== a); renderAlerts(); }, 'Alert ended.');
+  });
+  const alertBody = () => ({ type: el.type.value, message: el.message.value, link: el.link.value, expires: new Date(el.expires.value).toISOString() });
+  function checkCompose() {
+    const err = $('#compose-err');
+    const msg = !el.message.value.trim() ? 'Write a message.' : !el.expires.value || new Date(el.expires.value) <= new Date() ? 'Choose an end time in the future.' : el.link.value && !el.link.checkValidity() ? 'Enter a full link starting with https://' : '';
+    err.textContent = msg ? `⚠ ${msg}` : '';
+    err.hidden = !msg;
+    return !msg;
+  }
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!checkCompose()) return;
+    const body = { ...alertBody(), email: el.email.checked, replaces: editing || undefined };
+    if (body.email) {
+      let count: number;
+      try { ({ count } = await call('GET', `/recipients?type=${body.type}`)); }
+      catch { return fail(undefined, 'Couldn’t reach Mailchimp to count subscribers. Try again.'); }
+      if (!(await ask('Post and email subscribers?', `This emails ${count} ${count === 1 ? 'person' : 'people'} on “${TOPIC[body.type]}”. Emails can’t be unsent.`, 'Post and email'))) return;
+    }
+    try {
+      const { alert } = await call('POST', '/alerts', body);
+      state.alerts = [...(state.alerts ?? []).filter((x: any) => x.id !== editing), alert];
+      renderAlerts(); resetCompose(); toast('Alert posted. It’s live on every page.');
+    } catch (e: any) {
+      if (e.data?.error === 'forbidden') return gate();
+      if (e.data?.alert) { // posted, but Mailchimp refused the send
+        state.alerts = [...(state.alerts ?? []).filter((x: any) => x.id !== editing), e.data.alert];
+        renderAlerts(); resetCompose();
+        return fail(undefined, 'The alert is on the site, but the email couldn’t be sent. Check Mailchimp.');
+      }
+      fail(() => f.requestSubmit());
+    }
+  });
+  $('#test-btn').onclick = async () => {
+    if (!checkCompose()) return;
+    try { const { to } = await call('POST', '/test-email', alertBody()); toast(`Test sent to ${to}.`); }
+    catch { fail(undefined, 'Couldn’t send the test. Check Mailchimp and try again.'); }
+  };
+
+  // ---------- videos & podcast ----------
+  let kind: 'video' | 'podcast' = 'video';
+  const pending = new Map<string, Blob>();
+  const overrides = () => (kind === 'video' ? (state.videos ??= {}) : (state.podcast ??= {}));
+  function renderItems() {
+    const list = ITEMS[kind];
+    const map = overrides();
+    $('#item-list').innerHTML = !list.length
+      ? `<li class="muted">${kind === 'video' ? 'No videos yet. New YouTube uploads appear here automatically.' : 'No podcast episodes found.'}</li>`
+      : list.map((it: any) => {
+        const o = map[it.id] ?? {};
+        const shown = applyOverride(it, o);
+        return `<li class="card item${kind === 'podcast' ? ' no-thumb' : ''}" data-id="${esc(it.id)}">`
+          + (kind === 'video' ? `<img class="ithumb" src="${esc(shown.thumb)}" alt="" width="120" height="68" loading="lazy">` : '')
+          + `<div class="ifields"><p class="hint">${esc(it.date)}</p><label>Title <input name="title" maxlength="120" value="${esc(shown.title)}"></label><p class="hint">Original: ${esc(it.title)}</p>`
+          + '<div class="btn-row">'
+          + (kind === 'video' ? '<label class="btn btn-sm btn-outline file">Change thumbnail<input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"></label>' : '')
+          + `${o.title || o.thumb ? '<button type="button" class="link reset">Reset to original</button>' : ''}</div>`
+          + (kind === 'video' ? '<p class="hint">JPG, PNG or WebP up to 5 MB. 1280×720 works best.</p>' : '')
+          + '<p class="dirty" hidden><span>Unsaved changes</span> <button type="button" class="btn btn-sm save">Save</button></p></div></li>';
+      }).join('');
+  }
+  document.querySelectorAll<HTMLButtonElement>('.seg .chip').forEach((b) => (b.onclick = () => {
+    kind = b.dataset.kind as typeof kind;
+    document.querySelectorAll('.seg .chip').forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
+    pending.clear();
+    renderItems();
+  }));
+  // Resize to the card size (1280×720, centre crop) in the browser, so uploads stay small.
+  async function toThumb(file: File): Promise<Blob> {
+    const img = await createImageBitmap(file);
+    const c = Object.assign(document.createElement('canvas'), { width: 1280, height: 720 });
+    const s = Math.max(1280 / img.width, 720 / img.height);
+    c.getContext('2d')!.drawImage(img, (1280 - img.width * s) / 2, (720 - img.height * s) / 2, img.width * s, img.height * s);
+    return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('encode'))), 'image/jpeg', 0.85));
+  }
+  const list = $('#item-list');
+  const rowOf = (t: EventTarget | null) => (t as HTMLElement).closest<HTMLElement>('.item')!;
+  const dirty = (row: HTMLElement) => ($('.dirty', row).hidden = false);
+  list.addEventListener('input', (e) => { if ((e.target as HTMLInputElement).name === 'title') dirty(rowOf(e.target)); });
+  list.addEventListener('change', async (e) => {
+    const input = e.target as HTMLInputElement;
+    if (input.type !== 'file' || !input.files?.[0]) return;
+    const row = rowOf(input);
+    const file = input.files[0];
+    if (file.size > 5 * 1024 * 1024 || !/^image\/(jpeg|png|webp)$/.test(file.type)) return fail(undefined, 'Choose a JPG, PNG or WebP image up to 5 MB.');
+    try {
+      const blob = await toThumb(file);
+      pending.set(row.dataset.id!, blob);
+      $<HTMLImageElement>('.ithumb', row).src = URL.createObjectURL(blob);
+      dirty(row);
+    } catch { fail(undefined, 'That image couldn’t be read. Try another file.'); }
+  });
+  list.addEventListener('click', async (e) => {
+    const t = e.target as HTMLElement;
+    if (!t.matches('.save, .reset')) return;
+    const row = rowOf(t);
+    const id = row.dataset.id!;
+    const orig = ITEMS[kind].find((x: any) => x.id === id);
+    const path = `/items/${kind}/${encodeURIComponent(id)}`;
+    if (t.matches('.reset')) {
+      if (!(await ask('Reset to the original title and thumbnail?', 'The YouTube or podcast feed version shows again.', 'Reset'))) return;
+      return save(async () => { await call('DELETE', path); delete overrides()[id]; pending.delete(id); renderItems(); }, 'Saved.');
+    }
+    const title = $<HTMLInputElement>('[name=title]', row).value.trim();
+    save(async () => {
+      const blob = pending.get(id);
+      if (blob) { const { item } = await call('POST', `/thumb/${id}`, undefined, blob); overrides()[id] = item; pending.delete(id); }
+      const { item } = await call('PUT', path, { title: title === orig.title ? '' : title });
+      if (item) overrides()[id] = item; else delete overrides()[id];
+      renderItems();
+    }, 'Saved.');
+  });
+
+  // ---------- weekly groups ----------
+  const nextDay = (day: number) => { // the group's meeting day this week (ET), for a one-tap "Not meeting"
+    const today = etDay(new Date());
+    const d = new Date(`${today}T12:00:00Z`);
+    if (day !== VARIES) d.setUTCDate(d.getUTCDate() + ((day - d.getUTCDay() + 7) % 7));
+    return d.toISOString().slice(0, 10);
+  };
+  const updated = (iso?: string) => (iso ? `Updated ${new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: TZ })}` : 'Not saved yet');
+  const eventRow = (e: any, place = '') => `<fieldset class="ev" data-id="${esc(e.id ?? crypto.randomUUID())}"><legend class="sr-only">Event</legend>
+      <label>Event title <input data-f="title" required maxlength="80" value="${esc(e.title)}"></label>
+      <div class="two"><label>Date <input type="date" data-f="date" required min="${etDay(new Date())}" value="${esc(e.date)}"></label>
+      <label>Starts <input type="time" data-f="start" required value="${esc(e.start)}"></label></div>
+      <div class="two"><label>Ends (optional) <input type="time" data-f="end" value="${esc(e.end)}"></label>
+      <label>Place <input data-f="place" maxlength="80" value="${esc(e.place)}" placeholder="${esc(place || 'Same as the group')}"></label></div>
+      <label>Note (optional) <input data-f="note" maxlength="140" value="${esc(e.note)}"></label>
+      <p><button type="button" class="link ev-remove">Remove event</button></p>
+    </fieldset>`;
+  function groupCard(g: any) {
+    const k = g.status?.kind ?? 'meeting';
+    const d = g.status?.date;
+    const r = (v: string) => `name="kind" value="${v}"${k === v ? ' checked' : ''}`;
+    const id = esc(g.id);
+    return `<form class="card form gcard" data-id="${id}">
+      <label>Name <input name="name" required maxlength="80" value="${esc(g.name)}"></label>
+      <div class="two"><label>Day <select name="day">${[...DAYS, 'Day varies'].map((n, i) => `<option value="${i}"${+g.day === i ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
+      <label>Time <input name="time" maxlength="60" value="${esc(g.time)}" aria-describedby="h-${id}"></label></div>
+      <label>Place <input name="place" maxlength="80" value="${esc(g.place)}" aria-describedby="h-${id}"></label>
+      <p class="hint" id="h-${id}">Leave time or place blank to show “Contact us”.</p>
+      <label>Contact (optional) <input name="contact" maxlength="80" value="${esc(g.contact)}" placeholder="Name, phone or email"></label>
+      <label>Short description (optional) <textarea name="about" rows="2" maxlength="200">${esc(g.about)}</textarea></label>
+      <label>Note (optional) <input name="note" maxlength="140" value="${esc(g.note)}" placeholder="Off for Thanksgiving"></label>
+      <fieldset class="week"><legend>This week</legend>
+        <label class="check"><input type="radio" ${r('meeting')}> Meeting as usual</label>
+        <label class="check"><input type="radio" ${r('off')}> Not meeting on <input type="date" name="off" aria-label="Date not meeting" value="${k === 'off' ? d : nextDay(+g.day)}"></label>
+        <label class="check"><input type="radio" ${r('break')}> On break until <input type="date" name="break" aria-label="Back on" value="${k === 'break' ? d : ''}"></label>
+      </fieldset>
+      <fieldset class="events"><legend>Events</legend>
+        <p class="hint">One-off dates, like a picnic or a special study night. They drop off the board after their date.</p>
+        <div class="ev-list">${[...(g.events ?? [])].sort((a: any, b: any) => a.date.localeCompare(b.date)).map((e: any) => eventRow(e, g.place)).join('')}</div>
+        <p><button type="button" class="btn btn-sm btn-outline ev-add">Add an event</button></p>
+      </fieldset>
+      <p class="hint">${updated(g.updated)}</p>
+      <div class="btn-row"><button class="btn btn-sm" type="submit">Save</button><button class="link remove" type="button">Remove</button></div>
+    </form>`;
+  }
+  function renderGroups() {
+    const gs = state.groups ?? [];
+    $('#group-list').innerHTML = gs.length ? gs.map(groupCard).join('') : '<p class="muted" id="no-groups">No groups yet. Add the first one and it appears on the Weekly groups page.</p>';
+  }
+  const putGroups = async (gs: any[]) => { state.groups = (await call('PUT', '/groups', gs)).groups; renderGroups(); };
+  $('#add-group').onclick = () => {
+    $('#no-groups')?.remove();
+    $('#group-list').insertAdjacentHTML('afterbegin', groupCard({ id: crypto.randomUUID(), name: '', day: 0, time: '', place: '', note: '' }));
+    $<HTMLInputElement>('#group-list [name=name]').focus();
+  };
+  $('#group-list').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const v = form.elements as any;
+    const kindV = v.kind.value;
+    const date = kindV === 'off' ? v.off.value : kindV === 'break' ? v.break.value : undefined;
+    if (!form.reportValidity()) return;
+    if (kindV !== 'meeting' && !date) return (kindV === 'off' ? v.off : v.break).focus();
+    const events = [...form.querySelectorAll<HTMLElement>('.ev')].map((row) => {
+      const f = (k: string) => $<HTMLInputElement>(`[data-f=${k}]`, row).value.trim();
+      return { id: row.dataset.id, title: f('title'), date: f('date'), start: f('start'), end: f('end'), place: f('place'), note: f('note') };
+    });
+    const bad = events.find((x) => x.end && x.end <= x.start);
+    if (bad) return fail(undefined, `“${bad.title}” ends before it starts. Check the times.`);
+    const g = { id: form.dataset.id, name: v.name.value, day: +v.day.value, time: v.time.value, place: v.place.value, contact: v.contact.value, about: v.about.value, note: v.note.value, status: { kind: kindV, date }, events };
+    const gs = state.groups ?? [];
+    const next = gs.some((x: any) => x.id === g.id) ? gs.map((x: any) => (x.id === g.id ? g : x)) : [g, ...gs];
+    save(() => putGroups(next), 'Saved.');
+  });
+  $('#group-list').addEventListener('click', async (e) => {
+    const t = e.target as HTMLElement;
+    const form = t.closest('form')!;
+    if (t.matches('.ev-add')) {
+      $('.ev-list', form).insertAdjacentHTML('beforeend', eventRow({}, (form.elements as any).place.value));
+      return $<HTMLInputElement>('.ev:last-child [data-f=title]', form).focus();
+    }
+    if (t.matches('.ev-remove')) { // removed for good when the group is saved
+      const row = t.closest('.ev')!;
+      const next = (row.nextElementSibling ?? row.previousElementSibling)?.querySelector<HTMLElement>('[data-f=title]');
+      row.remove();
+      return (next ?? $('.ev-add', form)).focus();
+    }
+    if (!t.matches('.remove')) return;
+    const name = (form.elements as any).name.value || 'this group';
+    if (!(await ask(`Remove ${name} from the board?`, 'This can’t be undone.', 'Remove group'))) return;
+    const gs = (state.groups ?? []).filter((x: any) => x.id !== form.dataset.id);
+    if (gs.length === (state.groups ?? []).length) { form.remove(); return toast('Group removed.'); } // never saved
+    save(() => putGroups(gs), 'Group removed.');
+  });
+
+  // ---------- livestream ----------
+  const lf = $<HTMLFormElement>('#live-form');
+  const lv = lf.elements as any;
+  lf.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!lf.reportValidity()) return;
+    save(async () => { state.live = (await call('PUT', '/live', { mode: lv.mode.value, video: lv.video.value.trim() })).live; }, 'Saved.');
+  });
+
+  // ---------- start ----------
+  (async () => {
+    try {
+      const r = await call('GET', '/state');
+      state = r.state; emailOn = r.email;
+    } catch { return gate(); }
+    app.hidden = false;
+    lv.mode.value = state.live?.mode ?? 'auto';
+    lv.video.value = state.live?.video ?? '';
+    renderAlerts(); renderItems(); renderGroups(); resetCompose();
+  })();
+</script>
+
+<style is:global>
+  body:has(.admin-top) { background: var(--cream); }
+  .admin-top { background: var(--paper); border-bottom: 1px solid var(--line); }
+  .admin-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem; min-height: 60px; padding-block: 0.5rem; }
+  .admin-bar > .link { white-space: nowrap; }
+  .admin-brand { flex-shrink: 0; display: flex; align-items: center; gap: 0.6rem; margin-right: auto; text-decoration: none; }
+  .admin-brand img { height: 36px; width: auto; }
+  .admin-brand span { font-size: var(--step--1); font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+  #app .subnav { top: 0; }
+  .gate { padding-block: 4rem; }
+  .gate .card { max-width: 28rem; margin-inline: auto; display: grid; gap: 1rem; }
+  .admin-body { padding-block: 2rem 6rem; }
+  .admin-body > section { padding-top: 2.5rem; scroll-margin-top: 5rem; }
+  .admin-body > section + section { margin-top: 2.5rem; border-top: 1px solid var(--line); }
+  .admin-body h2.h2 { margin-bottom: 1rem; }
+  .admin-body h3.h3 { margin: 1.5rem 0 0.75rem; }
+  .stack-s { display: grid; gap: 1rem; }
+  .form { display: grid; gap: 0.6rem; margin-top: 1.5rem; }
+  .form h3.h3 { margin: 0 0 0.5rem; }
+  .form label, .item label { display: grid; gap: 0.3rem; font-weight: 700; font-size: var(--step--1); }
+  .form input:not([type='radio'], [type='checkbox'], [type='file']), .form textarea, .form select, .item input[name='title'] {
+    width: 100%; min-width: 0; padding: 0.7rem 0.9rem; min-height: 48px; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s);
+    background: #fff; font-weight: 400; font-size: max(1rem, 16px);
+  }
+  .form fieldset { border: 0; padding: 0; display: grid; gap: 0.4rem; margin-top: 0.4rem; }
+  .form legend { padding: 0; margin-bottom: 0.3rem; font-weight: 700; }
+  .form label.check { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem; min-height: 44px; font-size: var(--step-0); font-weight: 400; }
+  .form label.check input[type='date'] { width: auto; min-height: 44px; }
+  .form .check input[type='radio'], .form .check input[type='checkbox'], .type-card input { width: 22px; height: 22px; accent-color: var(--gold-ink); }
+  .week label:has(input[type='radio']:not(:checked)) input[type='date'] { display: none; }
+  .types { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+  .type-card {
+    display: flex !important; align-items: center; grid-auto-flow: column; gap: 0.6rem !important; min-height: 56px; padding: 0.5rem 0.9rem;
+    border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; font-size: var(--step-0) !important; cursor: pointer;
+  }
+  .type-card:has(:checked) { border-color: var(--gold); background: var(--gold-soft); }
+  .type-card svg, .admin-body .alert .ic { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .hint, .card p.hint { font-size: var(--step--1); color: var(--muted); }
+  .label { font-weight: 700; font-size: var(--step--1); margin-top: 0.5rem; }
+  .err, .card p.err { color: var(--ink); font-weight: 700; }
+  .note { padding: 0.6rem 0.9rem; background: var(--parchment); border-left: 3px solid var(--gold); color: var(--ink) !important; }
+  .admin-body .alert-x { display: none; }
+  .active-row { display: grid; gap: 0.5rem; }
+  .preview { margin-bottom: 0.5rem; }
+  .preview.is-empty .alert-msg { font-weight: 400; font-style: italic; opacity: 0.75; }
+  .seg { margin-block: 1rem; }
+  .chip { display: inline-flex; align-items: center; min-height: 44px; padding: 0.4rem 1.1rem; border-radius: var(--radius-pill); background: var(--paper); border: 1.5px solid var(--line); font-weight: 700; font-size: 0.95rem; }
+  .chip[aria-pressed='true'] { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+  .item-list { list-style: none; padding: 0; display: grid; gap: 1rem; }
+  .item { display: grid; grid-template-columns: 120px 1fr; gap: 1rem; align-items: start; padding: 1rem; }
+  .item.no-thumb { grid-template-columns: 1fr; }
+  .ithumb { width: 120px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius-s); background: var(--ink); }
+  .ifields { display: grid; gap: 0.5rem; min-width: 0; }
+  .item .btn-row { align-items: center; }
+  .file:focus-within { outline: 3px solid var(--gold-ink); outline-offset: 3px; }
+  .dirty { display: flex; align-items: center; gap: 0.75rem; font-weight: 700; color: var(--ink) !important; }
+  .dirty[hidden] { display: none; }
+  button.link { border: 0; cursor: pointer; font-size: 1rem; }
+  .gcard { margin-top: 0; }
+  .ev { display: grid; gap: 0.6rem; padding: 0.9rem 0 0.9rem 1rem; border-left: 2px solid var(--line-gold) !important; }
+  .ev-list { display: grid; gap: 0.75rem; }
+  .two { display: grid; gap: 0.6rem; grid-template-columns: 1fr 1fr; }
+  #confirm { margin: auto; width: min(28rem, calc(100% - 2rem)); border: 0; box-shadow: var(--shadow-l); }
+  #confirm:not([open]) { display: none; }
+  #confirm::backdrop { background: rgb(28 28 28 / 0.5); }
+  #confirm form { display: grid; gap: 1rem; }
+  .toasts { position: fixed; left: 50%; translate: -50% 0; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 70; display: grid; gap: 0.5rem; width: max-content; max-width: calc(100% - 32px); }
+  .toast { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1.2rem; border-radius: var(--radius-pill); background: var(--ink); color: var(--cream); font-weight: 600; box-shadow: var(--shadow-l); }
+  .toast:empty { padding: 0; box-shadow: none; }
+  .toast :focus-visible { outline-color: var(--gold); }
+  .toast-x { border: 0; background: none; width: 44px; height: 44px; margin: -0.5rem -0.75rem -0.5rem 0; border-radius: 50%; }
+  @media (max-width: 699px) {
+    .item { grid-template-columns: 96px 1fr; }
+    .ithumb { width: 96px; }
+    .two { grid-template-columns: 1fr; }
+    .admin-bar { column-gap: 0.75rem; }
+    .admin-brand img { height: 30px; }
+  }
+</style>

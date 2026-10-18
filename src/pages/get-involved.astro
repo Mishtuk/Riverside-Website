@@ -73,6 +73,7 @@ const chips = [
       </div>
       <div class="lead-copy" set:html={discT.head} />
       <div class="btn-row cta"><a class="btn" href={DISCIPLESHIP_FORM} rel="noopener">Join a discipleship group</a></div>
+      <p class="groups-link"><a class="link link-arrow" href={href('/groups')}>See which groups are meeting this week</a></p>
       <details class="readmore">
         <summary><span class="rm-more">Current study &amp; guides</span><span class="rm-less">Hide the study</span></summary>
         <div class="readmore-body prose" set:html={discT.tail} />
@@ -226,6 +227,7 @@ const chips = [
 <style>
   .lead-copy { max-width: 46rem; font-size: var(--step-1); line-height: 1.55; color: var(--ink); }
   .cta { margin-top: 1.5rem; }
+  .groups-link { margin-top: 1rem; }
   #discipleship .readmore { display: block; margin-top: 1rem; max-width: 46rem; }
   .readmore-body.prose { font-size: var(--step-0); }
   .pair .card { display: flex; flex-direction: column; }

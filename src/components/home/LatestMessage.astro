@@ -13,17 +13,17 @@ const watch = (id: string) => `https://www.youtube.com/watch?v=${id}`;
 
     {latest ? (
       <div class="feature">
-        <a class="player" href={watch(latest.id)} data-yt={latest.id} data-title={`${latest.displayTitle}, ${latest.dateLabel}`}>
-          <img
+        <a class="player" href={watch(latest.id)} data-yt={latest.id} data-vid={latest.id} data-date={latest.dateLabel} data-title={`${latest.displayTitle}, ${latest.dateLabel}`}>
+          <img data-vid={latest.id}
             src={latest.thumbnail} data-fb={latest.thumbFallback} onerror="this.onerror=null;this.src=this.dataset.fb"
             alt="" width="1280" height="720" loading="lazy" decoding="async"
           />
           <span class="play" aria-hidden="true"></span>
-          <span class="sr-only">Play {latest.displayTitle}, {latest.dateLabel}</span>
+          <span class="sr-only">Play <span data-vid={latest.id}>{latest.displayTitle}</span>, {latest.dateLabel}</span>
         </a>
         <div class="feature-meta">
           <p class="date"><time datetime={latest.dateISO}>{latest.dateLabel}</time></p>
-          <h3>{latest.displayTitle}</h3>
+          <h3 data-vid={latest.id}>{latest.displayTitle}</h3>
           <p class="muted">Missed Sunday? Catch up on the full service, worship and message from Riverside.</p>
           <div class="btn-row">
             <a class="btn btn-outline" href={href('/watch')}>All messages</a>
@@ -44,12 +44,12 @@ const watch = (id: string) => `https://www.youtube.com/watch?v=${id}`;
           <li>
             <a class="recent-item" href={watch(v.id)}>
               <div class="vthumb">
-                <img src={v.thumbnail} data-fb={v.thumbFallback} onerror="this.onerror=null;this.src=this.dataset.fb" alt="" width="1280" height="720" loading="lazy" decoding="async" />
+                <img data-vid={v.id} src={v.thumbnail} data-fb={v.thumbFallback} onerror="this.onerror=null;this.src=this.dataset.fb" alt="" width="1280" height="720" loading="lazy" decoding="async" />
                 <span class="vplay" aria-hidden="true"></span>
               </div>
               <div>
                 <p class="date"><time datetime={v.dateISO}>{v.dateCard}</time></p>
-                <h3>{v.displayTitle}</h3>
+                <h3 data-vid={v.id}>{v.displayTitle}</h3>
               </div>
             </a>
           </li>

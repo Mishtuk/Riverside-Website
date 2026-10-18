@@ -56,11 +56,11 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
           <ol class="episodes" role="list">
             {shown.map((s) => (
               <li class="ep">
-      <a class="ep-btn" href={s.audioUrl} aria-label={`Play ${nice(s.title)}`}></a>
+      <a class="ep-btn" data-pod={s.guid} href={s.audioUrl} aria-label={`Play ${nice(s.title)}`}></a>
       <div class="ep-info">
-        <h3>{nice(s.title)}</h3>
+        <h3 data-pod={s.guid}>{nice(s.title)}</h3>
         <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time><span class="ep-time" aria-live="off"></span></p>
-        <input class="ep-seek" type="range" min="0" max="100" step="1" value="0" aria-label={`Seek ${nice(s.title)}`} />
+        <input class="ep-seek" data-pod={s.guid} type="range" min="0" max="100" step="1" value="0" aria-label={`Seek ${nice(s.title)}`} />
       </div>
     </li>
             ))}
@@ -71,11 +71,11 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
               <ol class="episodes" role="list">
                 {rest.map((s) => (
                   <li class="ep">
-      <a class="ep-btn" href={s.audioUrl} aria-label={`Play ${nice(s.title)}`}></a>
+      <a class="ep-btn" data-pod={s.guid} href={s.audioUrl} aria-label={`Play ${nice(s.title)}`}></a>
       <div class="ep-info">
-        <h3>{nice(s.title)}</h3>
+        <h3 data-pod={s.guid}>{nice(s.title)}</h3>
         <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time><span class="ep-time" aria-live="off"></span></p>
-        <input class="ep-seek" type="range" min="0" max="100" step="1" value="0" aria-label={`Seek ${nice(s.title)}`} />
+        <input class="ep-seek" data-pod={s.guid} type="range" min="0" max="100" step="1" value="0" aria-label={`Seek ${nice(s.title)}`} />
       </div>
     </li>
                 ))}

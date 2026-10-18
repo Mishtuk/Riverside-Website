@@ -3,6 +3,8 @@ export const APPLE_PODCASTS_URL = 'https://podcasts.apple.com/podcast/id38737004
 const FEED = 'https://www.riversideconnect.com/feeds/sermons';
 
 export interface Sermon {
+  /** Feed GUID: the key for staff title overrides */
+  guid: string;
   title: string;
   pubDate: Date;
   audioUrl: string;
@@ -35,6 +37,7 @@ export async function getSermons(): Promise<Sermon[]> {
     const xml = await res.text();
     return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)]
       .map(([, item]): Sermon => ({
+        guid: decode(tag(item, 'guid') ?? attr(item, 'enclosure', 'url') ?? ''),
         title: decode(tag(item, 'title') ?? ''),
         pubDate: new Date(tag(item, 'pubDate') ?? ''),
         audioUrl: decode(attr(item, 'enclosure', 'url') ?? ''),

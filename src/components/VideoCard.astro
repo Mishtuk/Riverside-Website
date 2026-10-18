@@ -6,12 +6,12 @@ const { v } = Astro.props;
 ---
 <a class="card vid" href={`https://www.youtube.com/watch?v=${v.id}`} rel="noopener">
   <div class="vthumb">
-    <img src={v.thumbnail} alt="" width="1280" height="720" loading="lazy" decoding="async"
+    <img data-vid={v.id} src={v.thumbnail} alt="" width="1280" height="720" loading="lazy" decoding="async"
       data-fb={v.thumbFallback} onerror="this.onerror=null;this.src=this.dataset.fb" />
     <span class="vplay" aria-hidden="true"></span>
   </div>
   <p class="date"><time datetime={v.dateISO}>{v.dateCard}</time></p>
-  <h3>{v.displayTitle}</h3>
+  <h3 data-vid={v.id}>{v.displayTitle}</h3>
 </a>
 
 <style is:global>

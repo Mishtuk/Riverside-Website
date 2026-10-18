@@ -1,7 +1,7 @@
 import { defineConfig } from 'astro/config';
 
-// Launch = env change: SITE=https://riversideconnect.com BASE=/ npm run build (defaults are the GitHub Pages preview).
-const BASE = process.env.BASE ?? '/Riverside-Website';
+// Hosting is a Cloudflare Worker at the domain root, so BASE defaults to /. SITE is set per deploy (see HANDOFF).
+const BASE = process.env.BASE ?? '/';
 
 // Old CMS URL -> new home. Keeps printed links and search rankings working.
 const moves = {
@@ -32,7 +32,7 @@ const moves = {
   '/giving-faq': '/give#faq',
   '/subscriptions': '/podcast',
 };
-const redirects = Object.fromEntries(Object.entries(moves).map(([from, to]) => [from, BASE + to]));
+const redirects = Object.fromEntries(Object.entries(moves).map(([from, to]) => [from, BASE.replace(/\/$/, '') + to]));
 
 export default defineConfig({
   site: process.env.SITE ?? 'https://mishtuk.github.io',
