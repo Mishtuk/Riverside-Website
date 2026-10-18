@@ -42,9 +42,9 @@ const videos = await getVideos(12);
             const mins = (hm) => hm.split(':')[0] * 60 + +hm.split(':')[1];
             const now = +p.hour * 60 + +p.minute;
             const wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday);
-            if (wd === LIVE.day && now >= mins(LIVE.banner.start) && now < mins(LIVE.banner.end)) { el.textContent = 'Live now'; el.dataset.live = ''; return; }
+            if (document.documentElement.hasAttribute('data-live')) { el.textContent = 'Live now'; el.dataset.live = ''; return; } // set by LiveBanner
             let add = (LIVE.day - wd + 7) % 7;
-            if (add === 0 && now >= mins(LIVE.banner.end)) add = 7;
+            if (add === 0 && (now >= mins(LIVE.banner.end) || document.documentElement.dataset.liveForce === 'off')) add = 7;
             const d = new Date(Date.UTC(+p.year, +p.month - 1, +p.day + add));
             el.textContent = 'Next livestream: ' + d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' }) + ' at ' + LIVE.serviceLabel;
           })();

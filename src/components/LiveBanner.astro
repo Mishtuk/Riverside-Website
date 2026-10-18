@@ -18,7 +18,9 @@ import { LIVE, href } from '../lib/site';
     const mins = (hm) => hm.split(':')[0] * 60 + +hm.split(':')[1];
     const now = +p.hour * 60 + +p.minute;
     const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday);
-    if (q || (day === LIVE.day && now >= mins(LIVE.banner.start) && now < mins(LIVE.banner.end))) {
+    // ?live=1 previews; else <html data-live-force="on|off"> (set server-side) beats the schedule.
+    const f = document.documentElement.dataset.liveForce;
+    if (q || f === 'on' || (f !== 'off' && day === LIVE.day && now >= mins(LIVE.banner.start) && now < mins(LIVE.banner.end))) {
       document.getElementById('live-banner').hidden = false;
       document.documentElement.dataset.live = '';
     }
