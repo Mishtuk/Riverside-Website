@@ -1,11 +1,12 @@
 ---
-// Staff tool. Static page behind Cloudflare Access; it holds no secrets. Every save goes to /api/admin/*,
-// where the worker checks the Access token again. Videos and episodes are the same build-time feeds the site uses.
+// Staff tool. A static page with no secrets: signed-out visitors see the sign-in form, and every read or save
+// goes to /api/admin/*, where the server checks the session cookie. Videos and episodes are the build-time feeds.
+// The server fills <!--rs:email--> with the email module's section.
 import Base from '../layouts/Base.astro';
 import { href } from '../lib/site';
 import { getVideos } from '../lib/youtube';
 import { getSermons } from '../lib/podcast';
-import { ALERT_CSS, DAYS } from '../lib/state.js';
+import { ALERT_CSS } from '../lib/state.js';
 
 const [videos, sermons] = await Promise.all([getVideos(12), getSermons()]);
 const fmt = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
@@ -26,22 +27,50 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     <div class="container-narrow admin-bar">
       <a class="admin-brand" href={href('/')}><img src={href('/brand/logo-header.webp')} alt="Riverside Community Church" width="108" height="36" /><span>Admin</span></a>
       <a class="link" href={href('/')} target="_blank" rel="noopener">View site <span aria-hidden="true">&#x2197;</span></a>
-      <a class="btn btn-sm btn-outline" href="/cdn-cgi/access/logout">Sign out</a>
+      <button class="btn btn-sm btn-outline" type="button" id="sign-out" hidden>Sign out</button>
     </div>
   </header>
 
   <div id="gate" class="container-narrow gate" hidden>
-    <div class="card">
+    <form class="card form" id="pw-form" data-api={href('/api/login/password')} novalidate>
       <h1 class="h3">Staff sign in</h1>
-      <p>That didn&rsquo;t work. Check your details and try again.</p>
-      <p><a class="btn" href={href('/admin/')}>Sign in</a></p>
-    </div>
+      <label>Username <input name="username" required autocomplete="username" autocapitalize="off" spellcheck="false" /></label>
+      <label>Password <input name="password" type="password" required autocomplete="current-password" /></label>
+      <p class="err" id="pw-err" role="alert" hidden></p>
+      <p><button class="btn" type="submit">Sign in</button></p>
+    </form>
+    <form class="card form" id="login-form" data-api={href('/api/login')} novalidate>
+      <h2 class="h3">Or email me a sign-in link</h2>
+      <p>Enter your church email address. We&rsquo;ll email you a link that signs you in.</p>
+      <label>Email address <input type="email" name="email" required autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" /></label>
+      <p class="err" id="login-err" hidden>&#x26A0; Enter an email like name@example.com.</p>
+      <p><button class="btn btn-outline" type="submit">Email me a sign-in link</button></p>
+      <p class="note" id="login-sent" role="status" hidden></p>
+    </form>
+  </div>
+
+  <div id="must-change" class="container-narrow gate" hidden>
+    <form class="card form" id="change-form" novalidate>
+      <h1 class="h3">Choose a new password</h1>
+      <p>This account still has a temporary or default password. Choose your own before doing anything else.</p>
+      <label>New password <input name="password" type="password" required minlength="12" autocomplete="new-password" aria-describedby="np-help" /></label>
+      <p class="hint" id="np-help">At least 12 characters. Not “admin” and not your username. A short sentence works well.</p>
+      <label>New password again <input name="again" type="password" required autocomplete="new-password" /></label>
+      <p class="err" id="change-err" role="alert" hidden></p>
+      <p><button class="btn" type="submit">Save new password</button></p>
+    </form>
   </div>
 
   <div id="app" data-api={href('/api/admin')} hidden>
+    <div class="container-narrow default-warning" id="default-warning" hidden>
+      <div class="alert alert-urgent" role="status">
+        <svg class="ic" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r=".6"/></svg>
+        <div><p class="alert-label">Important</p><p class="alert-msg">Default password in use: change it before launch.</p><p class="alert-more"><a class="link link-arrow" href="#staff">Staff accounts</a></p></div>
+      </div>
+    </div>
     <nav class="subnav" aria-label="Admin sections">
       <div class="container-narrow">
-        <ul class="chips"><li><a href="#alerts">Alerts</a></li><li><a href="#items">Videos &amp; podcast</a></li><li><a href="#groups">Weekly groups</a></li><li><a href="#live">Livestream</a></li></ul>
+        <ul class="chips"><li><a href="#alerts">Alerts</a></li><li><a href="#email">Email</a></li><li><a href="#items">Videos &amp; podcast</a></li><li><a href="#groups">Groups</a></li><li><a href="#live">Livestream</a></li><li><a href="#staff">Staff</a></li></ul>
       </div>
     </nav>
 
@@ -62,10 +91,18 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
           </fieldset>
           <label>Message <textarea name="message" rows="3" maxlength="200" required></textarea></label>
           <p class="hint" id="count">0 / 200</p>
-          <label>Link (optional) <input name="link" type="url" placeholder="https://" /></label>
+          <label>Group (optional) <select name="group" aria-describedby="group-help"><option value="">None</option></select></label>
+          <p class="hint" id="group-help">Pick a group to pin this alert to its section on the Groups page, for example “Not meeting this Sunday”. Write when and where in the message.</p>
+          <label class="check" id="sitewide-row" hidden><input type="checkbox" name="sitewide" /> <span>Also show site-wide (the banner on every page)</span></label>
+          <label>Link (optional) <input name="link" type="text" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://" /></label>
           <label>Expires <input name="expires" type="datetime-local" required aria-describedby="exp-help" /></label>
           <p class="hint" id="exp-help">It disappears from the site automatically after this.</p>
           <label class="check"><input type="checkbox" name="email" /> <span>Also email subscribers to <strong id="topic-name">Weather &amp; closing alerts</strong></span></label>
+          <fieldset id="email-to" class="email-to" hidden><legend>Send the email to</legend>
+            <label class="check"><input type="checkbox" name="etopic" value="group" checked /> <span id="etopic-group">The group’s list</span></label>
+            <label class="check"><input type="checkbox" name="etopic" value="news" /> Latest happenings</label>
+            <label class="check"><input type="checkbox" name="etopic" value="alerts" /> Weather &amp; closing alerts</label>
+          </fieldset>
           <p class="hint" id="email-off" hidden>Email isn&rsquo;t configured yet, so alerts can only be posted on the site.</p>
           <p class="err" id="compose-err" hidden></p>
           <p class="label">Preview</p>
@@ -76,6 +113,8 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
           </div>
         </form>
       </section>
+
+      <Fragment set:html="<!--rs:email-->" />
 
       <section id="items" aria-labelledby="items-h">
         <h2 id="items-h" class="h2">Videos &amp; podcast</h2>
@@ -88,9 +127,34 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
       </section>
 
       <section id="groups" aria-labelledby="groups-h">
-        <h2 id="groups-h" class="h2">Weekly groups</h2>
+        <h2 id="groups-h" class="h2">Groups</h2>
         <p><button class="btn" type="button" id="add-group">Add a group</button></p>
         <div id="group-list" class="stack-s"></div>
+      </section>
+
+      <section id="staff" aria-labelledby="staff-h">
+        <h2 id="staff-h" class="h2">Staff accounts</h2>
+        <form class="card form" id="own-pw" hidden novalidate>
+          <h3 class="h3">Change your password</h3>
+          <label>Current password <input name="current" type="password" required autocomplete="current-password" /></label>
+          <label>New password <input name="password" type="password" required minlength="12" autocomplete="new-password" aria-describedby="own-help" /></label>
+          <p class="hint" id="own-help">At least 12 characters. Not “admin” and not your username.</p>
+          <label>New password again <input name="again" type="password" required autocomplete="new-password" /></label>
+          <p class="err" id="own-err" role="alert" hidden></p>
+          <p><button class="btn btn-sm" type="submit">Change password</button></p>
+        </form>
+        <h3 class="h3">Accounts</h3>
+        <ul id="accounts" class="news-list" role="list"></ul>
+        <form class="card form" id="add-staff" novalidate>
+          <h3 class="h3">Add a staff account</h3>
+          <label>Username <input name="username" required pattern="[a-z0-9._\-]{3,32}" autocapitalize="off" spellcheck="false" aria-describedby="add-help" /></label>
+          <label>Temporary password <input name="password" type="text" required minlength="12" autocomplete="off" spellcheck="false" /></label>
+          <p class="hint" id="add-help">Username: 3–32 lowercase letters, numbers, dots, dashes or underscores. Give them the temporary password in person or by phone; they must change it the first time they sign in.</p>
+          <p class="err" id="add-err" role="alert" hidden></p>
+          <p><button class="btn btn-sm" type="submit">Add account</button></p>
+        </form>
+        <h3 class="h3">Recent sign-ins</h3>
+        <ul id="logins" class="news-list" role="list"></ul>
       </section>
 
       <section id="live" aria-labelledby="live-h">
@@ -127,7 +191,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
 </Base>
 
 <script>
-  import { DAYS, VARIES, TZ, alertCard, activeAlerts, applyOverride, esc, etDay } from '../lib/state.js';
+  import { DAYS, GROUP_TYPES, MAX_NEWS, VARIES, TZ, alertCard, activeAlerts, applyOverride, esc, etDay, groupStatus } from '../lib/state.js';
 
   const $ = <T extends Element = HTMLElement>(s: string, r: ParentNode = document) => r.querySelector(s) as unknown as T;
   const app = $('#app');
@@ -144,7 +208,8 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
       body: raw ?? (body === undefined ? undefined : JSON.stringify(body)),
     });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw Object.assign(new Error(j.error || String(r.status)), { data: j });
+    if (r.status === 401) gate();
+    if (!r.ok) throw Object.assign(new Error(j.error || String(r.status)), { data: j, status: r.status });
     return j;
   }
 
@@ -172,7 +237,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   // Runs a save; on error keeps the fields as they are and offers "Try again".
   async function save(fn: () => Promise<void>, ok: string) {
     try { await fn(); $('#toast-err').textContent = ''; toast(ok); }
-    catch (e: any) { if (e.data?.error === 'forbidden') return gate(); fail(() => save(fn, ok)); }
+    catch (e: any) { if (e.status !== 401) fail(() => save(fn, ok)); }
   }
   function ask(title: string, text: string, verb: string): Promise<boolean> {
     const d = $<HTMLDialogElement>('#confirm');
@@ -184,13 +249,70 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     $('#c-cancel').focus();
     return new Promise((res) => d.addEventListener('close', () => res(d.returnValue === 'ok'), { once: true }));
   }
-  const gate = () => { app.hidden = true; $('#gate').hidden = false; };
+  function gate() {
+    app.hidden = true;
+    $('#must-change').hidden = true;
+    $('#sign-out').hidden = true;
+    $('#gate').hidden = false;
+  }
+  const PW_ERR: Record<string, string> = {
+    too_short: 'Use at least 12 characters.', too_long: 'That is too long (200 characters at most).', too_easy: 'Choose something other than “admin” or your username.',
+    same: 'Choose a password you haven’t used for this account.', current: 'Your current password isn’t right.', taken: 'That username is taken.',
+    username: 'Use 3–32 lowercase letters, numbers, dots, dashes or underscores.', last: 'You can’t remove the last account.', self: 'Someone else has to remove your account.',
+  };
+  const showErr = (id: string, msg: string) => { const e = $(id); e.textContent = msg ? `⚠ ${msg}` : ''; e.hidden = !msg; };
+
+  // Username + password.
+  const pf = $<HTMLFormElement>('#pw-form');
+  pf.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = pf.elements as any;
+    if (!v.username.value.trim() || !v.password.value) return showErr('#pw-err', 'Enter your username and password.');
+    const r = await fetch(pf.dataset.api!, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: v.username.value, password: v.password.value }) }).catch(() => null);
+    const j = await r?.json().catch(() => null);
+    if (!r?.ok) { v.password.value = ''; return showErr('#pw-err', j?.message ?? 'Something went wrong. Check your connection and try again.'); }
+    location.reload();
+  });
+  // Forced change: the only thing a new account (or admin/admin) can do.
+  const cf = $<HTMLFormElement>('#change-form');
+  cf.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = cf.elements as any;
+    if (v.password.value.length < 12) return showErr('#change-err', PW_ERR.too_short);
+    if (v.password.value !== v.again.value) return showErr('#change-err', 'The two passwords don’t match.');
+    try { await call('POST', '/password', { password: v.password.value }); location.reload(); }
+    catch (err: any) { showErr('#change-err', PW_ERR[err.data?.error] ?? 'Couldn’t save. Try again.'); }
+  });
+
+  // ---------- sign in / out ----------
+  const lg = $<HTMLFormElement>('#login-form');
+  lg.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = (lg.elements as any).email as HTMLInputElement;
+    $('#login-err').hidden = input.checkValidity();
+    if (!input.checkValidity()) return input.focus();
+    const r = await fetch(lg.dataset.api!, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: input.value }) }).catch(() => null);
+    const j = await r?.json().catch(() => null);
+    const sent = $('#login-sent');
+    sent.textContent = j?.message ?? 'Something went wrong. Check your connection and try again.';
+    sent.hidden = false;
+  });
+  $('#sign-out').onclick = async () => {
+    await fetch(API.replace(/admin$/, 'logout'), { method: 'POST' }).catch(() => null);
+    location.reload();
+  };
 
   // ---------- alerts ----------
   const f = $<HTMLFormElement>('#compose');
   const el = f.elements as any;
   let editing = '';
   let expTouched = false;
+  let sitewideTouched = false;
+  const groupName = (id: string) => (state.groups ?? []).find((g: any) => g.id === id)?.name ?? '';
+  /** Email topics for the alert being written: the group's list and/or the site-wide topics. */
+  const emailTopics = () => (el.group.value
+    ? [...f.querySelectorAll<HTMLInputElement>('[name=etopic]:checked')].map((b) => (b.value === 'group' ? `group:${el.group.value}` : b.value))
+    : [el.type.value === 'urgent' ? 'alerts' : 'news']);
   const local = (d: Date) => new Date(+d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
   const ends = (iso: string) => new Date(iso).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: TZ }).replace(/\s([AP]M)/, (m) => m.trim().toLowerCase());
   function defaultExpiry() {
@@ -205,29 +327,37 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     const count = $('#count');
     count.textContent = `${n} / 200`;
     if (n >= 180) count.setAttribute('aria-live', 'polite'); else count.removeAttribute('aria-live');
-    $('#topic-name').textContent = TOPIC[type];
+    const group = el.group.value;
+    $('#topic-name').textContent = group ? 'the lists below' : TOPIC[type];
+    $('#sitewide-row').hidden = !group;
+    // Urgent group alerts ("not meeting") default to the site-wide banner too; group news stays on the group.
+    if (group && !sitewideTouched) el.sitewide.checked = type === 'urgent';
+    $('#email-to').hidden = !group || !el.email.checked;
+    $('#etopic-group').textContent = group ? `${groupName(group)} list` : 'The group’s list';
+    el.link.placeholder = group ? 'Leave blank to link to the group’s section' : 'https://';
     el.email.disabled = !emailOn;
     $('#email-off').hidden = emailOn;
     $('#post-btn').textContent = el.email.checked ? 'Post alert and email' : 'Post alert';
     ($('#test-btn') as HTMLButtonElement).hidden = !emailOn;
     let link = '';
-    try { link = el.link.value ? new URL(el.link.value).href : ''; } catch {}
+    link = el.link.value.trim() || (group ? `/groups#${group}` : '');
     $('#preview').innerHTML = alertCard({ id: 'preview', type, message: el.message.value.trim() || 'Your message appears here.', link });
     $('#preview').classList.toggle('is-empty', !el.message.value.trim());
   }
-  f.addEventListener('input', (e) => { if (e.target === el.expires) expTouched = true; syncCompose(); });
+  f.addEventListener('input', (e) => { if (e.target === el.expires) expTouched = true; if (e.target === el.sitewide) sitewideTouched = true; syncCompose(); });
   f.addEventListener('change', (e) => { if (e.target === el.type[0] || e.target === el.type[1]) { if (!expTouched) defaultExpiry(); } syncCompose(); });
 
   function renderAlerts() {
     const list = activeAlerts(state.alerts);
     $('#active').innerHTML = list.length
-      ? list.map((a: any) => `<div class="active-row">${alertCard(a)}<p class="hint">Ends ${ends(a.expires)}${a.emailed ? ' · Emailed' : ''}</p><div class="btn-row"><button type="button" class="btn btn-sm btn-outline" data-edit="${esc(a.id)}">Edit</button><button type="button" class="btn btn-sm btn-outline" data-end="${esc(a.id)}">End now</button></div></div>`).join('')
+      ? list.map((a: any) => `<div class="active-row">${alertCard(a)}<p class="hint">${a.group ? `${esc(groupName(a.group))} · ${a.sitewide ? 'Also site-wide' : 'Only on the group'} · ` : ''}Ends ${ends(a.expires)}${a.emailed ? ' · Emailed' : ''}</p><div class="btn-row"><button type="button" class="btn btn-sm btn-outline" data-edit="${esc(a.id)}">Edit</button><button type="button" class="btn btn-sm btn-outline" data-end="${esc(a.id)}">End now</button></div></div>`).join('')
       : '<p class="muted">No active alerts. The site shows no banner.</p>';
   }
   function resetCompose() {
     f.reset();
     editing = '';
     expTouched = false;
+    sitewideTouched = false;
     $('#editing').hidden = true;
     defaultExpiry();
     syncCompose();
@@ -240,6 +370,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     if (!a) return;
     if (b.dataset.edit) {
       el.type.value = a.type; el.message.value = a.message; el.link.value = a.link ?? ''; el.expires.value = local(new Date(a.expires));
+      el.group.value = a.group ?? ''; el.sitewide.checked = Boolean(a.sitewide); sitewideTouched = true;
       editing = a.id; expTouched = true; $('#editing').hidden = false; syncCompose();
       el.message.focus();
       return;
@@ -247,10 +378,12 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     if (!(await ask('End this alert now?', 'It disappears from every page right away.', 'End alert'))) return;
     save(async () => { await call('DELETE', `/alerts/${encodeURIComponent(a.id)}`); state.alerts = state.alerts.filter((x: any) => x !== a); renderAlerts(); }, 'Alert ended.');
   });
-  const alertBody = () => ({ type: el.type.value, message: el.message.value, link: el.link.value, expires: new Date(el.expires.value).toISOString() });
+  const alertBody = () => ({ type: el.type.value, message: el.message.value, link: el.link.value.trim(), expires: new Date(el.expires.value).toISOString(),
+    group: el.group.value || undefined, sitewide: el.group.value ? el.sitewide.checked : undefined });
+  const linkOk = (v: string) => { if (!v || /^\/(?!\/)/.test(v)) return true; try { return /^https?:$/.test(new URL(v).protocol); } catch { return false; } };
   function checkCompose() {
     const err = $('#compose-err');
-    const msg = !el.message.value.trim() ? 'Write a message.' : !el.expires.value || new Date(el.expires.value) <= new Date() ? 'Choose an end time in the future.' : el.link.value && !el.link.checkValidity() ? 'Enter a full link starting with https://' : '';
+    const msg = !el.message.value.trim() ? 'Write a message.' : !el.expires.value || new Date(el.expires.value) <= new Date() ? 'Choose an end time in the future.' : !linkOk(el.link.value.trim()) ? 'Enter a full link starting with https://, or a page on this site starting with /' : el.email.checked && el.group.value && !emailTopics().length ? 'Choose who gets the email.' : '';
     err.textContent = msg ? `⚠ ${msg}` : '';
     err.hidden = !msg;
     return !msg;
@@ -258,31 +391,33 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   f.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!checkCompose()) return;
-    const body = { ...alertBody(), email: el.email.checked, replaces: editing || undefined };
+    const body = { ...alertBody(), email: el.email.checked, topics: el.email.checked ? emailTopics() : undefined, replaces: editing || undefined };
     if (body.email) {
       let count: number;
-      try { ({ count } = await call('GET', `/recipients?type=${body.type}`)); }
-      catch { return fail(undefined, 'Couldn’t reach Mailchimp to count subscribers. Try again.'); }
-      if (!(await ask('Post and email subscribers?', `This emails ${count} ${count === 1 ? 'person' : 'people'} on “${TOPIC[body.type]}”. Emails can’t be unsent.`, 'Post and email'))) return;
+      try { ({ count } = await call('GET', `/recipients?type=${body.type}&group=${encodeURIComponent(body.group ?? '')}&topics=${encodeURIComponent(body.topics.join(','))}`)); }
+      catch { return fail(undefined, 'Couldn’t count subscribers. Try again.'); }
+      if (!(await ask(`Post and email ${count} ${count === 1 ? 'person' : 'people'}?`, `${body.group ? 'Each person gets it once, whichever lists they are on.' : `They’re on “${TOPIC[body.type]}”.`} Emails can’t be unsent.`, 'Post and email'))) return;
     }
     try {
-      const { alert } = await call('POST', '/alerts', body);
+      const { alert, recipients } = await call('POST', '/alerts', body);
       state.alerts = [...(state.alerts ?? []).filter((x: any) => x.id !== editing), alert];
-      renderAlerts(); resetCompose(); toast('Alert posted. It’s live on every page.');
+      renderAlerts(); resetCompose();
+      toast(recipients === undefined ? 'Alert posted. It’s live on every page.' : `Alert posted. Emailing ${recipients} ${recipients === 1 ? 'person' : 'people'}…`);
     } catch (e: any) {
-      if (e.data?.error === 'forbidden') return gate();
-      if (e.data?.alert) { // posted, but Mailchimp refused the send
+      if (e.data?.alert) { // posted, but the email could not be queued
         state.alerts = [...(state.alerts ?? []).filter((x: any) => x.id !== editing), e.data.alert];
         renderAlerts(); resetCompose();
-        return fail(undefined, 'The alert is on the site, but the email couldn’t be sent. Check Mailchimp.');
+        return fail(undefined, 'The alert is on the site, but the email wasn’t sent. Send it from the Email tab.');
       }
-      fail(() => f.requestSubmit());
+      if (e.status !== 401) fail(() => f.requestSubmit());
     }
   });
+  // The test goes through the email module, so it looks exactly like the real email.
   $('#test-btn').onclick = async () => {
     if (!checkCompose()) return;
-    try { const { to } = await call('POST', '/test-email', alertBody()); toast(`Test sent to ${to}.`); }
-    catch { fail(undefined, 'Couldn’t send the test. Check Mailchimp and try again.'); }
+    const a = alertBody();
+    try { const { to } = await call('POST', '/email/test', { subject: a.message.slice(0, 90), body: `${a.message}${a.link ? `\n\n[Learn more →](${a.link})` : ''}` }); toast(`Test sent to ${to}.`); }
+    catch (e: any) { if (e.status !== 401) fail(undefined, 'Couldn’t send the test. Check the email settings and try again.'); }
   };
 
   // ---------- videos & podcast ----------
@@ -359,14 +494,18 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     }, 'Saved.');
   });
 
-  // ---------- weekly groups ----------
+  // ---------- groups ----------
+  // One collapsible card per group (closed by default). The form saves the group; "Post update" publishes a news
+  // post on its own, so the group's other unsaved edits stay as they are.
+  const TYPE_LABEL = Object.fromEntries(GROUP_TYPES) as Record<string, string>;
   const nextDay = (day: number) => { // the group's meeting day this week (ET), for a one-tap "Not meeting"
     const today = etDay(new Date());
     const d = new Date(`${today}T12:00:00Z`);
     if (day !== VARIES) d.setUTCDate(d.getUTCDate() + ((day - d.getUTCDay() + 7) % 7));
     return d.toISOString().slice(0, 10);
   };
-  const updated = (iso?: string) => (iso ? `Updated ${new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: TZ })}` : 'Not saved yet');
+  const short = (iso: string, o: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }) => new Date(iso).toLocaleDateString('en-US', { ...o, timeZone: TZ });
+  const updated = (iso?: string) => (iso ? `Updated ${short(iso)}` : 'Not saved yet');
   const eventRow = (e: any, place = '') => `<fieldset class="ev" data-id="${esc(e.id ?? crypto.randomUUID())}"><legend class="sr-only">Event</legend>
       <label>Event title <input data-f="title" required maxlength="80" value="${esc(e.title)}"></label>
       <div class="two"><label>Date <input type="date" data-f="date" required min="${etDay(new Date())}" value="${esc(e.date)}"></label>
@@ -376,17 +515,30 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
       <label>Note (optional) <input data-f="note" maxlength="140" value="${esc(e.note)}"></label>
       <p><button type="button" class="link ev-remove">Remove event</button></p>
     </fieldset>`;
-  function groupCard(g: any) {
+  const summary = (g: any) => {
+    const s = groupStatus(g, new Date());
+    return `<span class="gname">${esc(g.name || 'New group')}</span><span class="gmeta"><span class="chip-status is-${s.kind}">${s.label}</span><span>${esc(TYPE_LABEL[g.type] ?? TYPE_LABEL.other)}</span><span class="hint">${updated(g.updated)}</span></span>`;
+  };
+  const newsList = (g: any) => {
+    const news = g.news ?? [];
+    const warn = news.length >= MAX_NEWS ? ` This group has ${MAX_NEWS} updates, so posting another removes the oldest.` : '';
+    return `<p class="hint" id="nh-${esc(g.id)}">Plain text. Leave a blank line between paragraphs. Links work as-is.${warn}</p>`
+      + `<p><button type="button" class="btn btn-sm post-news">Post update</button></p>`
+      + (news.length ? `<ul class="news-list" role="list">${news.map((n: any) => `<li data-nid="${esc(n.id)}"><p class="hint">${short(n.date, { weekday: 'short', month: 'short', day: 'numeric' })}</p><p><strong>${esc(n.title)}</strong></p>${n.body ? `<p class="hint">${esc(n.body.split('\n')[0])}</p>` : ''}<p><button type="button" class="link del-news">Delete</button></p></li>`).join('')}</ul>` : '<p class="hint">No updates yet.</p>');
+  };
+  function groupCard(g: any, open = false) {
     const k = g.status?.kind ?? 'meeting';
     const d = g.status?.date;
     const r = (v: string) => `name="kind" value="${v}"${k === v ? ' checked' : ''}`;
-    const id = esc(g.id);
-    return `<form class="card form gcard" data-id="${id}">
+    const id = esc(g.id ?? '');
+    const hid = esc(g.id ?? 'new');
+    return `<details class="card gcard" data-id="${id}"${open ? ' open' : ''}><summary>${summary(g)}</summary><form class="form gform">
       <label>Name <input name="name" required maxlength="80" value="${esc(g.name)}"></label>
+      <label>Type <select name="type" required>${GROUP_TYPES.map(([key, label]) => `<option value="${key}"${(g.type ?? 'other') === key ? ' selected' : ''}>${label}</option>`).join('')}</select></label>
       <div class="two"><label>Day <select name="day">${[...DAYS, 'Day varies'].map((n, i) => `<option value="${i}"${+g.day === i ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
-      <label>Time <input name="time" maxlength="60" value="${esc(g.time)}" aria-describedby="h-${id}"></label></div>
-      <label>Place <input name="place" maxlength="80" value="${esc(g.place)}" aria-describedby="h-${id}"></label>
-      <p class="hint" id="h-${id}">Leave time or place blank to show “Contact us”.</p>
+      <label>Time <input name="time" maxlength="60" value="${esc(g.time)}" aria-describedby="h-${hid}"></label></div>
+      <label>Place <input name="place" maxlength="80" value="${esc(g.place)}" aria-describedby="h-${hid}"></label>
+      <p class="hint" id="h-${hid}">Leave time or place blank to show “Contact us”.</p>
       <label>Contact (optional) <input name="contact" maxlength="80" value="${esc(g.contact)}" placeholder="Name, phone or email"></label>
       <label>Short description (optional) <textarea name="about" rows="2" maxlength="200">${esc(g.about)}</textarea></label>
       <label>Note (optional) <input name="note" maxlength="140" value="${esc(g.note)}" placeholder="Off for Thanksgiving"></label>
@@ -400,23 +552,40 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
         <div class="ev-list">${[...(g.events ?? [])].sort((a: any, b: any) => a.date.localeCompare(b.date)).map((e: any) => eventRow(e, g.place)).join('')}</div>
         <p><button type="button" class="btn btn-sm btn-outline ev-add">Add an event</button></p>
       </fieldset>
-      <p class="hint">${updated(g.updated)}</p>
-      <div class="btn-row"><button class="btn btn-sm" type="submit">Save</button><button class="link remove" type="button">Remove</button></div>
-    </form>`;
+      <fieldset class="news"><legend>Updates</legend>
+        ${g.id ? `<label>Title <input data-n="title" maxlength="80"></label>
+        <label>Message <textarea data-n="body" rows="4" maxlength="600" aria-describedby="nh-${hid}"></textarea></label>
+        <div class="news-box">${newsList(g)}</div>` : '<p class="hint">Save the group first, then you can post updates.</p>'}
+      </fieldset>
+      <div class="btn-row"><button class="btn btn-sm" type="submit">Save</button>${g.id ? '<button class="btn btn-sm btn-outline group-alert" type="button">Post a meeting alert</button>' : ''}<button class="link remove" type="button">Remove</button></div>
+    </form></details>`;
   }
-  function renderGroups() {
+  function renderGroups(openId = '') {
     const gs = state.groups ?? [];
-    $('#group-list').innerHTML = gs.length ? gs.map(groupCard).join('') : '<p class="muted" id="no-groups">No groups yet. Add the first one and it appears on the Weekly groups page.</p>';
+    const keep = el.group.value;
+    el.group.innerHTML = '<option value="">None</option>' + gs.map((g: any) => `<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('');
+    el.group.value = gs.some((g: any) => g.id === keep) ? keep : '';
+    $('#group-list').innerHTML = gs.length ? gs.map((g: any) => groupCard(g, g.id === openId)).join('') : '<p class="muted" id="no-groups">No groups yet. Add the first one and it appears on the Groups page.</p>';
   }
-  const putGroups = async (gs: any[]) => { state.groups = (await call('PUT', '/groups', gs)).groups; renderGroups(); };
+  const cardOf = (t: Element) => t.closest<HTMLElement>('.gcard')!;
+  const groupOf = (card: HTMLElement) => (state.groups ?? []).find((x: any) => x.id === card.dataset.id);
+  async function putGroups(gs: any[], openId = '') {
+    const before = new Set((state.groups ?? []).map((x: any) => x.id));
+    const r = await call('PUT', '/groups', gs);
+    state.groups = r.groups;
+    state.alerts = r.alerts; // removing a group removes its alerts
+    renderAlerts();
+    renderGroups(openId || state.groups.find((x: any) => !before.has(x.id))?.id || '');
+  }
   $('#add-group').onclick = () => {
     $('#no-groups')?.remove();
-    $('#group-list').insertAdjacentHTML('afterbegin', groupCard({ id: crypto.randomUUID(), name: '', day: 0, time: '', place: '', note: '' }));
+    $('#group-list').insertAdjacentHTML('afterbegin', groupCard({ name: '', type: 'other', day: 0, time: '', place: '', note: '' }, true));
     $<HTMLInputElement>('#group-list [name=name]').focus();
   };
   $('#group-list').addEventListener('submit', (e) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
+    const card = cardOf(form);
     const v = form.elements as any;
     const kindV = v.kind.value;
     const date = kindV === 'off' ? v.off.value : kindV === 'break' ? v.break.value : undefined;
@@ -428,14 +597,17 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     });
     const bad = events.find((x) => x.end && x.end <= x.start);
     if (bad) return fail(undefined, `“${bad.title}” ends before it starts. Check the times.`);
-    const g = { id: form.dataset.id, name: v.name.value, day: +v.day.value, time: v.time.value, place: v.place.value, contact: v.contact.value, about: v.about.value, note: v.note.value, status: { kind: kindV, date }, events };
+    const id = card.dataset.id || undefined;
+    const g = { id, type: v.type.value, name: v.name.value, day: +v.day.value, time: v.time.value, place: v.place.value, contact: v.contact.value, about: v.about.value, note: v.note.value, status: { kind: kindV, date }, events };
     const gs = state.groups ?? [];
-    const next = gs.some((x: any) => x.id === g.id) ? gs.map((x: any) => (x.id === g.id ? g : x)) : [g, ...gs];
-    save(() => putGroups(next), 'Saved.');
+    const next = id && gs.some((x: any) => x.id === id) ? gs.map((x: any) => (x.id === id ? g : x)) : [g, ...gs];
+    save(() => putGroups(next, id), 'Saved.');
   });
   $('#group-list').addEventListener('click', async (e) => {
     const t = e.target as HTMLElement;
-    const form = t.closest('form')!;
+    const form = t.closest('form');
+    if (!form) return;
+    const card = cardOf(form);
     if (t.matches('.ev-add')) {
       $('.ev-list', form).insertAdjacentHTML('beforeend', eventRow({}, (form.elements as any).place.value));
       return $<HTMLInputElement>('.ev:last-child [data-f=title]', form).focus();
@@ -446,12 +618,75 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
       row.remove();
       return (next ?? $('.ev-add', form)).focus();
     }
+    if (t.matches('.post-news')) {
+      const title = $<HTMLInputElement>('[data-n=title]', form);
+      const body = $<HTMLTextAreaElement>('[data-n=body]', form);
+      if (!title.value.trim()) { fail(undefined, 'Give the update a title.'); return title.focus(); }
+      return save(async () => {
+        const { group } = await call('POST', `/groups/${encodeURIComponent(card.dataset.id!)}/news`, { title: title.value, body: body.value });
+        Object.assign(groupOf(card), { news: group.news, updated: group.updated });
+        title.value = ''; body.value = '';
+        $('.news-box', form).innerHTML = newsList(group);
+        $('summary', card).innerHTML = summary(groupOf(card));
+      }, 'Update posted. It’s on the Groups page.');
+    }
+    if (t.matches('.del-news')) {
+      const nid = t.closest<HTMLElement>('[data-nid]')!.dataset.nid!;
+      if (!(await ask('Delete this update?', 'It disappears from the Groups page.', 'Delete update'))) return;
+      return save(async () => {
+        const { group } = await call('DELETE', `/groups/${encodeURIComponent(card.dataset.id!)}/news/${encodeURIComponent(nid)}`);
+        Object.assign(groupOf(card), { news: group.news, updated: group.updated });
+        $('.news-box', form).innerHTML = newsList(group);
+        $<HTMLButtonElement>('.post-news', form).focus();
+      }, 'Update deleted.');
+    }
+    if (t.matches('.group-alert')) {
+      resetCompose();
+      el.group.value = card.dataset.id; el.type.value = 'urgent';
+      syncCompose();
+      $('#alerts').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+      return el.message.focus({ preventScroll: true });
+    }
     if (!t.matches('.remove')) return;
     const name = (form.elements as any).name.value || 'this group';
     if (!(await ask(`Remove ${name} from the board?`, 'This can’t be undone.', 'Remove group'))) return;
-    const gs = (state.groups ?? []).filter((x: any) => x.id !== form.dataset.id);
-    if (gs.length === (state.groups ?? []).length) { form.remove(); return toast('Group removed.'); } // never saved
-    save(() => putGroups(gs), 'Group removed.');
+    if (!card.dataset.id) { card.remove(); return toast('Group removed.'); } // never saved
+    save(() => putGroups((state.groups ?? []).filter((x: any) => x.id !== card.dataset.id)), 'Group removed.');
+  });
+
+  // ---------- staff accounts ----------
+  const when = (ms: number) => new Date(ms).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: TZ }).replace(/\s([AP]M)/, (m) => m.trim().toLowerCase());
+  async function renderStaff() {
+    const r = await call('GET', '/staff');
+    $('#own-pw').hidden = r.kind !== 'password';
+    $('#accounts').innerHTML = r.accounts.map((a: any) => `<li><p><strong>${esc(a.username)}</strong>${a.username === r.me ? ' (you)' : ''}</p>`
+      + `<p class="hint">${a.defaultPassword ? 'Default password: change it before launch' : a.mustChange ? 'Waiting for a new password' : `Password set ${when(a.updated)}`}</p>`
+      + (a.username !== r.me && r.accounts.length > 1 ? `<p><button type="button" class="link del-staff" data-u="${esc(a.username)}">Remove</button></p>` : '') + '</li>').join('');
+    $('#logins').innerHTML = r.logins.length ? r.logins.map((l: any) => `<li><p><strong>${esc(l.who)}</strong> · ${when(l.at)}</p><p class="hint">${l.method === 'link' ? 'Email link' : 'Password'} · ${esc(l.ip)}</p></li>`).join('') : '<li class="hint">No sign-ins yet.</li>';
+    $('#default-warning').hidden = !r.accounts.some((a: any) => a.defaultPassword);
+  }
+  const op = $<HTMLFormElement>('#own-pw');
+  op.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = op.elements as any;
+    if (v.password.value.length < 12) return showErr('#own-err', PW_ERR.too_short);
+    if (v.password.value !== v.again.value) return showErr('#own-err', 'The two passwords don’t match.');
+    try { await call('POST', '/password', { current: v.current.value, password: v.password.value }); op.reset(); showErr('#own-err', ''); toast('Password changed.'); renderStaff(); }
+    catch (err: any) { if (err.status !== 401) showErr('#own-err', PW_ERR[err.data?.error] ?? 'Couldn’t save. Try again.'); }
+  });
+  const as = $<HTMLFormElement>('#add-staff');
+  as.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = as.elements as any;
+    try { await call('POST', '/staff', { username: v.username.value, password: v.password.value }); as.reset(); showErr('#add-err', ''); toast('Account added. They must choose a new password when they sign in.'); renderStaff(); }
+    catch (err: any) { if (err.status !== 401) showErr('#add-err', PW_ERR[err.data?.error] ?? 'Couldn’t save. Try again.'); }
+  });
+  $('#accounts').addEventListener('click', async (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.del-staff');
+    if (!b) return;
+    if (!(await ask(`Remove ${b.dataset.u}?`, 'They can’t sign in with a password any more.', 'Remove account'))) return;
+    try { await call('DELETE', `/staff/${encodeURIComponent(b.dataset.u!)}`); toast('Account removed.'); renderStaff(); }
+    catch (err: any) { if (err.status !== 401) fail(undefined, PW_ERR[err.data?.error] ?? 'Couldn’t remove it. Try again.'); }
   });
 
   // ---------- livestream ----------
@@ -468,11 +703,18 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     try {
       const r = await call('GET', '/state');
       state = r.state; emailOn = r.email;
-    } catch { return gate(); }
+      $('#default-warning').hidden = !r.defaultPassword;
+    } catch (e: any) {
+      if (e.data?.error !== 'must_change') return gate();
+      $('#must-change').hidden = false;
+      $('#sign-out').hidden = false;
+      return $<HTMLInputElement>('#change-form [name=password]').focus();
+    }
     app.hidden = false;
+    $('#sign-out').hidden = false;
     lv.mode.value = state.live?.mode ?? 'auto';
     lv.video.value = state.live?.video ?? '';
-    renderAlerts(); renderItems(); renderGroups(); resetCompose();
+    renderAlerts(); renderItems(); renderGroups(); resetCompose(); renderStaff();
   })();
 </script>
 
@@ -487,6 +729,9 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   #app .subnav { top: 0; }
   .gate { padding-block: 4rem; }
   .gate .card { max-width: 28rem; margin-inline: auto; display: grid; gap: 1rem; }
+  .gate .card + .card { margin-top: 1.5rem; }
+  .default-warning { padding-top: 1rem; }
+  .default-warning .alert-x { display: none; }
   .admin-body { padding-block: 2rem 6rem; }
   .admin-body > section { padding-top: 2.5rem; scroll-margin-top: 5rem; }
   .admin-body > section + section { margin-top: 2.5rem; border-top: 1px solid var(--line); }
@@ -534,7 +779,23 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   .dirty { display: flex; align-items: center; gap: 0.75rem; font-weight: 700; color: var(--ink) !important; }
   .dirty[hidden] { display: none; }
   button.link { border: 0; cursor: pointer; font-size: 1rem; }
-  .gcard { margin-top: 0; }
+  .gcard { margin-top: 0; padding: 0; }
+  .gcard > summary { position: relative; display: grid; gap: 0.35rem; min-height: 56px; padding: 1rem 3.25rem 1rem clamp(1.25rem, 1rem + 1vw, 2rem); cursor: pointer; list-style: none; color: var(--ink); }
+  .gcard > summary::-webkit-details-marker { display: none; }
+  .gcard > summary::after { content: '+'; position: absolute; right: 1.4rem; top: 1rem; font-size: 1.6rem; line-height: 1; color: var(--gold-ink); }
+  .gcard[open] > summary::after { content: '\2212'; }
+  .gname { font-weight: 700; font-size: var(--step-0); }
+  .gmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; font-size: 0.95rem; }
+  .gmeta .hint { font-size: 0.9rem; }
+  .gform { margin: 0; padding: 0 clamp(1.25rem, 1rem + 1vw, 2rem) clamp(1.25rem, 1rem + 1vw, 2rem); }
+  .chip-status { display: inline-flex; align-items: center; min-height: 32px; padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); font-size: 0.9rem; font-weight: 700; line-height: 1.2; color: var(--ink); white-space: nowrap; }
+  .chip-status.is-meeting { background: var(--gold-soft); border: 1.5px solid var(--gold); }
+  .chip-status.is-off { background: var(--stone); border: 1.5px solid var(--stone-2); }
+  .chip-status.is-break { border: 1.5px dashed var(--muted); color: var(--muted); }
+  .news-list { list-style: none; padding: 0; display: grid; }
+  .email-to { padding-left: 2rem !important; }
+  .news-list > li { padding-block: 0.75rem; border-top: 1px solid var(--line); }
+  .news-list p + p { margin-top: 0.15rem; }
   .ev { display: grid; gap: 0.6rem; padding: 0.9rem 0 0.9rem 1rem; border-left: 2px solid var(--line-gold) !important; }
   .ev-list { display: grid; gap: 0.75rem; }
   .two { display: grid; gap: 0.6rem; grid-template-columns: 1fr 1fr; }

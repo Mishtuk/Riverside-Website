@@ -22,6 +22,10 @@ export const activeAlerts = (alerts = [], now = new Date()) =>
   alerts
     .filter((a) => Date.parse(a.expires) > +now)
     .sort((a, b) => (a.type === b.type ? b.created.localeCompare(a.created) : a.type === 'urgent' ? -1 : 1));
+/** The site-wide banner: every active alert except group alerts kept to their own group. */
+export const siteAlerts = (alerts, now) => activeAlerts(alerts, now).filter((a) => a.sitewide !== false);
+/** Active alerts pinned to one group's card on /groups. */
+export const groupAlerts = (alerts, groupId, now) => activeAlerts(alerts, now).filter((a) => a.group === groupId);
 
 const ICON = {
   urgent: '<path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r=".6"/>',
@@ -52,7 +56,7 @@ export const ALERT_CSS = `.site-alerts-wrap{margin-top:12px}
 .alert{display:grid;grid-template-columns:auto 1fr auto;gap:.75rem;align-items:start;padding:.85rem 1rem;border-radius:var(--radius);box-shadow:var(--shadow-m);overflow:hidden;transition:height .25s var(--ease),opacity .25s var(--ease),padding .25s var(--ease)}
 .alert .ic{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;margin-top:.15rem}
 .alert-label{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;line-height:1.4}
-.alert-msg{font-size:1rem;line-height:1.45;font-weight:600}
+.alert .alert-msg{font-size:1rem;line-height:1.45;font-weight:600;color:inherit}
 .alert-more{margin-top:.3rem;font-size:1rem}
 .alert-x{width:44px;height:44px;margin:-.5rem -.5rem 0 0;border:0;border-radius:50%;background:none;font-size:1rem;line-height:1}
 .alert-x:hover{background:rgb(127 127 127/.18)}
@@ -114,9 +118,37 @@ const eventsHtml = (g, now) => {
   }).join('')}</ul></div>`;
 };
 
-/** The board (summary line + cards), rendered the same at build time and in the worker.
- *  c = { email, phone, involved } comes from the page (site.ts), so facts stay in one place. */
-export function boardHtml(groups, now, c) {
+// ---------- Group types and news posts ----------
+/** Fixed order of the type sections on /groups. */
+export const GROUP_TYPES = [['prayer', 'Prayer'], ['discipleship', 'Discipleship'], ['esl', 'ESL classes'], ['men', 'Men'], ['women', 'Women'], ['kids', 'Kids'], ['other', 'Other groups']];
+const TYPE_KEYS = GROUP_TYPES.map(([k]) => k);
+// Page ids a group slug must not take (the skip link, the board itself, the type headings).
+const RESERVED = new Set(['main', 'groups-board', 'live-banner', ...TYPE_KEYS.map((k) => `t-${k}`)]);
+
+/** URL-safe id from the name, unique among `taken`. Set once on the first save, so shared links survive renames. */
+export function slugify(name, taken = new Set()) {
+  const base = String(name).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 36) || 'group';
+  let slug = RESERVED.has(base) ? `${base}-group` : base;
+  for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`;
+  return slug;
+}
+
+/** Post body: blank line = new paragraph, single line break kept, bare https links linked; everything else escaped. */
+export const bodyHtml = (body = '') => body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => `<p>${p.split('\n').map((line) =>
+  line.split(/(https?:\/\/[^\s<>"']+)/g).map((part, i) => {
+    if (i % 2 === 0) return esc(part);
+    const [, url, tail] = part.match(/^(.*?)([.,;:!?)]*)$/);
+    return `<a class="link" href="${esc(url)}" rel="noopener">${esc(url)}</a>${esc(tail)}`;
+  }).join('')).join('<br>')}</p>`).join('');
+
+export const MAX_NEWS = 20;
+/** Newest first; posting the 21st drops the oldest. */
+export const addNews = (news = [], post) => [post, ...news].slice(0, MAX_NEWS);
+
+/** The board (summary line + one section per group type), rendered the same at build time and in the server.
+ *  c = { email, phone, involved, groups } comes from site facts, so they stay in one place.
+ *  alerts: the stored alerts; a group's active ones are pinned at the top of its card. */
+export function boardHtml(groups, now, c, alerts = []) {
   const contact = (what) => `${what}: <a class="link" href="mailto:${esc(c.email)}">Contact us</a>`;
   if (!groups.length) {
     return `<article class="card group-empty"><h2 class="h3">No weekly groups are listed right now.</h2><p>Call ${esc(c.phone)} or email ${esc(c.email)} and we&rsquo;ll help you find a group.</p><p><a class="link link-arrow" href="${esc(c.involved)}">Ways to get involved</a></p></article>`;
@@ -127,25 +159,42 @@ export function boardHtml(groups, now, c) {
   const summary = now
     ? `<p class="board-summary"><strong>${meeting} of ${rows.length}</strong> groups meeting this week${last ? ` &middot; Board updated ${stamp(last, { weekday: 'short', month: 'short', day: 'numeric' })} at ${stamp(last, { hour: 'numeric', minute: '2-digit' }).replace(/\s/g, '').toLowerCase()}` : ''}</p>`
     : '';
-  const cards = rows.map(({ g, s }) => {
+  const card = ({ g, s }) => {
     const day = g.day === VARIES ? 'Day varies' : `${DAYS[g.day]}s`;
     const when = !g.time && !g.place ? contact('When &amp; where')
       : `${day}, ${g.time ? esc(g.time) : contact('Time')} &middot; ${g.place ? esc(g.place) : contact('Place')}`;
-    return `<li><article class="card group"><p class="chip-status is-${s.kind}">${icon(s.kind, 16)}${s.label}</p>`
-      + `<h2 class="h3">${esc(g.name)}</h2><p class="group-when">${icon('clock', 16)}<span>${when}</span></p>`
+    const news = (g.news ?? []).slice(0, 10);
+    const date = (iso, o) => stamp(iso, o);
+    const feed = news.length
+      ? `<ol class="group-feed" role="list">${news.map((n) => `<li><p class="group-post-date">${date(n.date, { weekday: 'short', month: 'short', day: 'numeric' })}</p><h4>${esc(n.title)}</h4>${bodyHtml(n.body)}</li>`).join('')}</ol>`
+      : `<p>No updates yet. Questions? <a class="link" href="mailto:${esc(c.email)}">Contact us</a></p>`;
+    const pinned = now ? groupAlerts(alerts, g.id, now) : [];
+    const self = `/groups#${g.id}`; // no "Learn more" pointing at the card it is already on
+    return `<li><article class="card group" id="${esc(g.id)}" tabindex="-1">`
+      + (pinned.length ? `<div class="group-alerts">${pinned.map((a) => alertCard({ ...a, link: a.link === self ? undefined : a.link })).join('')}</div>` : '')
+      + `<p class="chip-status is-${s.kind}">${icon(s.kind, 16)}${s.label}</p>`
+      + `<h3 class="h3">${esc(g.name)}</h3><p class="group-when">${icon('clock', 16)}<span>${when}</span></p>`
+      + (news[0] ? `<p class="group-latest"><span class="group-events-h">Latest</span> ${date(news[0].date, { month: 'short', day: 'numeric' })} &middot; ${esc(news[0].title)}</p>` : '')
       + (g.about ? `<p class="group-about">${esc(g.about)}</p>` : '')
       + (g.note ? `<p class="group-note">${esc(g.note)}</p>` : '')
       + (g.contact ? `<p class="group-contact">Contact: ${esc(g.contact)}</p>` : '')
       + eventsHtml(g, now)
+      + `<details class="readmore group-more"><summary><span>News &amp; updates (${news.length})</span><span class="sr-only"> for ${esc(g.name)}</span></summary>`
+      + `<div class="readmore-body">${feed}<p><a class="btn btn-sm btn-outline group-share" href="${esc(c.groups)}#${esc(g.id)}" data-title="${esc(g.name)}">Share this group</a></p></div></details>`
       + (g.updated ? `<p class="group-updated">Updated ${stamp(g.updated, { month: 'short', day: 'numeric' })}</p>` : '')
       + '</article></li>';
+  };
+  const sections = GROUP_TYPES.map(([k, label]) => {
+    const list = rows.filter((r) => (TYPE_KEYS.includes(r.g.type) ? r.g.type : 'other') === k);
+    return list.length ? `<section class="group-type" aria-labelledby="t-${k}"><h2 class="h2" id="t-${k}">${label}</h2><ul class="cards-grid groups" role="list">${list.map(card).join('')}</ul></section>` : '';
   });
-  return `${summary}<ul class="cards-grid groups" role="list">${cards.join('')}</ul>`;
+  return `${summary}${sections.join('')}`;
 }
 
 // ---------- Validation (everything staff or visitors send passes through here) ----------
+const TAG = /<\/?[a-z!][^>]*>?/gi; // tag-like runs only, so "a < b" survives
 /** Plain text only: control characters and anything tag-like are removed (and everything is escaped on render). */
-export const text = (v, max) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/<[^>]*>?/g, '').trim() : '').slice(0, max);
+export const text = (v, max) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(TAG, '').trim() : '').slice(0, max);
 const ymd = (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(Date.parse(v)) && new Date(`${v}T00:00:00Z`).toISOString().startsWith(v) ? v : null);
 const HM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const okId = (id) => (typeof id === 'string' && /^[\w-]{1,40}$/.test(id) ? id : crypto.randomUUID());
@@ -163,20 +212,37 @@ export function validateEvent(e, today) {
 export const VIDEO_ID = /^[\w-]{11}$/;
 export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-export function validateAlert(b, now = new Date()) {
+/** `groupIds`: the groups that exist now. A group alert must name one of them; its link defaults to the group's
+ *  own section, and it shows site-wide only when `sitewide` is ticked. Plain alerts are always site-wide. */
+export function validateAlert(b, now = new Date(), groupIds = []) {
   const message = text(b?.message, 200);
   const expires = Date.parse(b?.expires);
   let link = text(b?.link, 500);
+  const group = b?.group ? String(b.group) : undefined;
   if (!['urgent', 'news'].includes(b?.type)) return { error: 'type' };
   if (!message) return { error: 'message' };
   if (!(expires > +now) || expires > +now + 90 * 864e5) return { error: 'expires' };
-  if (link) { try { const u = new URL(link); if (u.protocol !== 'https:' && u.protocol !== 'http:') return { error: 'link' }; link = u.href; } catch { return { error: 'link' }; } }
-  return { value: { id: crypto.randomUUID(), type: b.type, message, link: link || undefined, expires: new Date(expires).toISOString(), created: now.toISOString() } };
+  if (group && !groupIds.includes(group)) return { error: 'group' };
+  if (!link && group) link = `/groups#${group}`;
+  else if (/^\/(?!\/)/.test(link)) { if (!/^\/[\w\-./#?=&%]*$/.test(link)) return { error: 'link' }; } // a page on this site
+  else if (link) { try { const u = new URL(link); if (u.protocol !== 'https:' && u.protocol !== 'http:') return { error: 'link' }; link = u.href; } catch { return { error: 'link' }; } }
+  return { value: { id: crypto.randomUUID(), type: b.type, message, link: link || undefined, expires: new Date(expires).toISOString(), created: now.toISOString(),
+    ...(group ? { group, sitewide: Boolean(b.sitewide) } : {}) } };
+}
+
+/** A group news post from staff. Date is stamped here, never taken from the client. */
+export function validateNews(b, now = new Date()) {
+  const title = text(b?.title, 80);
+  const body = typeof b?.body === 'string' ? b.body.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ').replace(TAG, '').trim().slice(0, 600) : '';
+  if (!title) return { error: 'title' };
+  return { value: { id: crypto.randomUUID(), date: now.toISOString(), title, body } };
 }
 
 export function validateGroups(list, old = [], now = new Date()) {
   if (!Array.isArray(list) || list.length > 50) return { error: 'groups' };
   const out = [];
+  const taken = new Set(old.map((o) => o.id));
+  const seen = new Set();
   for (const g of list) {
     const name = text(g?.name, 80);
     const day = Number(g?.day);
@@ -191,10 +257,16 @@ export function validateGroups(list, old = [], now = new Date()) {
       if (ev.error) return ev;
       if (ev.value) events.push(ev.value);
     }
-    const v = { id: okId(g.id), name, day, time: text(g?.time, 60), place: text(g?.place, 80), contact: text(g?.contact, 80), about: text(g?.about, 200),
-      note: text(g?.note, 140), status: kind === 'meeting' ? { kind } : { kind, date }, events };
+    // Known groups keep their id (the /groups#slug link); a new one gets a slug from its name. News is never taken from the client.
+    const prev = old.find((o) => o.id === g?.id);
+    if (prev && seen.has(prev.id)) return { error: 'group' };
+    const id = prev ? prev.id : slugify(name, taken);
+    taken.add(id);
+    seen.add(id);
+    const type = TYPE_KEYS.includes(g?.type) ? g.type : 'other';
+    const v = { id, type, name, day, time: text(g?.time, 60), place: text(g?.place, 80), contact: text(g?.contact, 80), about: text(g?.about, 200),
+      note: text(g?.note, 140), status: kind === 'meeting' ? { kind } : { kind, date }, events, news: prev?.news ?? [] };
     // "Updated" is stamped by the server, only when something about the group changed.
-    const prev = old.find((o) => o.id === v.id);
     const same = prev && JSON.stringify({ ...prev, updated: undefined }) === JSON.stringify({ ...v, updated: undefined });
     out.push({ ...v, updated: same ? prev.updated : now.toISOString() });
   }
@@ -216,40 +288,4 @@ export function imageType(bytes) {
   if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
   if (String.fromCharCode(...b.slice(0, 4)) === 'RIFF' && String.fromCharCode(...b.slice(8, 12)) === 'WEBP') return 'image/webp';
   return null;
-}
-
-// ---------- Cloudflare Access JWT (RS256, WebCrypto, keys from the team's certs endpoint) ----------
-/** Claim checks: issuer is the team domain, our app's AUD tag is in aud, not expired / not before. */
-export function checkClaims(c, { team, aud, now = Date.now() }) {
-  const t = now / 1000;
-  const auds = Array.isArray(c?.aud) ? c.aud : [c?.aud];
-  return c?.iss === team.replace(/\/$/, '') && auds.includes(aud) && typeof c.exp === 'number' && c.exp > t && !(c.nbf > t + 60);
-}
-
-const b64 = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (ch) => ch.charCodeAt(0));
-let certs = { team: '', at: 0, keys: new Map() };
-
-/** Returns the token's claims when valid, else null. Never throws. */
-export async function verifyAccessJwt(token, { team, aud, now = Date.now(), fetchFn = fetch }) {
-  try {
-    const [h, p, s, extra] = String(token).split('.');
-    if (!s || extra !== undefined) return null;
-    const head = JSON.parse(new TextDecoder().decode(b64(h)));
-    const claims = JSON.parse(new TextDecoder().decode(b64(p)));
-    if (head.alg !== 'RS256' || !checkClaims(claims, { team, aud, now })) return null;
-    // Keys rotate, so fetch by kid; refetch at most once a minute for an unknown kid.
-    if (certs.team !== team || (!certs.keys.has(head.kid) && now - certs.at > 60e3)) {
-      const res = await fetchFn(`${team.replace(/\/$/, '')}/cdn-cgi/access/certs`);
-      const { keys = [] } = await res.json();
-      const map = new Map();
-      for (const k of keys) map.set(k.kid, await crypto.subtle.importKey('jwk', k, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']));
-      certs = { team, at: now, keys: map };
-    }
-    const key = certs.keys.get(head.kid);
-    if (!key) return null;
-    const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64(s), new TextEncoder().encode(`${h}.${p}`));
-    return ok ? claims : null;
-  } catch {
-    return null;
-  }
 }

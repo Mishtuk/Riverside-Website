@@ -3,7 +3,7 @@
 This is a rebuild of https://www.riversideconnect.com for desktop and mobile.
 
 - **Preview (live):** https://mishtuk.github.io/Riverside-Website/. It redeploys automatically on every push to `main`.
-- **Branch `admin-alerts`:** the same site on a Cloudflare Worker, plus the staff admin (alerts, email signup topics, title and thumbnail edits, the weekly groups board, the live video switch). See "Hosting on Cloudflare" below.
+- **Branch `admin-alerts`:** the same site served by one small Node server on Microsoft Azure App Service, plus the staff admin: alerts, our own email list and sending, title and thumbnail edits, the groups board with each group's news, and the live video switch. See "Hosting on Azure" below.
 - **Repo:** https://github.com/Mishtuk/Riverside-Website. The local copy is `V:\RiversideWebsite`.
 - **Commits:** authored as `Mish <113945444+Mishtuk@users.noreply.github.com>`, set in the repo's git config.
 
@@ -15,11 +15,11 @@ npm run build     # static output in dist/
 npm run preview   # serve dist/ locally
 npm test          # logic checks: alerts, groups, events, overrides, admin sign-in token
 ```
-**The worker locally** (admin, alerts, groups): put `DEV_ADMIN=1` in a `.dev.vars` file (git-ignored), then run `npm run build && npx wrangler dev` and open http://localhost:8787/admin/. `DEV_ADMIN` only works on localhost; it is ignored on any real address.
+**The server locally** (admin, alerts, groups, email): run `npm run build`, then `DEV_ADMIN=1 node server.js` and open http://localhost:8080/admin/. Data goes in `.data/` (git-ignored). Without `SMTP_URL`, emails (sign-in links, confirmations, blasts) are written as `.eml` files to `.data/outbox/` (that is, `DATA_DIR/outbox/`) instead of being sent. `DEV_ADMIN` only works on localhost and never in production. To try the real sign-in, copy `.env.example` to `.env` (git-ignored) and leave `DEV_ADMIN` out: it sets `ALLOW_DEFAULT_ADMIN=1`, so `admin` / `admin` works, and the emailed sign-in link is printed in the terminal.
 
 ## Stack
 - **Astro 7**, static output. Plain CSS (`src/styles/global.css` plus component `<style>` blocks). No client framework. The only JavaScript is small inline scripts.
-- **Hosting:** `main` is on GitHub Pages via GitHub Actions. `admin-alerts` is a Cloudflare Worker: `astro build` still makes a fully static `dist/`, and one small script (`src/worker.js`) adds the live parts. There is no server rendering and no Astro adapter.
+- **Hosting:** `main` is on GitHub Pages via GitHub Actions. `admin-alerts` runs `server.js` on Azure App Service (Linux, Node 22). `astro build` still makes a fully static `dist/`, and the server fills in the live parts at marked spots (`<!--rs:…-->`) as it sends each page. There is no server framework and no Astro adapter. The only runtime dependency besides Node is nodemailer.
 - **CSS:** inlined into each page (`build.inlineStylesheets: 'always'`).
 - **Fonts:** self-hosted woff2 in `public/fonts/` (DM Serif Text for headings, Source Sans 3 for body), with size-matched fallbacks so the page doesn't jump while fonts load.
 - **Page transitions:** native cross-document view transitions. Other motion is turned off for visitors with reduced motion enabled. The hero video still plays for them, without the zoom, and the pause button is always shown. If a phone blocks autoplay (iPhone Low Power Mode, Android Data Saver), the video starts on the first tap.
@@ -27,7 +27,8 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
 ## Where things live
 | What | Where |
 |---|---|
-| Church facts (times, address, phone, email, text-to-give, map links, socials), nav, livestream window | `src/lib/site.ts`. **Change facts here only; never hard-code them in pages.** |
+| Church facts (times, address, phone, email, text-to-give, map links, socials) | `src/lib/church.js`, re-exported by `src/lib/site.ts`. **Change facts here only; never hard-code them in pages.** The server uses the same file. |
+| Nav and livestream window | `src/lib/site.ts` |
 | Base-aware links and photo srcsets | `href()` and `photo()` in `src/lib/site.ts` |
 | Latest YouTube videos (read at build time) | `src/lib/youtube.ts`, from the channel RSS feed. No API key needed. |
 | Podcast archive (read at build time) | `src/lib/podcast.ts`, from `riversideconnect.com/feeds/sermons` |
@@ -39,9 +40,13 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
 | Old URL → new URL redirects (26) | `moves` in `astro.config.mjs` |
 | sitemap.xml, robots.txt, manifest.webmanifest | `src/pages/*.ts` |
 | Design research and the reasoning behind the layout | `docs/research.md` |
-| Worker: `/api/*`, the admin sign-in check, and putting alerts, edited titles, the groups board and the live switch into the static pages | `src/worker.js`, configured in `wrangler.jsonc` |
-| Alert banner and group card markup, the date rules, and input checks (shared by the pages, the worker and /admin) | `src/lib/state.js` |
-| Mailchimp (signup with topics, alert emails, subscriber counts) | `src/mailer.js` |
+| Server: static files, `/api/*`, staff sign-in, and filling alerts, edited titles, the groups board and the live switch into the pages | `server.js` |
+| Database (one SQLite file) and nightly backups | `src/db.js` |
+| Staff sign-in (emailed link, session cookie) | `src/auth.js` |
+| Page template for server-made pages (sign-in, email confirm and settings) | `src/pages/shell.astro` |
+| Deploy to Azure | `.github/workflows/azure.yml` |
+| Alert banner and group card markup, the date rules, and input checks (shared by the pages, the server and /admin) | `src/lib/state.js` |
+| Email list, sending queue, subscribe / confirm / email settings pages, admin Email tab | `src/email/` |
 | Starting list of weekly groups (only facts the church has given us) | `src/content/groups.json` |
 | Staff admin page | `src/pages/admin.astro` |
 | Logic checks | `test/state.test.js` (`npm test`) |
@@ -102,14 +107,14 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
   - Response/connect `a2ba1737-d3fa-4331-aae5-391e389ce543`
   - Prayer `d3b02759-c0de-4d32-8f29-b8ef1398bb7d`
   - The script loads only when needed. On phones the form's empty space at the bottom is trimmed by 190px. Re-check that trim if the vendor changes its layout.
-- **Mailchimp:** email signup and daily prayer emails (`riversideconnect.us2.list-manage.com`). On `admin-alerts`, /subscribe has two topics, "Latest happenings" and "Weather & closing alerts". They are Mailchimp tags on the existing list, and new people get Mailchimp's confirmation email. Without JavaScript the form still posts to Mailchimp as before. The prayer signup is unchanged.
+- **Mailchimp:** on `main`, the email signup and the daily prayer emails (`riversideconnect.us2.list-manage.com`). On `admin-alerts`, /subscribe uses the site's own list instead: two topics, "Latest happenings" and "Weather & closing alerts", a confirmation email before anyone is added, and unsubscribe links in every email. Staff send from /admin → Email. The daily prayer signup on Get Involved still uses Mailchimp.
 - **Wufoo:** discipleship. **Google Form:** ESL. **Email:** baptisms.
 - **YouTube:**
   - channel `UCWcjfHPkDfMiiGgp0L8zDjQ`
   - previous-livestreams playlist `PLbS1l_W_y15idxZN2oJY6xpN-6NlCaRNE`
   - Videos are embedded with a facade, so nothing loads from YouTube until a visitor clicks.
   - The "We're live" banner shows on Sundays 10:25am–12:00pm ET. Add `?live=1` to any URL to preview it.
-  - On the Worker, staff can override the schedule in /admin → Livestream: Automatic (the default), Live now, or Not live, plus an optional video ID. The worker adds `data-live-force="on|off"` and `data-live-video="<id>"` to `<html>`, and the home hero reads them.
+  - On the Azure server, staff can override the schedule in /admin → Livestream: Automatic (the default), Live now, or Not live, plus an optional video ID. The server adds `data-live-force="on|off"` and `data-live-video="<id>"` to `<html>`, and the home hero reads them.
 - **Podcast:** Apple Podcasts id 387370044. The feed is stale: the last episode is from 2020-06-14.
 - **Text to give:** 267-274-2425.
 
@@ -137,45 +142,69 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
 - **To re-check:** run `npm run build && npm run preview`, then `npx lighthouse <url> --form-factor=mobile`.
 
 ## Staff admin (`admin-alerts` branch)
-Staff sign in at `/admin` with a one-time code sent to their email (Cloudflare Access). Saves take a second, and changes show on the site within about a minute.
-- **Add or remove an admin:** Cloudflare dashboard → Zero Trust → Access → Applications → "Riverside admin" → Policies → edit the allowed emails. Nothing in the code changes.
-- **Post an alert:** Alerts → choose Weather / closing or News → write the message (200 characters max) → optional link → end time (it disappears by itself after that) → Post alert. It shows as a banner under the header on every page, and visitors can dismiss it. "End now" removes it right away. Editing an alert posts it again, so people who dismissed it see the new version.
-- **Email it too:** tick "Also email subscribers". The confirm step shows how many people will get it. Weather / closing goes to "Weather & closing alerts", and News goes to "Latest happenings". "Send a test to me" sends it only to the signed-in staff email.
-- **Fix a video or podcast title or thumbnail:** Videos & podcast → edit the title or upload a picture (it is cropped to 16:9 at 1280×720 in the browser) → Save. "Reset to original" goes back to the YouTube or feed version. Fixing the title on YouTube is still better, because then YouTube is right too.
-- **Weekly groups (`/groups`):** add, edit or remove groups (name, day, time, place, contact, short description, note). Staff only record exceptions. "Not meeting on <date>" shows "Not meeting this week" and clears itself after that date. "On break until <date>" clears on that date (Eastern time). Each group can also have one-off events (title, date, start and optional end time, place, note). The board shows the next three, and past events drop off by themselves. If the worker can't read its data, the page shows "Check with the office" instead of guessing.
+**First sign-in is admin/admin. You must change it immediately. Do this before giving out the site address.** On the first start the server creates one account, `admin` with password `admin`. Signing in with it leads straight to "Choose a new password" (12 characters or more, not "admin", not the username), and nothing else in the admin works until that is done. The only exception is the testing period: with `ALLOW_DEFAULT_ADMIN=1` set, admin/admin works normally, and a warning bar ("Default password in use: change it before launch") shows on the admin page until the password is changed.
 
-## Hosting on Cloudflare (`admin-alerts`)
-**How it fits together:** Cloudflare serves the static `dist/` files. Page requests also pass through `src/worker.js`, which reads one stored record (alerts, title edits, groups, live switch) and changes the page only when there is something to show. Photos, video, fonts and scripts skip the worker. If the worker has a problem, the public pages still show their normal static content. The admin is the opposite: without a valid sign-in, every admin request is refused.
+**Signing in:** go to `/admin` and enter your username and password. Or use "Email me a sign-in link": staff listed in `ADMIN_EMAILS` get a link that works once, for 15 minutes, and opens a page with a "Sign in" button. Either way you stay signed in on that device for 7 days. "Sign out" is at the top right. After 5 wrong tries, that username (and that internet address) is locked out for 15 minutes; the message is the same whether the username or the password was wrong. Changes show on the site straight away.
+- **Staff accounts** (admin → Staff): change your own password, add an account (username plus a temporary password, which they must change the first time they sign in), or remove someone else's account. The last account can't be removed. The section also lists the last 10 sign-ins (who, when, from where). Give temporary passwords in person or by phone, never by email.
+- **Email sign-in list:** Azure portal → the web app → Settings → Environment variables → `ADMIN_EMAILS` (addresses separated by commas) → Apply. The app restarts. Removing an address also signs that person out.
+- **Post an alert:** Alerts → choose Weather / closing or News → write the message (200 characters max) → optional link → end time (it disappears by itself after that) → Post alert. It shows as a banner under the header on every page, and visitors can dismiss it. "End now" removes it right away. Editing an alert posts it again, so people who dismissed it see the new version.
+- **Email it too:** tick "Also email subscribers". The confirm step shows how many people will get it. Weather / closing goes to "Weather & closing alerts", and News goes to "Latest happenings". Alert emails go to the front of the sending queue. "Send a test to me" sends it only to you. **Be honest with the church about speed:** the banner is instant, but email is sent at the relay's limit. Azure's starting limit is 100 emails an hour, so 1,500 people would take about 15 hours until Azure raises it. Don't promise "instant emergency email".
+- **Email tab:** write an email to one or both topics, see who is subscribed, and unsubscribe someone who phones the office. People can only join through the Subscribe page and its confirmation email.
+  - **Unsubscribe requests by email:** every email offers a one-click unsubscribe, which works by itself. It also offers a "mailto" unsubscribe, which arrives as an ordinary email at the reply-to address. Nothing reads that mailbox automatically, so staff must find the person in Email → Subscribers and press "Unsubscribe" on their row **within 10 business days** (the US CAN-SPAM rule). Check that mailbox weekly.
+- **Fix a video or podcast title or thumbnail:** Videos & podcast → edit the title or upload a picture (it is cropped to 16:9 at 1280×720 in the browser) → Save. "Reset to original" goes back to the YouTube or feed version. Fixing the title on YouTube is still better, because then YouTube is right too.
+- **Groups (`/groups`):** each group has a type (Prayer, Discipleship, ESL classes, Men, Women, Kids, Other), and the page shows one section per type. In the admin each group is a closed card; open it to change it.
+  - Details: name, type, day, time, place, contact, short description, note.
+  - This week: staff only record exceptions. "Not meeting on <date>" shows "Not meeting this week" and clears itself after that date. "On break until <date>" clears on that date (Eastern time).
+  - Events: one-off dates (title, date, start and optional end time, place, note). The board shows the next three, and past events drop off by themselves.
+  - Updates: "Post update" puts a dated news post (title and message) in that group's "News & updates" on /groups straight away. Up to 20 are kept; the oldest drops off. Posts can be deleted but not edited.
+  - Each group has its own link, `/groups#<name>`, which opens its news. The part after `#` is made from the name when the group is first saved and never changes, so shared links keep working after a rename. The "Share this group" button copies it.
+  - **Group alerts** ("Not meeting this Sunday", "Moved to Room 2"): open the group and press "Post a meeting alert", or choose a Group in Alerts → Post an alert. Write the when and where in the message. The alert is pinned at the top of that group's card on /groups until it ends. "Also show site-wide" puts it in the banner on every page as well; it is ticked for Weather / closing and unticked for News. With "Also email", the group's own list is picked, and Latest happenings or Weather & closing alerts can be added; each person gets it once. Removing a group removes its alerts.
+  - If the server can't read its data, the page shows "Check with the office" instead of guessing.
+
+## Hosting on Azure (`admin-alerts`)
+**How it fits together:** one Node process (`server.js`) on an App Service plan. It sends the static `dist/` files, and for pages it fills in alerts, edited titles, the groups board and the live switch at marked spots. Everything staff change, plus the email list and sending queue, is in one SQLite file: `/home/data/riverside.db` (Node's built-in `node:sqlite`). Uploaded thumbnails are files in `/home/data/thumbs/`. `/home` survives restarts and deploys. If the server can't read the data, public pages still show their normal static content; the admin refuses everything without a valid sign-in.
 
 **One-time setup (owner):**
-1. **Cloudflare account** (free plan). Workers & Pages → Create → Import a repository → pick `Mishtuk/Riverside-Website`.
-   - Production branch: `admin-alerts` for the demo (switch to `main` once this is merged).
-   - Build command: `npm run build`. Deploy command: `npx wrangler deploy` (the default).
-   - Build variable: `SITE=https://riverside-website.<your-subdomain>.workers.dev` (later `https://www.riversideconnect.com`). `BASE` is already `/` on this branch.
-   - Name the Worker `riverside-website`, the same as `name` in `wrangler.jsonc`.
-2. **Storage (KV):** the first deploy creates the KV namespace for the `SITE` binding automatically. If it doesn't, create one under Storage & Databases → KV and add its `id` to `kv_namespaces` in `wrangler.jsonc`.
-3. **Cloudflare Access** (Zero Trust, free plan for up to 50 users; check at signup whether it asks for a card):
-   - Settings → Authentication: turn on "One-time PIN".
-   - Access → Applications → Add → Self-hosted, named "Riverside admin". Add the paths `/admin` and `/api/admin/` on the Worker's `workers.dev` hostname (and later on `www.riversideconnect.com`). Also turn on Access for the Worker's preview (version) URLs under the Worker's Settings → Domains & Routes, so previews aren't open.
-   - Policy: Allow → Emails → the staff addresses.
-   - Copy the application's **AUD tag** and the team domain (`https://<team>.cloudflareaccess.com`).
-4. **Worker settings → Variables and secrets:**
-   - `TEAM_DOMAIN` = `https://<team>.cloudflareaccess.com`
-   - `POLICY_AUD` = the AUD tag
-   - `MAILCHIMP_FROM_NAME` (for example "Riverside Community Church") and `MAILCHIMP_REPLY_TO` (the church address that should get replies)
-   - `MAILCHIMP_API_KEY` as a **secret** (Mailchimp → Profile → Extras → API keys; it ends in `-us2`)
-   - `MAILCHIMP_LIST_ID` is already set to the existing signup list (`ab990cb198`) in `wrangler.jsonc`.
-   - Until the Mailchimp values are set, /subscribe says email isn't set up yet, and the admin can only post banners.
-5. **Mailchimp:** nothing to create. The two tags appear when the first person picks them. Before relying on "Also email", confirm that the church's plan allows sending campaigns through the API.
+1. **Web app:** create a Resource group, then a Web App: Publish "Code", Runtime "Node 22 LTS" (or 24 if offered), Linux, plan **Basic B1**.
+   - Settings → Configuration → General settings: **Always on: On**, **HTTPS only: On**, **SCM Basic Auth Publishing Credentials: On** (needed for the publish profile), Startup command `node server.js`.
+   - Keep it to **one instance** (no scale-out, no deployment slots): the database is a single file.
+2. **Environment variables** (web app → Settings → Environment variables). Make each secret with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+   - `PUBLIC_URL` = `https://www.riversideconnect.com` (or the `…azurewebsites.net` address until the domain moves). Sign-in and email links are built from this.
+   - `SESSION_SECRET`, `TOKEN_SECRET`: two different random values. Changing `SESSION_SECRET` signs everyone out; changing `TOKEN_SECRET` breaks the unsubscribe links in emails already sent, so leave it alone once set.
+   - `ADMIN_EMAILS` = the staff addresses that may use "Email me a sign-in link", separated by commas.
+   - `ALLOW_DEFAULT_ADMIN=1` only while testing (admin/admin without the forced change). **Remove it before launch.**
+   - `SMTP_URL` = `smtp://USERNAME:PASSWORD@HOST:587` from the email relay (step 4). Put `%40` for any `@` and `%7C` for any `|` inside the username or password.
+   - `MAIL_FROM` = `Riverside Community Church <news@riversideconnect.com>`, and `MAIL_REPLY_TO` = the church address that should get replies.
+   - Optional: `SEND_RATE_PER_HOUR` (default 100) and `SEND_RATE_PER_MIN` (default 30). Raise them only after the relay raises its limits. `DATA_DIR` defaults to `/home/data`.
+   - The server refuses to start without `SESSION_SECRET`, `TOKEN_SECRET`, `ADMIN_EMAILS` and `PUBLIC_URL`; the reason is in Log stream.
+3. **GitHub deploy:** web app → Overview → Download publish profile. In the GitHub repo → Settings → Secrets and variables → Actions, add the secret `AZURE_WEBAPP_PUBLISH_PROFILE` (the file's contents), plus the variables `AZURE_WEBAPP_NAME` (the web app's name) and `PUBLIC_URL`. Every push to `admin-alerts` then tests, builds and deploys (`.github/workflows/azure.yml`); Actions → "Deploy to Azure App Service" → Run workflow does it by hand.
+4. **Email relay: Azure Communication Services** (pay per email).
+   - Create an **Email Communication Services** resource, add the custom domain (`riversideconnect.com`), and add the DNS records it shows: ownership TXT, SPF and the two DKIM records. Then connect the domain to a **Communication Services** resource.
+   - Set up SMTP for it: Microsoft's guide has you register an app in Microsoft Entra ID, give it access to the Communication Services resource, and create an SMTP username. Copy the server name, port, username and password into `SMTP_URL`. Follow Microsoft's current steps; the screens change.
+   - **Sending checklist (owner, before the first real email).** Gmail and Yahoo expect all of this from bulk senders:
+     - [ ] **SPF:** one TXT record on `riversideconnect.com` that includes the relay. Merge it into any existing SPF record; never publish two.
+     - [ ] **DKIM:** the relay's DKIM records are added and show "Verified" in the relay's portal.
+     - [ ] **DMARC:** TXT at `_dmarc.riversideconnect.com` = `v=DMARC1; p=none; rua=mailto:<church address>`. Tighten it to `p=quarantine` after a few weeks of clean reports.
+     - [ ] `MAIL_FROM` uses an address on that same domain, and `MAIL_REPLY_TO` is a mailbox someone reads (see "Unsubscribe requests by email" above).
+     - [ ] Send a test from Email → "Send test to me" to a Gmail address. In Gmail, "Show original" should show SPF, DKIM and DMARC as PASS, and an "Unsubscribe" link next to the sender.
+     - [ ] The church's postal address in the email footer comes from `src/lib/church.js`; keep it current.
+   - **Ask for a higher sending limit as soon as the resource exists:** Help + support → Create a support request → "Service and subscription limits (quotas)" → Communication Services → email sending limits. The starting limit is 100 emails an hour. Approval isn't guaranteed.
+   - **Fallback: Amazon SES** (about $0.16 per 1,000 emails). Verify the domain in SES (its DKIM records), request production access, create SMTP credentials, and set `SMTP_URL=smtp://KEY:SECRET@email-smtp.<region>.amazonaws.com:587` and the rate settings to the SES limits. No code change.
+5. **Domain:** web app → Custom domains → add `www.riversideconnect.com` (a `CNAME` from `www` to the app's `azurewebsites.net` name, plus the `asuid` TXT it asks for), then add a free App Service managed certificate. The free certificate doesn't cover the bare domain, so have the DNS host redirect `riversideconnect.com` to `www`. The nameservers don't need to move: add these records where the DNS is today, and don't touch the MX records (church email).
 
-**Moving riversideconnect.com (later):** Access and the Worker can only use `www.riversideconnect.com` once the domain's nameservers point to Cloudflare.
-- First copy every existing DNS record into Cloudflare, especially the MX and mail (SPF, DKIM) records, so church email keeps working. Cloudflare's import scan helps, but check it against the current DNS host.
-- Then change the nameservers at the registrar. Add `www.riversideconnect.com` (and the bare domain) as Custom Domains on the Worker, and add the same hostnames to the Access application.
-- Keep the old site live until the switch is done. The redirects in `astro.config.mjs` keep old URLs working.
+**Launch checklist:**
+- [ ] Remove ALLOW_DEFAULT_ADMIN and change the admin password. (Staff accounts must show no "Default password" warning.)
+- [ ] Every staff member has their own account or is in `ADMIN_EMAILS`; remove test accounts.
+- [ ] The email sending checklist above is done, and a test email arrived with SPF, DKIM and DMARC passing.
+- [ ] `PUBLIC_URL` is the real address, and HTTPS only and Always on are on.
 
-**Monthly cost:** the Cloudflare free plans (Workers, KV, and Access for up to 50 staff) are expected to cover a church this size, so $0. Mailchimp stays on whatever plan the church already pays for. All cost figures are estimates. Check them on the vendors' own pricing pages before quoting them.
+**Backups:** every day the server copies the database to `/home/data/backup/riverside-YYYY-MM-DD.db` and keeps the last 7. To download one: web app → Advanced Tools (Kudu) → Debug console → `/home/data/backup`. To restore: stop the app, copy the backup over `/home/data/riverside.db`, then start it. Also turn on App Service's own backups if the plan includes them, so a copy exists outside the app.
 
-**Launching `main` on GitHub Pages instead** (if the church never moves to Cloudflare): set `SITE=https://www.riversideconnect.com` and `BASE=/` in the Pages workflow on `main`, and add `public/CNAME`. Then point `www` at `mishtuk.github.io` with a `CNAME` record, plus apex `A` records 185.199.108.153, .109.153, .110.153 and .111.153. The admin features need the Worker, so they won't exist there.
+**Known limits:** one instance only. Sign-in needs email, so if the relay is down nobody can get a link until `SMTP_URL` is fixed (for example by switching to SES).
+
+**Monthly cost:** App Service Basic B1 is about $13 a month, and email is a few cents per thousand. These are estimates; check them on Microsoft's (and Amazon's) own pricing pages before quoting them.
+
+**Launching `main` on GitHub Pages instead** (if the church never moves to Azure): set `SITE=https://www.riversideconnect.com` and `BASE=/` in the Pages workflow on `main`, and add `public/CNAME`. Then point `www` at `mishtuk.github.io` with a `CNAME` record, plus apex `A` records 185.199.108.153, .109.153, .110.153 and .111.153. The admin features need the Azure server, so they won't exist there.
 
 ## Still needed from the church
 - Headshots of Katrina, Paul and Martry, and a larger photo of Ezra.
@@ -188,11 +217,11 @@ Staff sign in at `/admin` with a one-time code sent to their email (Cloudflare A
 - Whether the MinistryForms form colours can be set to the site's gold.
 - Who controls the DNS for riversideconnect.com.
 - The full list of weekly groups (name, day, time, place, contact), and who keeps it up to date.
-- The Mailchimp plan and contact count, and who the admins are.
+- Whether there is an existing email list where people agreed to get emails (it can be imported once), the sender name and reply-to address for emails, and who the admins are.
 
 ## Suggestions for the church (not code)
 - Claim and complete the Google Business Profile, with photos and service times.
-- Post one new sermon a week to YouTube. The site picks it up on the next deploy. To make that automatic, add a weekly scheduled rebuild (a `schedule:` trigger on GitHub Pages, or a weekly build on Cloudflare).
+- Post one new sermon a week to YouTube. The site picks it up on the next deploy. To make that automatic, add a weekly scheduled rebuild (a `schedule:` trigger on GitHub Pages, or a weekly scheduled run of the Azure workflow).
 - Add GA4 or Plausible if they want visitor stats.
 
 ## Out of scope unless requested

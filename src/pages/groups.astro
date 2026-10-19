@@ -7,28 +7,62 @@ import { CHURCH, href } from '../lib/site';
 import { boardHtml } from '../lib/state.js';
 import groups from '../content/groups.json';
 
-// Static fallback: every status reads "Check with the office". The worker renders the live board
-// (same boardHtml, from staff edits or this seed) into #groups-board on each request.
-const contact = { email: CHURCH.email, phone: CHURCH.phone, involved: href('/get-involved') };
+// Static fallback: every status reads "Check with the office". The server renders the live board
+// (same boardHtml, from staff edits or this seed) between the rs:board markers on each request.
+const contact = { email: CHURCH.email, phone: CHURCH.phone, involved: href('/get-involved'), groups: href('/groups') };
 ---
 
-<Base title="Weekly groups | Riverside Community Church" description="See at a glance which of Riverside's weekly groups are meeting this week.">
+<Base title="Groups | Riverside Community Church" description="What's happening in each of Riverside's groups: who's meeting this week, where and when, and the latest news.">
   <Header slot="header" />
-  <PageHead eyebrow="Weekly groups" title="Meeting this week?" image="/media/photos/community.jpg" lede="See at a glance which of our weekly groups are meeting this week. The church office keeps this up to date." />
+  <PageHead eyebrow="Groups" title="Meeting this week?" image="/media/photos/community.jpg" lede="What's happening in each of our groups: who's meeting this week, where and when, and the latest news." />
 
   <section class="section">
-    <div class="container" id="groups-board" data-email={contact.email} data-phone={contact.phone} data-involved={contact.involved} set:html={boardHtml(groups, null, contact)} />
+    <div class="container" id="groups-board"><Fragment set:html={`<!--rs:board-->${boardHtml(groups, null, contact)}<!--/rs:board-->`} /></div>
+    <p class="sr-only" role="status" id="share-status"></p>
   </section>
 
   <Footer slot="footer" />
 </Base>
 
+<script is:inline>
+  // /groups#<slug>: open that group's news, bring it into view and focus it. Share: native sheet, else copy the link.
+  (() => {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const go = () => {
+      const id = decodeURIComponent(location.hash.slice(1));
+      const card = id && document.getElementById(id);
+      if (!card || !card.classList.contains('group')) return;
+      card.querySelector('.group-more').open = true;
+      card.scrollIntoView({ behavior: reduce ? 'instant' : 'smooth', block: 'start' });
+      card.focus({ preventScroll: true });
+    };
+    addEventListener('hashchange', go);
+    go();
+    document.getElementById('groups-board').addEventListener('click', async (e) => {
+      const a = e.target.closest('.group-share');
+      if (!a) return;
+      e.preventDefault();
+      const url = new URL(a.getAttribute('href'), location.href).href;
+      try {
+        if (navigator.share) return await navigator.share({ title: a.dataset.title, url });
+        await navigator.clipboard.writeText(url);
+        document.getElementById('share-status').textContent = 'Link copied';
+      } catch {}
+    });
+  })();
+</script>
+
 <style is:global>
   #groups-board .board-summary { margin-bottom: clamp(1.5rem, 1rem + 2vw, 2.5rem); font-size: var(--step-1); color: var(--muted); }
   #groups-board .board-summary strong { color: var(--ink); }
-  #groups-board .groups { list-style: none; padding: 0; grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); }
-  #groups-board .group { height: 100%; display: flex; flex-direction: column; gap: 0.6rem; }
-  #groups-board .group h2 { margin: 0.2rem 0 0; }
+  #groups-board .group-type + .group-type { margin-top: clamp(2.5rem, 2rem + 2vw, 4rem); }
+  #groups-board .group-type > h2 { margin-bottom: 1.25rem; }
+  #groups-board .groups { list-style: none; padding: 0; align-items: start; grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); }
+  #groups-board .group { display: flex; flex-direction: column; gap: 0.6rem; scroll-margin-top: calc(var(--header-h) + 1rem); }
+  #groups-board .group h3 { margin: 0.2rem 0 0; }
+  #groups-board .group-alerts { display: grid; gap: 8px; margin-bottom: 0.2rem; }
+  #groups-board .alert { box-shadow: none; }
+  #groups-board .alert-x { display: none; } /* pinned until it expires; the site-wide banner is the dismissible one */
   #groups-board .ic { flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
   .chip-status {
     align-self: start; display: inline-flex; align-items: center; gap: 0.4rem; min-height: 32px; padding: 0.3rem 0.8rem;
@@ -40,6 +74,8 @@ const contact = { email: CHURCH.email, phone: CHURCH.phone, involved: href('/get
   .chip-status.is-unknown { background: transparent; border: 1.5px solid var(--stone-2); }
   #groups-board .group-when { display: flex; gap: 0.5rem; align-items: baseline; color: var(--ink); }
   #groups-board .group-when .ic { translate: 0 0.15em; }
+  #groups-board .group-latest { font-size: 1rem; color: var(--ink); }
+  #groups-board .group-latest .group-events-h { display: inline; margin-right: 0.35rem; }
   #groups-board .group-note { font-size: 1rem; padding-left: clamp(1rem, 0.75rem + 1vw, 1.5rem); border-left: 2px solid var(--line-gold); }
   #groups-board .group-about, #groups-board .group-contact { font-size: 1rem; }
   #groups-board .group-contact { color: var(--ink); }
@@ -48,6 +84,14 @@ const contact = { email: CHURCH.email, phone: CHURCH.phone, involved: href('/get
   #groups-board .group-events ul { list-style: none; padding: 0; display: grid; gap: 0.6rem; }
   #groups-board .group-events li { display: grid; font-size: 1rem; line-height: 1.4; color: var(--ink); }
   #groups-board .group-events li span { color: var(--muted); }
+  #groups-board .group-more { margin-top: 0.2rem; }
+  #groups-board .group-more .readmore-body { display: grid; gap: 1rem; }
+  #groups-board .group-feed { list-style: none; padding: 0; display: grid; }
+  #groups-board .group-feed > li { padding-block: 0.9rem; border-top: 1px solid var(--line); }
+  #groups-board .group-feed > li:first-child { padding-top: 0.25rem; border-top: 0; }
+  #groups-board .group-post-date { font-size: 0.9rem; color: var(--muted); }
+  #groups-board .group-feed h4 { font-family: var(--font-body); font-size: 1rem; font-weight: 700; color: var(--ink); margin-top: 0.15rem; }
+  #groups-board .group-feed p:not(.group-post-date) { font-size: 1rem; max-width: 62ch; margin-top: 0.4rem; }
   #groups-board .group-updated { margin-top: auto; padding-top: 0.4rem; font-size: 0.9rem; }
   #groups-board .group-empty { max-width: 40rem; display: grid; gap: 0.75rem; }
 </style>

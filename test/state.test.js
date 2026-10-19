@@ -1,52 +1,95 @@
-// node --test: the pure logic behind alerts, groups, overrides and the admin token check.
+// node --test: the pure logic behind alerts, groups (types, news, events), and overrides.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { activeAlerts, applyOverride, boardHtml, checkClaims, groupStatus, imageType, upcomingEvents, validateAlert, validateEvent, validateGroups, verifyAccessJwt } from '../src/lib/state.js';
+import {
+  activeAlerts, addNews, groupAlerts, siteAlerts, applyOverride, bodyHtml, boardHtml, groupStatus, imageType, slugify, upcomingEvents,
+  validateAlert, validateEvent, validateGroups, validateNews, MAX_NEWS,
+} from '../src/lib/state.js';
 
-const TEAM = 'https://riverside.cloudflareaccess.com';
-const AUD = 'aud-tag-123';
 const NOW = Date.parse('2026-10-18T15:00:00Z');
+const C = { email: 'office@example.org', phone: '555-0100', involved: '/get-involved', groups: '/groups' };
 
-const b64u = (x) => Buffer.from(typeof x === 'string' ? x : new Uint8Array(x)).toString('base64url');
-async function keypair(kid) {
-  const k = await crypto.subtle.generateKey({ name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign', 'verify']);
-  return { ...k, jwk: { ...(await crypto.subtle.exportKey('jwk', k.publicKey)), kid, alg: 'RS256' } };
-}
-async function sign(privateKey, claims, head = { alg: 'RS256', kid: 'k1' }) {
-  const data = `${b64u(JSON.stringify(head))}.${b64u(JSON.stringify(claims))}`;
-  return `${data}.${b64u(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', privateKey, new TextEncoder().encode(data)))}`;
-}
-const good = { iss: TEAM, aud: [AUD], exp: NOW / 1000 + 600, iat: NOW / 1000, email: 'staff@example.org' };
-
-test('Access claims: issuer, audience and expiry', () => {
-  const o = { team: TEAM, aud: AUD, now: NOW };
-  assert.ok(checkClaims(good, o));
-  assert.ok(checkClaims(good, { ...o, team: `${TEAM}/` }));
-  assert.ok(!checkClaims({ ...good, iss: 'https://evil.cloudflareaccess.com' }, o));
-  assert.ok(!checkClaims({ ...good, aud: ['other-app'] }, o));
-  assert.ok(!checkClaims({ ...good, exp: NOW / 1000 - 1 }, o));
-  assert.ok(!checkClaims({ ...good, exp: undefined }, o));
-  assert.ok(!checkClaims({ ...good, nbf: NOW / 1000 + 3600 }, o));
+test('groups: slug from the name, unique, never a page id, kept on rename', () => {
+  assert.equal(slugify('Sunday Prayer Group!'), 'sunday-prayer-group');
+  assert.equal(slugify('Café  Night'), 'cafe-night');
+  assert.equal(slugify('Main'), 'main-group'); // would clash with the skip link target
+  assert.equal(slugify('ESL', new Set(['esl', 'esl-2'])), 'esl-3');
+  assert.equal(slugify('!!!'), 'group');
+  const [first] = validateGroups([{ name: 'Tuesday ESL', type: 'esl', day: 2, status: { kind: 'meeting' } }], [], new Date(NOW)).value;
+  assert.equal(first.id, 'tuesday-esl');
+  const [renamed] = validateGroups([{ ...first, name: 'Evening ESL' }], [first], new Date(NOW)).value;
+  assert.equal(renamed.id, 'tuesday-esl', 'shared /groups#slug links keep working');
+  assert.equal(validateGroups([{ ...first, type: 'nonsense' }], [first]).value[0].type, 'other');
+  assert.equal(validateGroups([first, first], [first]).error, 'group', 'no duplicate ids');
 });
 
-test('Access JWT: real token passes; missing, forged, tampered and alg=none fail', async () => {
-  const real = await keypair('k1');
-  const forger = await keypair('k1');
-  let fetches = 0;
-  const fetchFn = async () => { fetches++; return Response.json({ keys: [real.jwk] }); };
-  const opts = { team: TEAM, aud: AUD, now: NOW, fetchFn };
+test('groups: news is kept server-side, newest first, capped', () => {
+  const g = { id: 'prayer', name: 'Prayer', type: 'prayer', day: 0, status: { kind: 'meeting' }, news: [{ id: 'n1', date: '2026-10-01T12:00:00Z', title: 'Old' }] };
+  // The client cannot rewrite news through a group save.
+  assert.deepEqual(validateGroups([{ ...g, news: [{ id: 'x', title: 'forged' }] }], [g]).value[0].news, g.news);
+  const v = validateNews({ title: '  Prayer walk <script>x</script> ', body: 'Line one\r\nline two\n\nSee https://example.org/a?b=1&c=2.' }, new Date(NOW));
+  assert.equal(v.value.title, 'Prayer walk x');
+  assert.equal(v.value.date, new Date(NOW).toISOString(), 'date is stamped by the server');
+  assert.equal(validateNews({ title: ' ' }).error, 'title');
+  let news = [];
+  for (let i = 0; i < MAX_NEWS + 1; i++) news = addNews(news, { id: `n${i}` });
+  assert.equal(news.length, MAX_NEWS);
+  assert.equal(news[0].id, `n${MAX_NEWS}`);
+  assert.equal(news.at(-1).id, 'n1', 'the oldest drops off');
+});
 
-  assert.equal((await verifyAccessJwt(await sign(real.privateKey, good), opts))?.email, 'staff@example.org');
-  assert.equal(await verifyAccessJwt(undefined, opts), null);
-  assert.equal(await verifyAccessJwt('', opts), null);
-  assert.equal(await verifyAccessJwt('not.a.jwt', opts), null);
-  assert.equal(await verifyAccessJwt(await sign(forger.privateKey, good), opts), null);
-  const [h, , s] = (await sign(real.privateKey, good)).split('.');
-  assert.equal(await verifyAccessJwt(`${h}.${b64u(JSON.stringify({ ...good, email: 'attacker@example.org' }))}.${s}`, opts), null);
-  assert.equal(await verifyAccessJwt(`${b64u(JSON.stringify({ alg: 'none', kid: 'k1' }))}.${b64u(JSON.stringify(good))}.`, opts), null);
-  assert.equal(await verifyAccessJwt(await sign(real.privateKey, { ...good, aud: ['other-app'] }), opts), null);
-  assert.equal(await verifyAccessJwt(await sign(real.privateKey, good, { alg: 'RS256', kid: 'unknown' }), opts), null);
-  assert.equal(fetches, 1, 'certs are cached; an unknown kid does not refetch within a minute');
+test('post bodies: paragraphs, line breaks, links; everything else escaped', () => {
+  assert.equal(bodyHtml('Hi <b>there</b>\nline 2\n\nSecond'), '<p>Hi &lt;b&gt;there&lt;/b&gt;<br>line 2</p><p>Second</p>');
+  assert.equal(bodyHtml('Go to https://example.org/a?b=1&c=2.'),
+    '<p>Go to <a class="link" href="https://example.org/a?b=1&amp;c=2" rel="noopener">https://example.org/a?b=1&amp;c=2</a>.</p>');
+  assert.equal(bodyHtml('javascript:alert(1)'), '<p>javascript:alert(1)</p>');
+  assert.equal(bodyHtml('"https://x.org" onmouseover=1'), '<p>&quot;<a class="link" href="https://x.org" rel="noopener">https://x.org</a>&quot; onmouseover=1</p>');
+});
+
+test('board: a section per type in fixed order, each card anchored, latest post shown', () => {
+  const now = new Date(NOW);
+  const groups = [
+    { id: 'kids', type: 'kids', name: 'Kids', day: 0, status: { kind: 'meeting' } },
+    { id: 'tuesday-esl', type: 'esl', name: 'ESL <i>', day: 2, status: { kind: 'meeting' }, news: [{ id: 'a', date: '2026-10-16T14:00:00Z', title: 'Room change', body: 'Now in **Room 2**' }] },
+    { id: 'prayer', type: 'prayer', name: 'Prayer', day: 0, status: { kind: 'meeting' } },
+  ];
+  const html = boardHtml(groups, now, C);
+  const order = [...html.matchAll(/<h2 class="h2" id="t-(\w+)">/g)].map((m) => m[1]);
+  assert.deepEqual(order, ['prayer', 'esl', 'kids']);
+  assert.match(html, /<article class="card group" id="tuesday-esl" tabindex="-1">/);
+  assert.match(html, /<h3 class="h3">ESL &lt;i&gt;<\/h3>/);
+  assert.match(html, /Latest<\/span> Oct 16 &middot; Room change/);
+  assert.match(html, /News &amp; updates \(1\)/);
+  assert.match(html, /href="\/groups#tuesday-esl"/);
+  assert.match(boardHtml([groups[0]], now, C), /No updates yet\. Questions\? <a class="link" href="mailto:office@example.org">Contact us<\/a>/);
+  assert.doesNotMatch(boardHtml(groups, null, C), /board-summary/, 'static fallback makes no claims');
+});
+
+test('group alerts: pinned on the right group, site-wide only when ticked, gone after expiry', () => {
+  const now = new Date(NOW);
+  const ids = ['prayer', 'kids'];
+  const base = { type: 'urgent', message: 'Not meeting this Sunday.', expires: '2026-10-19T03:59:00Z' };
+  assert.equal(validateAlert({ ...base, group: 'nope' }, now, ids).error, 'group', 'the group must exist');
+  const pinned = validateAlert({ ...base, group: 'prayer' }, now, ids).value;
+  assert.equal(pinned.link, '/groups#prayer', 'links to its own section by default');
+  assert.equal(pinned.sitewide, false);
+  const wide = validateAlert({ ...base, group: 'kids', sitewide: true, link: '/groups#kids' }, now, ids).value;
+  const plain = validateAlert({ ...base, type: 'news', message: 'Picnic' }, now, ids).value;
+  assert.equal(plain.group, undefined);
+  assert.equal(validateAlert({ ...base, link: '//evil.example' }, now, ids).error, 'link');
+  const all = [pinned, wide, plain];
+  assert.deepEqual(siteAlerts(all, now).map((a) => a.id).sort(), [wide.id, plain.id].sort(), 'banner: site-wide ones only');
+  assert.deepEqual(groupAlerts(all, 'prayer', now).map((a) => a.id), [pinned.id]);
+  assert.deepEqual(groupAlerts(all, 'kids', now).map((a) => a.id), [wide.id]);
+  const groups = [{ id: 'prayer', type: 'prayer', name: 'Prayer', day: 0, status: { kind: 'meeting' } }, { id: 'kids', type: 'kids', name: 'Kids', day: 0, status: { kind: 'meeting' } }];
+  const html = boardHtml(groups, now, C, all);
+  const prayerCard = html.slice(html.indexOf('id="prayer"'), html.indexOf('id="t-kids"'));
+  assert.match(prayerCard, /<div class="group-alerts"><article class="alert alert-urgent"[\s\S]*Not meeting this Sunday\./);
+  assert.doesNotMatch(prayerCard, /Learn more/, 'no link back to the card it is on');
+  assert.doesNotMatch(prayerCard, /Picnic/, 'plain alerts are not pinned to groups');
+  const later = new Date('2026-10-19T04:00:00Z');
+  assert.doesNotMatch(boardHtml(groups, later, C, all), /group-alerts/, 'expired: gone from the card');
+  assert.equal(siteAlerts(all, later).length, 0);
 });
 
 test('alerts: expired ones stop showing; urgent first, then newest', () => {
@@ -116,7 +159,7 @@ test('groups: "Updated" only changes when the group changed', () => {
   const t1 = new Date('2026-10-10T12:00:00Z');
   const t2 = new Date('2026-10-16T12:00:00Z');
   const g = { id: 'prayer', name: 'Sunday prayer group', day: 0, time: '9:30–10:30am', place: 'Counseling Office', note: '', status: { kind: 'meeting' } };
-  const [saved] = validateGroups([g], [], t1).value;
+  const [saved] = validateGroups([g], [{ id: 'prayer' }], t1).value; // a known group keeps its id
   assert.equal(saved.updated, t1.toISOString());
   assert.equal(validateGroups([g], [saved], t2).value[0].updated, t1.toISOString());
   assert.equal(validateGroups([{ ...g, status: { kind: 'off', date: '2026-10-18' } }], [saved], t2).value[0].updated, t2.toISOString());

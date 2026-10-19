@@ -1,0 +1,18 @@
+---
+// Template for pages the server makes (staff sign-in, email confirm and settings): the normal header and footer.
+// The server swaps RS_TITLE and the content marker; it never serves /shell/ itself.
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Base title="RS_TITLE | Riverside Community Church" noindex>
+  <Header slot="header" />
+  <Fragment set:html="<!--rs:content-->" />
+  <Footer slot="footer" />
+</Base>
+
+<style is:global>
+  .login-card { max-width: 30rem; display: grid; gap: 1rem; }
+  .login-card form { display: grid; gap: 1rem; justify-items: start; }
+</style>

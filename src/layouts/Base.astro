@@ -9,6 +9,8 @@ interface Props {
   image?: string; // path relative to site base, e.g. "brand/church-reduce.png"
   /** Staff tool: noindex, no live banner or phone bar. */
   admin?: boolean;
+  /** Keep out of search (server-made pages such as sign-in and email settings). */
+  noindex?: boolean;
 }
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -17,6 +19,7 @@ const {
   description = 'Riverside Community Church in Horsham, PA. People Equipping People to Reflect the Transformational Love of Jesus.',
   image = 'media/og.jpg',
   admin = false,
+  noindex = admin,
 } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, Astro.site);
@@ -44,7 +47,7 @@ const fontCss = [
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    {admin && <meta name="robots" content="noindex, nofollow" />}
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/png" sizes="32x32" href={`${base}/favicon-32.png`} />
     <link rel="icon" type="image/png" sizes="512x512" href={`${base}/icon-512.png`} />
@@ -68,12 +71,13 @@ const fontCss = [
     <link rel="preload" as="font" type="font/woff2" href={`${base}/fonts/sourcesans.woff2`} crossorigin />
     <style set:html={fontCss}></style>
     <slot name="head" />
+    <Fragment set:html="<!--rs:head-->" />
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
     {!admin && <LiveBanner />}
     <slot name="header" />
-    <main id="main"><slot /></main>
+    <main id="main"><Fragment set:html="<!--rs:alerts-->" /><slot /></main>
     <slot name="footer" />
     {!admin && <MobileBar />}
   </body>
