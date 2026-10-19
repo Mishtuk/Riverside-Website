@@ -16,7 +16,11 @@ export function openDb(dir) {
     CREATE TABLE IF NOT EXISTS staff_logins (id INTEGER PRIMARY KEY, who TEXT NOT NULL, at INTEGER NOT NULL, ip TEXT NOT NULL, method TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS activity (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, who TEXT NOT NULL, what TEXT NOT NULL);`);
   // Added later: per-account session version (sign out everywhere). Older databases get the column here.
-  if (!db.prepare('PRAGMA table_info(staff)').all().some((c) => c.name === 'session_v')) db.exec('ALTER TABLE staff ADD COLUMN session_v INTEGER NOT NULL DEFAULT 0');
+  const cols = db.prepare('PRAGMA table_info(staff)').all().map((c) => c.name);
+  if (!cols.includes('session_v')) db.exec('ALTER TABLE staff ADD COLUMN session_v INTEGER NOT NULL DEFAULT 0');
+  // Permissions: accounts that existed before roles are admins.
+  if (!cols.includes('role')) db.exec("ALTER TABLE staff ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'");
+  if (!cols.includes('areas')) db.exec("ALTER TABLE staff ADD COLUMN areas TEXT NOT NULL DEFAULT ''");
   return db;
 }
 

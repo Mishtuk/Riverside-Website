@@ -94,7 +94,7 @@ export function passwordProblem(pw, username) {
 }
 
 export const staffRow = (db, username) => db.prepare('SELECT * FROM staff WHERE username = ?').get(String(username).toLowerCase());
-export const staffList = (db) => db.prepare('SELECT username, must_change, default_pw, created_at, updated_at FROM staff ORDER BY username').all();
+export const staffList = (db) => db.prepare('SELECT username, must_change, default_pw, created_at, updated_at, role, areas FROM staff ORDER BY username').all();
 export const defaultInUse = (db) => Boolean(db.prepare('SELECT 1 FROM staff WHERE default_pw = 1').get());
 
 /** First boot only: one account, admin/admin, marked as the default password. */
@@ -105,14 +105,43 @@ export function seedStaff(db, now = Date.now()) {
   return true;
 }
 
-export function addStaff(db, username, pw, now = Date.now()) {
+// ---------- Permissions: Admin (everything) or Limited (only the ticked areas). Checked on the server for every admin route. ----------
+export const AREAS = ['alerts', 'events', 'groups', 'email', 'media', 'live', 'team', 'stats', 'staff', 'activity', 'backup'];
+export const NEW_ACCOUNT_AREAS = ['alerts', 'events', 'groups'];
+// First part of /api/admin/<section>/… → area. state, me and password are open to every signed-in account.
+const AREA_OF = { alerts: 'alerts', recipients: 'alerts', events: 'events', groups: 'groups', email: 'email', items: 'media', thumb: 'media',
+  youtube: 'media', added: 'media', audio: 'media', live: 'live', team: 'team', photo: 'team', stats: 'stats', staff: 'staff', activity: 'activity', backup: 'backup' };
+const OPEN = new Set(['state', 'me', 'password']);
+/** The area an admin API path belongs to; null = any signed-in account; 'admin-only' for anything not listed (fails closed). */
+export function areaFor(pathname) {
+  const section = String(pathname).replace(/^\/api\/admin\//, '').split('/')[0];
+  return AREA_OF[section] ?? (OPEN.has(section) ? null : 'admin-only');
+}
+/** user: { kind, role, areas }. Emailed-link staff (ADMIN_EMAILS) are always admins. */
+export const canUse = (user, area) => !area || user.kind === 'email' || user.role === 'admin' || (area !== 'admin-only' && (user.areas ?? []).includes(area));
+const cleanAccess = (role, areas) => ({ role: role === 'admin' ? 'admin' : 'limited', areas: role === 'admin' ? [] : [...new Set((Array.isArray(areas) ? areas : []).filter((a) => AREAS.includes(a)))] });
+export const accessOf = (row) => (row ? { role: row.role === 'limited' ? 'limited' : 'admin', areas: String(row.areas || '').split(',').filter((a) => AREAS.includes(a)) } : null);
+const adminCount = (db) => db.prepare("SELECT COUNT(*) n FROM staff WHERE role = 'admin'").get().n;
+
+/** Change an account's role and areas. There must always be at least one admin account. */
+export function setAccess(db, username, role, areas, now = Date.now()) {
+  const row = staffRow(db, username);
+  if (!row) return { error: 'not_found' };
+  const v = cleanAccess(role, areas);
+  if (row.role === 'admin' && v.role !== 'admin' && adminCount(db) <= 1) return { error: 'last_admin' };
+  db.prepare('UPDATE staff SET role = ?, areas = ?, updated_at = ? WHERE username = ?').run(v.role, v.areas.join(','), now, row.username);
+  return { value: { username: row.username, ...v } };
+}
+
+export function addStaff(db, username, pw, now = Date.now(), access = { role: 'limited', areas: NEW_ACCOUNT_AREAS }) {
   const u = String(username ?? '').trim().toLowerCase();
   if (!USERNAME.test(u)) return { error: 'username' };
   const problem = passwordProblem(pw, u);
   if (problem) return { error: problem };
   if (staffRow(db, u)) return { error: 'taken' };
   const { salt, hash } = hashPassword(pw);
-  db.prepare('INSERT INTO staff (username, salt, hash, must_change, default_pw, created_at, updated_at) VALUES (?, ?, ?, 1, 0, ?, ?)').run(u, salt, hash, now, now);
+  const v = cleanAccess(access?.role, access?.areas);
+  db.prepare('INSERT INTO staff (username, salt, hash, must_change, default_pw, created_at, updated_at, role, areas) VALUES (?, ?, ?, 1, 0, ?, ?, ?, ?)').run(u, salt, hash, now, now, v.role, v.areas.join(','));
   return { value: u };
 }
 
@@ -154,6 +183,7 @@ export function removeStaff(db, username, me) {
   if (!row) return { error: 'not_found' };
   if (row.username === String(me).toLowerCase()) return { error: 'self' };
   if (db.prepare('SELECT COUNT(*) n FROM staff').get().n <= 1) return { error: 'last' };
+  if (row.role === 'admin' && adminCount(db) <= 1) return { error: 'last_admin' };
   db.prepare('DELETE FROM staff WHERE username = ?').run(row.username);
   return { value: row.username };
 }

@@ -1,5 +1,6 @@
-// The admin Email tab: one <section id="email"> with its own script. The server embeds it in the admin page.
-// It reuses the admin page's classes, and its #toast / #confirm dialog when they are there.
+// The admin Email view: one <section id="email" class="a-view"> with its own script. The server embeds it at <!--rs:email-->.
+// Layout and look come from the admin's shared classes (.a-head, .a-card, .a-list, .a-bar, .a-seg);
+// it reuses the page's #toast / #confirm dialog when they are there.
 
 /** Browser code. Stringified into the page as-is, so it must not use anything from this module. */
 function client() {
@@ -11,12 +12,12 @@ function client() {
   const STATUS = { confirmed: 'Confirmed', pending: 'Waiting to confirm', unsubscribed: 'Unsubscribed' };
   const ERR = { topic: 'Choose at least one topic.', subject: 'Add a subject.', body: 'Write a message.', no_recipients: 'Nobody is subscribed to that yet.',
     email_not_configured: 'Email isn’t configured, so nothing can be sent yet.', no_email: 'Your account has no email address, so tests can’t be sent. Sign in with an emailed link to send a test.',
-    group: 'Choose a group.', emails: 'Paste at least one email address.', too_many: 'Up to 50 addresses at a time.' };
+    forbidden: 'You don’t have permission to change this. Ask an admin.', group: 'Choose a group.', emails: 'Paste at least one email address.', too_many: 'Up to 50 addresses at a time.' };
 
   async function api(method, path, body) {
     const r = await fetch(API + path, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body && JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw Object.assign(new Error(j.error || String(r.status)), { code: j.error });
+    if (!r.ok) throw Object.assign(new Error(j.error || String(r.status)), { code: j.error, status: r.status });
     return j;
   }
   const live = $('#em-live');
@@ -28,6 +29,8 @@ function client() {
     tt = setTimeout(() => (t.textContent = ''), 5000);
   }
   const oops = (e) => toast(ERR[e.code] || 'That didn’t work. Check your connection and try again.', true);
+  // Loading with no access to Email (a limited account): stay quiet; the page shows nothing to act on anyway.
+  const quiet = (e) => (e.status === 403 ? undefined : oops(e));
   function ask(title, text, verb) {
     const d = $('#confirm');
     if (!d || !$('#c-ok')) return Promise.resolve(window.confirm(`${title}\n${text}`));
@@ -41,21 +44,14 @@ function client() {
   }
   const debounce = (fn, ms) => { let t = 0; return () => { clearTimeout(t); t = setTimeout(fn, ms); }; };
 
-  // ---------- tabs ----------
-  sec.querySelectorAll('[data-em-tab]').forEach((b) => b.addEventListener('click', () => {
-    sec.querySelectorAll('[data-em-tab]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-    $('#em-send').hidden = b.dataset.emTab !== 'send';
-    $('#em-subs').hidden = b.dataset.emTab !== 'subs';
-    if (b.dataset.emTab === 'subs') loadSubs(true);
-  }));
-
   // ---------- counts ----------
   let counts = { news: 0, alerts: 0, total: 0, pending: 0, unsubscribed: 0, configured: true, groups: [] };
   async function loadCounts() {
-    try { counts = await api('GET', 'counts'); } catch (e) { return oops(e); }
+    try { counts = await api('GET', 'counts'); } catch (e) { return quiet(e); }
     $('#em-n-news').textContent = counts.news;
     $('#em-n-alerts').textContent = counts.alerts;
     $('#em-n-total').textContent = counts.total;
+    $('#em-subs-n').textContent = `${counts.total} confirmed`;
     $('#em-tally').textContent = `${counts.pending} waiting to confirm · ${counts.unsubscribed} unsubscribed`;
     $('#em-off').hidden = counts.configured;
     // Groups change in the Groups tab, so their lists are drawn from each fresh count (keeping what is ticked).
@@ -64,7 +60,10 @@ function client() {
     $('#em-to-groups').innerHTML = types.map((t) => `<p class="em-type">${esc(t.label)}</p>`
       + t.groups.map((g) => `<label class="check"><input type="checkbox" name="topics" value="${esc(g.key)}"${on.has(g.key) ? ' checked' : ''}> ${esc(g.name)}</label>`).join('')).join('');
     $('#em-group-lists').hidden = !types.length;
-    $('#em-group-tiles').innerHTML = types.flatMap((t) => t.groups).map((g) => `<li class="card em-tile"><span class="em-n">${g.n}</span><span class="muted">${esc(g.name)}</span></li>`).join('');
+    const gs = types.flatMap((t) => t.groups.map((g) => ({ ...g, type: t.label })));
+    const most = Math.max(1, ...gs.map((g) => g.n));
+    $('#em-group-tiles').innerHTML = gs.map((g) => `<li><span class="a-list-text"><span class="a-list-main">${esc(g.name)}</span><span class="a-list-meta">${esc(g.type)}</span></span>`
+      + `<span class="a-list-end">${g.n}</span><span class="a-bar" aria-hidden="true"><span style="width:${Math.round((g.n / most) * 100)}%"></span></span></li>`).join('');
     const sel = $('#em-inv-group');
     const was = sel.value;
     sel.innerHTML = '<option value="">Choose a group</option>' + types.map((t) => `<optgroup label="${esc(t.label)}">${t.groups.map((g) => `<option value="${esc(g.key)}">${esc(g.name)}</option>`).join('')}</optgroup>`).join('');
@@ -127,10 +126,11 @@ function client() {
   const tally = (c) => (c.queued ? `Sending… ${c.sent + c.failed} of ${c.recipients}` : `${c.sent} sent · ${c.failed} failed`);
   async function loadSent() {
     let list;
-    try { list = (await api('GET', 'campaigns')).campaigns; } catch (e) { return oops(e); }
+    try { list = (await api('GET', 'campaigns')).campaigns; } catch (e) { return quiet(e); }
     $('#em-sent').innerHTML = list.length
-      ? list.map((c) => `<li class="card em-row"><span class="hint">${day(c.created_at)} · ${esc(c.topics)}</span><strong>${esc(c.subject)}</strong><span>${tally(c)}</span></li>`).join('')
-      : '<li class="muted">Nothing sent yet.</li>';
+      ? list.map((c) => `<li><span class="a-list-text"><span class="a-list-main">${esc(c.subject)}</span><span class="a-list-meta">${day(c.created_at)} · ${esc(c.topics)}</span></span>`
+        + `<span class="a-list-end">${tally(c)}</span></li>`).join('')
+      : '<li class="a-sub">Nothing sent yet.</li>';
     const c = list.find((x) => x.id === watching);
     const p = $('#em-progress');
     p.hidden = !c;
@@ -138,7 +138,7 @@ function client() {
       p.innerHTML = `<p><strong>Sending… ${c.sent + c.failed} of ${c.recipients}</strong></p><progress max="${c.recipients}" value="${c.sent + c.failed}"></progress><p class="hint">You can close this page. Sending continues.</p>`;
     } else if (c) {
       p.innerHTML = `<p><strong>Sent to ${c.sent} ${c.sent === 1 ? 'person' : 'people'}.${c.failed ? ` ${c.failed} failed.` : ''}</strong></p>`
-        + (c.failed ? `<details><summary>Show failed</summary><ul class="em-list">${c.failures.map((x) => `<li><span class="em-email">${esc(x.email)}</span> ${esc(x.reason)}</li>`).join('')}</ul></details>` : '')
+        + (c.failed ? `<details><summary>Show failed</summary><ul class="a-list" role="list">${c.failures.map((x) => `<li><span class="a-list-text"><span class="a-list-main em-email">${esc(x.email)}</span><span class="a-list-meta">${esc(x.reason)}</span></span></li>`).join('')}</ul></details>` : '')
         + '<p><button type="button" class="btn btn-sm" id="em-again">Write another email</button></p>';
       $('#em-again').onclick = () => { watching = 0; p.hidden = true; f.reset(); f.hidden = false; syncCount(); preview(); f.elements.subject.focus(); };
     }
@@ -153,14 +153,14 @@ function client() {
     if (reset) offset = 0;
     const qs = new URLSearchParams({ q: $('#em-q').value.trim(), status, offset: String(offset) });
     let r;
-    try { r = await api('GET', `subscribers?${qs}`); } catch (e) { return oops(e); }
-    const rows = r.rows.map((s) => `<li class="card em-row" data-id="${s.id}"><span class="em-email">${esc(s.email)}</span>`
-      + `<span>${esc(s.topics)}${s.topics ? ' · ' : ''}${STATUS[s.status]} · <span class="muted">since ${day(s.since)}</span></span>`
-      + (s.status === 'unsubscribed' ? '' : `<span class="em-acts"><button type="button" class="link" data-unsub="${s.id}" data-email="${esc(s.email)}">Unsubscribe</button>`
+    try { r = await api('GET', `subscribers?${qs}`); } catch (e) { return quiet(e); }
+    const rows = r.rows.map((s) => `<li data-id="${s.id}"><span class="a-list-text"><span class="a-list-main em-email">${esc(s.email)}</span>`
+      + `<span class="a-list-meta">${esc(s.topics)}${s.topics ? ' · ' : ''}${STATUS[s.status]} · since ${day(s.since)}</span></span>`
+      + (s.status === 'unsubscribed' ? '' : `<span class="a-list-end em-acts"><button type="button" class="link" data-unsub="${s.id}" data-email="${esc(s.email)}">Unsubscribe</button>`
         + s.lists.map((g) => `<button type="button" class="link" data-rm="${s.id}" data-topic="${esc(g.key)}" data-name="${esc(g.name)}" data-email="${esc(s.email)}">Remove from ${esc(g.name)}</button>`).join('') + '</span>')
       + '</li>').join('');
     const list = $('#em-rows');
-    if (reset) list.innerHTML = rows || `<li class="muted">${$('#em-q').value || status ? 'No one matches.' : 'No subscribers yet. People join on the Subscribe page.'}</li>`;
+    if (reset) list.innerHTML = rows || `<li class="a-sub">${$('#em-q').value || status ? 'No one matches.' : 'No subscribers yet. People join on the Subscribe page.'}</li>`;
     else list.insertAdjacentHTML('beforeend', rows);
     $('#em-more').hidden = !r.more;
   }
@@ -199,44 +199,65 @@ function client() {
     try {
       const r = await api('POST', 'invite', { topic: inv.elements.group.value, emails: inv.elements.emails.value });
       out.innerHTML = `<p><strong>Sent ${r.sent.length} ${r.sent.length === 1 ? 'invite' : 'invites'}.</strong> They join when they tap the link in the email.</p>`
-        + (r.skipped.length ? `<p>Not sent:</p><ul class="em-list">${r.skipped.map((x) => `<li><span class="em-email">${esc(x.email)}</span> ${esc(x.why)}</li>`).join('')}</ul>` : '');
+        + (r.skipped.length ? `<p>Not sent:</p><ul class="a-list" role="list">${r.skipped.map((x) => `<li><span class="a-list-text"><span class="a-list-main em-email">${esc(x.email)}</span><span class="a-list-meta">${esc(x.why)}</span></span></li>`).join('')}</ul>` : '');
       inv.elements.emails.value = r.skipped.map((x) => x.email).join('\n');
       loadCounts();
-      if (!$('#em-subs').hidden) loadSubs(true);
+      loadSubs(true);
     } catch (err) { out.textContent = ''; oops(err); }
   });
 
-  loadCounts(); loadSent(); preview();
+  // "Jump to: Subscribers" (narrow screens) scrolls within the view; the hash stays on #email so the view doesn't change.
+  sec.querySelector('.em-jump a').addEventListener('click', (e) => {
+    e.preventDefault();
+    const t = $('#em-subs');
+    t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    t.focus({ preventScroll: true });
+  });
+
+  loadCounts(); loadSent(); loadSubs(true); preview();
+  // Fresh numbers each time the Email view is opened again.
+  addEventListener('hashchange', () => { if (location.hash === '#email') { loadCounts(); loadSent(); loadSubs(true); } });
 }
 
-const CSS = `#email .em-tiles{grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));margin-bottom:.75rem;padding:0}
-#email .em-tile{padding:1rem 1.25rem}
-#email .em-n{display:block;font-size:var(--step-2);font-weight:700;line-height:1.2}
-#email .em-list{list-style:none;padding:0;display:grid;gap:.5rem}
-#email .em-row{display:grid;gap:.2rem;padding:.9rem 1rem}
-#email .em-email{font-weight:700;overflow-wrap:anywhere}
-#email .em-controls{margin-block:1rem}
-#email iframe{width:100%;height:480px;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--cream)}
-#email progress{width:100%;height:12px;accent-color:var(--gold-ink)}
-#email #em-progress{display:grid;gap:.6rem;margin-top:1.5rem}
-#email #em-progress[hidden],#email [hidden]{display:none}
-#email .em-type{margin-top:.4rem;font-size:var(--step--1);font-weight:700;color:var(--muted)}
+// Only what the shared admin classes don't cover: the two-panel layout, the preview frame, progress bar and small helpers.
+// Two panels side by side when the view itself is 900px or wider (container query); stacked below that. No inner scroll, so Invite is reached by scrolling the page.
+const CSS = `#email{container-type:inline-size}
+#email .em-panels{display:grid;gap:24px;align-items:start}
+#email .em-jump{margin:-.5rem 0 1rem;font-size:14px}
+@container (min-width:900px){
+  #email .em-panels{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}
+  #email .em-jump{display:none}
+}
+#email .em-part{display:grid;gap:1rem;padding-top:1.5rem;margin-top:1.5rem;border-top:1px solid var(--a-border)}
+#email iframe{width:100%;height:560px;border:1px solid var(--a-border);border-radius:var(--a-radius-s);background:var(--a-sunken)}
+@media (max-width:699px){#email iframe{height:440px}}
+#email progress{width:100%;height:12px;accent-color:var(--a-accent)}
+#email #em-progress{display:grid;gap:.75rem}
+#email [hidden]{display:none}
+#email .em-type{margin-top:.5rem;font-size:14px;font-weight:600;color:var(--a-muted)}
+#email .em-email{overflow-wrap:anywhere}
 #email .em-acts{display:flex;flex-wrap:wrap;gap:0 1.25rem}
-#email .em-acts .link{min-height:44px}`;
+#email .em-acts .link{min-height:44px}
+#email .em-controls{display:grid;gap:.75rem}
+#email .em-controls .a-seg{display:grid;grid-template-columns:1fr 1fr}
+#email .em-controls .a-seg button:nth-child(odd){border-left:0}
+#email .em-controls .a-seg button:nth-child(n+3){border-top:1px solid var(--a-border-strong)}
+#email .em-counts .a-list-end{font-variant-numeric:tabular-nums;font-weight:600}`;
 
 /** `topics` = TOPICS (key -> label). */
 export function adminSection({ topics }) {
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const boxes = Object.entries(topics).map(([k, label]) => `<label class="check"><input type="checkbox" name="topics" value="${k}"> ${esc(label)}</label>`).join('');
-  const tile = (id, label) => `<li class="card em-tile"><span class="em-n" id="em-n-${id}">0</span><span class="muted">${esc(label)}</span></li>`;
-  const chip = (v, label) => `<li><button type="button" class="chip" data-em-status="${v}" aria-pressed="${v === ''}">${label}</button></li>`;
-  return `<section id="email" aria-labelledby="email-h"><style>${CSS}</style>
-<h2 id="email-h" class="h2">Email</h2>
+  const count = (id, label) => `<li><span class="a-list-main">${esc(label)}</span><span class="a-list-end" id="em-n-${id}">0</span></li>`;
+  const seg = (v, label) => `<button type="button" data-em-status="${v}" aria-pressed="${v === ''}">${label}</button>`;
+  return `<section id="email" class="a-view" aria-labelledby="email-h" hidden><style>${CSS}</style>
+<div class="a-head"><div><h1 id="email-h" class="a-title" tabindex="-1">Email</h1><p class="a-sub">Send news to your lists, and see who gets it.</p></div></div>
+<p class="em-jump">Jump to: <a class="link" href="#em-subs">Subscribers</a></p>
 <p class="note" id="em-off" hidden>Email isn&rsquo;t configured, so nothing can be sent yet.</p>
-<ul class="chips seg" role="list"><li><button type="button" class="chip" data-em-tab="send" aria-pressed="true">Send an email</button></li><li><button type="button" class="chip" data-em-tab="subs" aria-pressed="false">Subscribers</button></li></ul>
-<div id="em-send">
-<form id="em-form" class="card form" novalidate>
-<h3 class="h3">Send an email</h3>
+<div class="em-panels">
+<div class="a-card" id="em-send">
+<form id="em-form" class="form" novalidate>
+<div class="a-card-h"><h2 class="a-h2">Send an email</h2></div>
 <fieldset><legend>Send to</legend>${boxes}<div id="em-to-groups"></div></fieldset>
 <p class="hint" id="em-count" aria-live="polite">Choose at least one topic.</p>
 <label>Subject <input name="subject" required maxlength="100" autocomplete="off"></label>
@@ -247,27 +268,28 @@ export function adminSection({ topics }) {
 <iframe id="em-preview" title="Email preview" sandbox></iframe>
 <div class="btn-row"><button class="btn" type="submit">Send&hellip;</button><button class="btn btn-sm btn-outline" type="button" id="em-test">Send test to me</button></div>
 </form>
-<div id="em-progress" class="card" role="status" hidden></div>
-<h3 class="h3">Sent emails</h3>
-<ul id="em-sent" class="em-list" role="list"></ul>
+<div id="em-progress" class="a-sunken" role="status" hidden></div>
+<div class="em-part"><h3 class="a-h2">Sent emails</h3><ul id="em-sent" class="a-list" role="list"></ul></div>
 </div>
-<div id="em-subs" hidden>
-<ul class="cards-grid em-tiles" role="list">${tile('news', topics.news)}${tile('alerts', topics.alerts)}${tile('total', 'Confirmed in total')}</ul>
-<p class="muted" id="em-tally"></p>
-<div id="em-group-lists" hidden><h3 class="h3">Group lists</h3><ul class="cards-grid em-tiles" id="em-group-tiles" role="list"></ul></div>
-<form id="em-invite" class="card form" novalidate hidden>
-<h3 class="h3">Invite to a group</h3>
+<div class="a-card" id="em-subs" tabindex="-1" aria-labelledby="em-subs-h">
+<div class="a-card-h"><h2 class="a-h2" id="em-subs-h">Subscribers</h2><span class="a-sub" id="em-subs-n"></span></div>
+<ul class="a-list em-counts" role="list">${count('news', topics.news)}${count('alerts', topics.alerts)}${count('total', 'Confirmed in total')}</ul>
+<p class="a-sub" id="em-tally"></p>
+<div class="em-part" id="em-group-lists" hidden><h3 class="a-h2">Group lists</h3><ul class="a-list" id="em-group-tiles" role="list"></ul></div>
+<div class="em-part"><div class="form em-controls"><label>Search by email <input type="search" id="em-q" autocomplete="off"></label>
+<div class="a-seg" role="group" aria-label="Show">${seg('', 'All')}${seg('confirmed', 'Confirmed')}${seg('pending', 'Waiting to confirm')}${seg('unsubscribed', 'Unsubscribed')}</div></div>
+<ul id="em-rows" class="a-list" role="list"></ul>
+<p><button type="button" class="btn btn-sm btn-outline" id="em-more" hidden>Show more</button></p></div>
+<form id="em-invite" class="form em-part" novalidate hidden>
+<h3 class="a-h2">Invite to a group</h3>
 <label>Group <select name="group" id="em-inv-group" required></select></label>
 <label>Email addresses <textarea name="emails" rows="4" required aria-describedby="em-inv-help"></textarea></label>
 <p class="hint" id="em-inv-help">One per line, or separated by commas. Up to 50. Each person gets an email asking them to confirm; nobody is added until they tap it.</p>
 <p><button class="btn btn-sm" type="submit">Send invites</button></p>
 <div id="em-inv-out" role="status"></div>
 </form>
-<p class="muted" id="em-no-groups">Add a group in Groups to invite people to its email list.</p>
-<div class="form em-controls"><label>Search by email <input type="search" id="em-q" autocomplete="off"></label>
-<ul class="chips" role="list">${chip('', 'All')}${chip('confirmed', 'Confirmed')}${chip('pending', 'Waiting to confirm')}${chip('unsubscribed', 'Unsubscribed')}</ul></div>
-<ul id="em-rows" class="em-list" role="list"></ul>
-<p><button type="button" class="btn btn-sm btn-outline" id="em-more" hidden>Show more</button></p>
+<p class="a-sub em-part" id="em-no-groups">Add a group in Groups to invite people to its email list.</p>
+</div>
 </div>
 <p class="sr-only" role="status" id="em-live"></p>
 <script>(${client})()</script>

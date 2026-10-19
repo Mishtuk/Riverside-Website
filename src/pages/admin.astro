@@ -1,12 +1,13 @@
 ---
 // Staff tool. A static page with no secrets: signed-out visitors see the sign-in form, and every read or save
 // goes to /api/admin/*, where the server checks the session cookie. Videos and episodes are the build-time feeds.
-// The server fills <!--rs:email--> with the email module's section.
+// Layout: a dashboard shell (sidebar, top bar, one view at a time by #hash). The server fills <!--rs:email-->,
+// <!--rs:stats--> and <!--rs:help--> inside the main area with those modules' views.
 import Base from '../layouts/Base.astro';
 import { href } from '../lib/site';
 import { getVideos } from '../lib/youtube';
 import { getSermons } from '../lib/podcast';
-import { ALERT_CSS } from '../lib/state.js';
+import { ALERT_CSS, ALERT_PRESETS } from '../lib/state.js';
 
 const [videos, sermons] = await Promise.all([getVideos(12), getSermons()]);
 const fmt = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
@@ -15,6 +16,33 @@ const items = {
   podcast: sermons.map((s) => ({ id: s.guid, title: s.title, date: fmt(s.pubDate) })),
 };
 const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">${d}</svg>`;
+
+// Sidebar: simple 24px line icons (drawn here, not copied from anywhere).
+const I = {
+  dashboard: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
+  alerts: '<path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r=".6"/>',
+  events: '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>',
+  groups: '<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><circle cx="16.5" cy="9.5" r="2.5"/><path d="M15.5 14.2a4.5 4.5 0 0 1 5 5.3"/>',
+  email: '<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/>',
+  items: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>',
+  live: '<circle cx="12" cy="12" r="1.8"/><path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.4 5.4a9.3 9.3 0 0 0 0 13.2M18.6 5.4a9.3 9.3 0 0 1 0 13.2"/>',
+  team: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.6 18.2a6.5 6.5 0 0 1 10.8 0"/>',
+  stats: '<path d="M4 20h16"/><path d="M7 16v-5M12 16V7M17 16v-8"/>',
+  activity: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/><path d="M3.5 6.5V3.5M3.5 6.5h3"/>',
+  staff: '<circle cx="8" cy="15" r="4"/><path d="m11 12 8.5-8.5M16.5 6.5l2.5 2.5M14.5 8.5l2 2"/>',
+  backup: '<path d="M12 4v10M8 10l4 4 4-4"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .9-1 1.6v.6"/><circle cx="12" cy="17" r=".6"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+};
+const svg = (k: keyof typeof I) => `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">${I[k]}</svg>`;
+const NAV: [string | null, [string, string, keyof typeof I][]][] = [
+  [null, [['dashboard', 'Dashboard', 'dashboard']]],
+  ['Publish', [['alerts', 'Alerts', 'alerts'], ['events', 'Events', 'events'], ['groups', 'Groups', 'groups'], ['email', 'Email', 'email']]],
+  ['Media', [['items', 'Videos & podcast', 'items'], ['live', 'Livestream', 'live']]],
+  ['Church', [['team', 'Our team', 'team']]],
+  ['Insights', [['stats', 'Statistics', 'stats'], ['activity', 'Activity', 'activity']]],
+  ['Settings', [['staff', 'Staff accounts', 'staff'], ['backup', 'Backup', 'backup']]],
+];
 ---
 
 <Base title="Admin | Riverside Community Church" admin>
@@ -23,24 +51,53 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     <script type="application/json" id="items-data" set:html={JSON.stringify(items).replace(/</g, '\\u003c')}></script>
   </Fragment>
 
-  <header slot="header" class="admin-top">
-    <div class="container-narrow admin-bar">
-      <a class="admin-brand" href={href('/')}><img src={href('/brand/logo-header.webp')} alt="Riverside Community Church" width="108" height="36" /><span>Admin</span></a>
-      <a class="link" href={href('/')} target="_blank" rel="noopener">View site <span aria-hidden="true">&#x2197;</span></a>
-      <button class="btn btn-sm btn-outline" type="button" id="sign-out" hidden>Sign out</button>
-    </div>
-  </header>
+  <Fragment slot="header">
+    <aside class="a-side" id="a-side" aria-label="Admin menu">
+      <a class="a-brand" href={href('/')}><img src={href('/brand/logo-header.webp')} alt="Riverside Community Church" width="96" height="32" /><span>Admin</span></a>
+      <nav class="a-navs" aria-label="Admin sections">
+        {NAV.map(([label, links], i) => (
+          <>
+            {label && <p class="a-group-label" id={`a-g${i}`}>{label}</p>}
+            <ul aria-labelledby={label ? `a-g${i}` : undefined}>
+              {links.map(([id, text, ic]) => (
+                <li><a class="a-nav" href={`#${id}`} data-view={id}><Fragment set:html={svg(ic)} /><span>{text}</span>{id === 'alerts' && <span class="a-badge" id="a-alert-count" hidden></span>}</a></li>
+              ))}
+            </ul>
+          </>
+        ))}
+      </nav>
+      <div class="a-side-foot">
+        <a class="a-nav" href="#help" data-view="help"><Fragment set:html={svg('help')} /><span>Help</span></a>
+      </div>
+    </aside>
+    <div class="a-scrim" id="a-scrim" hidden></div>
+    <header class="a-top">
+      <button class="a-menu" id="a-menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="a-side"><Fragment set:html={svg('menu')} /></button>
+      <a class="a-top-brand" href={href('/')}><img src={href('/brand/logo-header.webp')} alt="Riverside Community Church" width="96" height="32" /><span>Admin</span></a>
+      <nav class="a-crumbs" aria-label="Breadcrumb"><ol><li>Admin</li><li aria-current="page" id="a-crumb">Dashboard</li></ol></nav>
+      <span class="a-spacer"></span>
+      <a class="a-link" href={href('/')} target="_blank" rel="noopener">View site <span aria-hidden="true">&#x2197;</span></a>
+      <div class="a-user" id="a-user" hidden>
+        <button class="a-user-btn" id="a-user-btn" type="button" aria-expanded="false" aria-controls="a-user-menu"><span class="a-avatar" id="a-initials" aria-hidden="true"></span><span class="a-user-name" id="a-user-name"></span><span class="sr-only"> account menu</span></button>
+        <div class="a-user-menu" id="a-user-menu" hidden>
+          <p id="a-user-who"></p>
+          <a href="#staff" id="a-change-pw">Change password</a>
+          <button type="button" id="sign-out" hidden>Sign out</button>
+        </div>
+      </div>
+    </header>
+  </Fragment>
 
-  <div id="gate" class="container-narrow gate" hidden>
+  <div id="gate" class="gate" hidden>
     <form class="card form" id="pw-form" data-api={href('/api/login/password')} novalidate>
-      <h1 class="h3">Staff sign in</h1>
+      <h1 class="a-title">Staff sign in</h1>
       <label>Username <input name="username" required autocomplete="username" autocapitalize="off" spellcheck="false" /></label>
       <label>Password <input name="password" type="password" required autocomplete="current-password" /></label>
       <p class="err" id="pw-err" role="alert" hidden></p>
       <p><button class="btn" type="submit">Sign in</button></p>
     </form>
     <form class="card form" id="login-form" data-api={href('/api/login')} novalidate>
-      <h2 class="h3">Or email me a sign-in link</h2>
+      <h2 class="a-h2">Or email me a sign-in link</h2>
       <p>Enter your church email address. We&rsquo;ll email you a link that signs you in.</p>
       <label>Email address <input type="email" name="email" required autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" /></label>
       <p class="err" id="login-err" hidden>&#x26A0; Enter an email like name@example.com.</p>
@@ -49,9 +106,9 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     </form>
   </div>
 
-  <div id="must-change" class="container-narrow gate" hidden>
+  <div id="must-change" class="gate" hidden>
     <form class="card form" id="change-form" novalidate>
-      <h1 class="h3">Choose a new password</h1>
+      <h1 class="a-title">Choose a new password</h1>
       <p>This account still has a temporary or default password. Choose your own before doing anything else.</p>
       <label>New password <input name="password" type="password" required minlength="12" autocomplete="new-password" aria-describedby="np-help" /></label>
       <p class="hint" id="np-help">At least 12 characters. Not “admin” and not your username. A short sentence works well.</p>
@@ -62,150 +119,204 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   </div>
 
   <div id="app" data-api={href('/api/admin')} hidden>
-    <div class="container-narrow default-warning" id="default-warning" hidden>
+    <div class="a-warn" id="default-warning" hidden>
       <div class="alert alert-urgent" role="status">
         <svg class="ic" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r=".6"/></svg>
         <div><p class="alert-label">Important</p><p class="alert-msg">Default password in use: change it before launch.</p><p class="alert-more"><a class="link link-arrow" href="#staff">Staff accounts</a></p></div>
       </div>
     </div>
-    <nav class="subnav" aria-label="Admin sections">
-      <div class="container-narrow">
-        <ul class="chips"><li><a href="#alerts">Alerts</a></li><li><a href="#stats">Statistics</a></li><li><a href="#email">Email</a></li><li><a href="#items">Videos &amp; podcast</a></li><li><a href="#groups">Groups</a></li><li><a href="#events">Events</a></li><li><a href="#team">Our team</a></li><li><a href="#live">Livestream</a></li><li><a href="#staff">Staff</a></li><li><a href="#activity">Activity</a></li><li><a href="#help">Help</a></li></ul>
+
+    <section id="dashboard" class="a-view" aria-labelledby="dashboard-h">
+      <div class="a-head"><div><h1 class="a-title" id="dashboard-h" tabindex="-1">Dashboard</h1><p class="a-sub" id="a-greeting">Welcome.</p></div></div>
+      <div class="a-quick">
+        <button type="button" class="a-card a-quick-btn" data-quick="alerts" data-area="alerts"><Fragment set:html={svg('alerts')} />Post an alert</button>
+        <button type="button" class="a-card a-quick-btn" data-quick="events" data-area="events"><Fragment set:html={svg('events')} />Add an event</button>
+        <button type="button" class="a-card a-quick-btn" data-quick="email" data-area="email"><Fragment set:html={svg('email')} />Send an email</button>
+        <button type="button" class="a-card a-quick-btn" data-quick="groups" data-area="groups"><Fragment set:html={svg('groups')} />Post a group update</button>
       </div>
-    </nav>
+      <div class="a-card" data-area="stats">
+        <div class="a-card-h"><h2 class="a-h2">This week at a glance</h2><p class="a-card-tools"><span class="a-muted">Last 7 days</span> <a class="a-link" href="#stats">See statistics <span aria-hidden="true">&rarr;</span></a></p></div>
+        <div class="a-tiles" id="d-tiles"></div>
+        <p class="hint" id="d-tiles-note" hidden>Statistics aren&rsquo;t available right now.</p>
+      </div>
+      <div class="a-grid2">
+        <div class="a-card" data-area="alerts">
+          <div class="a-card-h"><h2 class="a-h2">Active alerts</h2><a class="a-link" href="#alerts">Alerts <span aria-hidden="true">&rarr;</span></a></div>
+          <div id="d-alerts" class="stack-s"></div>
+        </div>
+        <div class="a-card" data-area="events">
+          <div class="a-card-h"><h2 class="a-h2">Coming up</h2><a class="a-link" href="#events">All events <span aria-hidden="true">&rarr;</span></a></div>
+          <ul class="a-list" id="d-events"></ul>
+        </div>
+        <div class="a-card" data-area="groups">
+          <div class="a-card-h"><h2 class="a-h2">Groups this week</h2><a class="a-link" href="#groups">Groups <span aria-hidden="true">&rarr;</span></a></div>
+          <ul class="a-list" id="d-groups"></ul>
+        </div>
+        <div class="a-card" data-area="activity">
+          <div class="a-card-h"><h2 class="a-h2">Recent activity</h2><a class="a-link" href="#activity">See all <span aria-hidden="true">&rarr;</span></a></div>
+          <ul class="a-list" id="d-activity"></ul>
+        </div>
+      </div>
+    </section>
 
-    <div class="container-narrow admin-body">
-      <h1 class="sr-only">Admin</h1>
-      <section id="alerts" aria-labelledby="alerts-h">
-        <h2 id="alerts-h" class="h2">Alerts</h2>
-        <h3 class="h3">Active alerts</h3>
+    <section id="alerts" class="a-view" aria-labelledby="alerts-h" hidden>
+      <div class="a-head"><div><h1 id="alerts-h" class="a-title" tabindex="-1">Alerts</h1><p class="a-sub">What visitors see at the top of every page.</p></div></div>
+      <div class="a-card">
+        <div class="a-card-h"><h2 class="a-h2">Active alerts</h2></div>
         <div id="active" class="stack-s"></div>
+      </div>
 
-        <form id="compose" class="card form" novalidate>
-          <h3 class="h3">Post an alert</h3>
-          <p id="editing" class="note" hidden>Editing an active alert. Posting replaces it. <button type="button" class="link" id="cancel-edit">Cancel edit</button></p>
-          <fieldset class="types">
-            <legend>Type</legend>
-            <label class="type-card"><input type="radio" name="type" value="urgent" checked /><Fragment set:html={icon('<path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r=".6"/>')} />Weather / closing (urgent)</label>
-            <label class="type-card"><input type="radio" name="type" value="news" /><Fragment set:html={icon('<path d="M3.5 10v4h3l7 4.5v-13l-7 4.5z"/><path d="M17 9.5a3.5 3.5 0 0 1 0 5"/>')} />News / general</label>
-          </fieldset>
-          <label>Message <textarea name="message" rows="3" maxlength="200" required></textarea></label>
-          <p class="hint" id="count">0 / 200</p>
-          <label>Group (optional) <select name="group" aria-describedby="group-help"><option value="">None</option></select></label>
-          <p class="hint" id="group-help">Pick a group to pin this alert to its section on the Groups page. Write when and where in the message. If the group isn’t meeting, also set “This week” on its card in Groups.</p>
-          <label class="check" id="sitewide-row" hidden><input type="checkbox" name="sitewide" /> <span>Also show site-wide (the banner on every page)</span></label>
-          <label class="check" id="popup-row"><input type="checkbox" name="popup" /> <span>Also show as a pop-up the first time someone visits (each person sees it once)</span></label>
-          <label class="check" id="again-row" hidden><input type="checkbox" name="showAgain" /> <span>Show the pop-up again to people who already closed it</span></label>
-          <label>Link (optional) <input name="link" type="text" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://" /></label>
-          <label>Expires <input name="expires" type="datetime-local" required aria-describedby="exp-help" /></label>
-          <p class="hint" id="exp-help">It disappears from the site automatically after this.</p>
-          <label class="check"><input type="checkbox" name="email" /> <span>Also email subscribers to <strong id="topic-name">Weather &amp; closing alerts</strong></span></label>
-          <fieldset id="email-to" class="email-to" hidden><legend>Send the email to</legend>
-            <label class="check"><input type="checkbox" name="etopic" value="group" checked /> <span id="etopic-group">The group’s list</span></label>
-            <label class="check"><input type="checkbox" name="etopic" value="news" /> Latest happenings</label>
-            <label class="check"><input type="checkbox" name="etopic" value="alerts" /> Weather &amp; closing alerts</label>
-          </fieldset>
-          <p class="hint" id="email-off" hidden>Email isn&rsquo;t configured yet, so alerts can only be posted on the site.</p>
-          <p class="err" id="compose-err" hidden></p>
-          <p class="label">Preview</p>
-          <div id="preview" class="preview"></div>
-          <div class="btn-row">
-            <button class="btn" type="submit" id="post-btn">Post alert</button>
-            <button class="btn btn-sm btn-outline" type="button" id="test-btn">Send a test to me</button>
-          </div>
-        </form>
-      </section>
+      <form id="compose" class="card form" novalidate>
+        <h2 class="a-h2">Post an alert</h2>
+        <p id="editing" class="note" hidden>Editing an active alert. Posting replaces it. <button type="button" class="link" id="cancel-edit">Cancel edit</button></p>
+        <label>Alert type <select name="label" id="alert-label">{ALERT_PRESETS.map((l) => <option value={l}>{l}</option>)}<option value="custom">Custom…</option></select></label>
+        <div class="form" id="custom-row" hidden>
+          <label>Your own type <input name="customLabel" id="custom-label" maxlength="24" aria-describedby="custom-help" /></label>
+          <p class="hint" id="custom-help">Up to 24 characters, e.g. “Parking” or “Youth trip”. <span id="custom-count">0 / 24</span></p>
+        </div>
+        <fieldset class="types">
+          <legend>How urgent?</legend>
+          <label class="type-card"><input type="radio" name="type" value="urgent" checked /><Fragment set:html={icon('<path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r=".6"/>')} /><span><strong>Important:</strong> dark banner</span></label>
+          <label class="type-card"><input type="radio" name="type" value="news" /><Fragment set:html={icon('<path d="M3.5 10v4h3l7 4.5v-13l-7 4.5z"/><path d="M17 9.5a3.5 3.5 0 0 1 0 5"/>')} /><span><strong>News:</strong> light banner</span></label>
+        </fieldset>
+        <label>Message <textarea name="message" rows="3" maxlength="200" required></textarea></label>
+        <p class="hint" id="count">0 / 200</p>
+        <label>Group (optional) <select name="group" aria-describedby="group-help"><option value="">None</option></select></label>
+        <p class="hint" id="group-help">Pick a group to pin this alert to its section on the Groups page. Write when and where in the message. If the group isn’t meeting, also set “This week” on its card in Groups.</p>
+        <label class="check" id="sitewide-row" hidden><input type="checkbox" name="sitewide" /> <span>Also show site-wide (the banner on every page)</span></label>
+        <label class="check" id="popup-row"><input type="checkbox" name="popup" /> <span>Also show as a pop-up the first time someone visits (each person sees it once)</span></label>
+        <label class="check" id="again-row" hidden><input type="checkbox" name="showAgain" /> <span>Show the pop-up again to people who already closed it</span></label>
+        <label>Link (optional) <input name="link" type="text" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://" /></label>
+        <label>Expires <input name="expires" type="datetime-local" required aria-describedby="exp-help" /></label>
+        <p class="hint" id="exp-help">It disappears from the site automatically after this.</p>
+        <label class="check"><input type="checkbox" name="email" /> <span>Also email subscribers to <strong id="topic-name">Weather &amp; closing alerts</strong></span></label>
+        <fieldset id="email-to" class="email-to" hidden><legend>Send the email to</legend>
+          <label class="check"><input type="checkbox" name="etopic" value="group" checked /> <span id="etopic-group">The group’s list</span></label>
+          <label class="check"><input type="checkbox" name="etopic" value="news" /> Latest happenings</label>
+          <label class="check"><input type="checkbox" name="etopic" value="alerts" /> Weather &amp; closing alerts</label>
+        </fieldset>
+        <p class="hint" id="email-off" hidden>Email isn&rsquo;t configured yet, so alerts can only be posted on the site.</p>
+        <p class="err" id="compose-err" hidden></p>
+        <p class="label">Preview</p>
+        <div id="preview" class="preview a-sunken"></div>
+        <div class="btn-row">
+          <button class="btn" type="submit" id="post-btn">Post alert</button>
+          <button class="btn btn-sm btn-outline" type="button" id="test-btn">Send a test to me</button>
+        </div>
+      </form>
+    </section>
 
-      <Fragment set:html="<!--rs:stats-->" />
+    <Fragment set:html="<!--rs:stats-->" />
 
-      <Fragment set:html="<!--rs:email-->" />
+    <Fragment set:html="<!--rs:email-->" />
 
-      <section id="items" aria-labelledby="items-h">
-        <h2 id="items-h" class="h2">Videos &amp; podcast</h2>
-        <p class="muted">Tip: titles fixed on YouTube fix the site automatically. Use this when that isn&rsquo;t possible.</p>
-        <ul class="chips seg" role="list">
-          <li><button type="button" class="chip" data-kind="video" aria-pressed="true">Videos</button></li>
-          <li><button type="button" class="chip" data-kind="podcast" aria-pressed="false">Podcast</button></li>
-        </ul>
-        <ul id="item-list" class="item-list" role="list"></ul>
-      </section>
+    <section id="items" class="a-view" aria-labelledby="items-h" hidden>
+      <div class="a-head"><div><h1 id="items-h" class="a-title" tabindex="-1">Videos &amp; podcast</h1><p class="a-sub">Tip: titles fixed on YouTube fix the site automatically. Use this when that isn&rsquo;t possible.</p></div><div class="a-actions"><button class="btn" type="button" id="add-video">Add a video</button><button class="btn" type="button" id="add-episode" hidden>Add a podcast episode</button></div></div>
+      <div class="a-tabs" role="group" aria-label="Videos or podcast">
+        <button type="button" data-kind="video" aria-pressed="true">Videos</button>
+        <button type="button" data-kind="podcast" aria-pressed="false">Podcast</button>
+      </div>
+      <ul id="item-list" class="item-list" role="list"></ul>
+    </section>
 
-      <section id="groups" aria-labelledby="groups-h">
-        <h2 id="groups-h" class="h2">Groups</h2>
-        <p><button class="btn" type="button" id="add-group">Add a group</button></p>
-        <div id="group-list" class="stack-s"></div>
-      </section>
+    <section id="groups" class="a-view" aria-labelledby="groups-h" hidden>
+      <div class="a-head"><div><h1 id="groups-h" class="a-title" tabindex="-1">Groups</h1><p class="a-sub">Who’s meeting this week, news and events for each group.</p></div><div class="a-actions"><button class="btn" type="button" id="add-group">Add a group</button></div></div>
+      <div id="group-list" class="stack-s"></div>
+    </section>
 
-      <section id="events" aria-labelledby="events-h">
-        <h2 id="events-h" class="h2">Events</h2>
-        <p class="muted">Church-wide events. They show on the home page and the Events page, together with group events and this week’s group meetings.</p>
-        <p><button class="btn" type="button" id="add-event">Add an event</button></p>
-        <div id="event-list" class="stack-s"></div>
-        <p class="hint">Past events are removed automatically.</p>
-      </section>
+    <section id="events" class="a-view" aria-labelledby="events-h" hidden>
+      <div class="a-head"><div><h1 id="events-h" class="a-title" tabindex="-1">Events</h1><p class="a-sub">Church-wide events. They show on the home page and the Events page, together with group events and this week’s group meetings.</p></div><div class="a-actions"><button class="btn" type="button" id="add-event">Add an event</button></div></div>
+      <div id="event-list" class="stack-s"></div>
+      <p class="hint">Past events are removed automatically.</p>
+    </section>
 
-      <section id="team" aria-labelledby="team-h">
-        <h2 id="team-h" class="h2">Our team</h2>
-        <p class="muted">Shown on the About page under “Meet the people”. The first person is featured with a large photo.</p>
-        <ol id="team-list" class="item-list" role="list"></ol>
-        <div class="btn-row"><button class="btn btn-sm btn-outline" type="button" id="add-member">Add a person</button><button class="btn btn-sm" type="button" id="save-team">Save team</button></div>
-        <p class="dirty" id="team-dirty" hidden>Unsaved changes</p>
-      </section>
+    <section id="team" class="a-view" aria-labelledby="team-h" hidden>
+      <div class="a-head"><div><h1 id="team-h" class="a-title" tabindex="-1">Our team</h1><p class="a-sub">Shown on the About page under “Meet the people”. The first person is featured with a large photo.</p></div><div class="a-actions"><button class="btn btn-outline" type="button" id="add-member">Add a person</button><button class="btn" type="button" id="save-team">Save team</button></div></div>
+      <p class="dirty" id="team-dirty" hidden>Unsaved changes</p>
+      <ol id="team-list" class="item-list" role="list"></ol>
+    </section>
 
-      <section id="staff" aria-labelledby="staff-h">
-        <h2 id="staff-h" class="h2">Staff accounts</h2>
-        <form class="card form" id="own-pw" hidden novalidate>
-          <h3 class="h3">Change your password</h3>
-          <label>Current password <input name="current" type="password" required autocomplete="current-password" /></label>
-          <label>New password <input name="password" type="password" required minlength="12" autocomplete="new-password" aria-describedby="own-help" /></label>
-          <p class="hint" id="own-help">At least 12 characters. Not “admin” and not your username.</p>
-          <label>New password again <input name="again" type="password" required autocomplete="new-password" /></label>
-          <p class="err" id="own-err" role="alert" hidden></p>
-          <p><button class="btn btn-sm" type="submit">Change password</button></p>
-        </form>
-        <h3 class="h3">Accounts</h3>
-        <ul id="accounts" class="news-list" role="list"></ul>
-        <form class="card form" id="add-staff" novalidate>
-          <h3 class="h3">Add a staff account</h3>
-          <label>Username <input name="username" required pattern="[a-z0-9._\-]{3,32}" autocapitalize="off" spellcheck="false" aria-describedby="add-help" /></label>
-          <label>Temporary password <input name="password" type="text" required minlength="12" autocomplete="off" spellcheck="false" /></label>
-          <p class="hint" id="add-help">Username: 3–32 lowercase letters, numbers, dots, dashes or underscores. Give them the temporary password in person or by phone; they must change it the first time they sign in.</p>
-          <p class="err" id="add-err" role="alert" hidden></p>
-          <p><button class="btn btn-sm" type="submit">Add account</button></p>
-        </form>
-        <h3 class="h3">Recent sign-ins</h3>
-        <ul id="logins" class="news-list" role="list"></ul>
-      </section>
+    <section id="staff" class="a-view" aria-labelledby="staff-h" hidden>
+      <div class="a-head"><div><h1 id="staff-h" class="a-title" tabindex="-1">Staff accounts</h1><p class="a-sub">Who can sign in to this admin.</p></div></div>
+      <div class="a-tabs" role="group" aria-label="Staff accounts sections" id="staff-tabs">
+        <button type="button" data-staff-tab="accounts" aria-pressed="true">Accounts</button>
+        <button type="button" data-staff-tab="permissions" aria-pressed="false">Permissions</button>
+      </div>
+      <form class="card form" id="own-pw" hidden novalidate>
+        <h2 class="a-h2">Change your password</h2>
+        <label>Current password <input name="current" type="password" required autocomplete="current-password" /></label>
+        <label>New password <input name="password" type="password" required minlength="12" autocomplete="new-password" aria-describedby="own-help" /></label>
+        <p class="hint" id="own-help">At least 12 characters. Not “admin” and not your username.</p>
+        <label>New password again <input name="again" type="password" required autocomplete="new-password" /></label>
+        <p class="err" id="own-err" role="alert" hidden></p>
+        <p><button class="btn btn-sm" type="submit">Change password</button></p>
+      </form>
+      <div id="staff-perms" class="stack-s" hidden></div>
+      <div id="staff-accounts" class="a-stack">
+      <div class="a-card">
+        <div class="a-card-h"><h2 class="a-h2">Accounts</h2></div>
+        <ul id="accounts" class="a-list news-list" role="list"></ul>
+      </div>
+      <form class="card form" id="add-staff" novalidate>
+        <h2 class="a-h2">Add a staff account</h2>
+        <label>Username <input name="username" required pattern="[a-z0-9._\-]{3,32}" autocapitalize="off" spellcheck="false" aria-describedby="add-help" /></label>
+        <label>Temporary password <input name="password" type="text" required minlength="12" autocomplete="off" spellcheck="false" /></label>
+        <p class="hint" id="add-help">Username: 3–32 lowercase letters, numbers, dots, dashes or underscores. Give them the temporary password in person or by phone; they must change it the first time they sign in.</p>
+        <fieldset class="types"><legend>Role</legend>
+          <label class="type-card"><input type="radio" name="role" value="admin" /> Admin: can do everything</label>
+          <label class="type-card"><input type="radio" name="role" value="limited" checked /> Limited: only the areas ticked below</label>
+        </fieldset>
+        <p class="hint all-areas" hidden>Admins can use every area.</p>
+        <fieldset class="area-boxes"><legend>Areas</legend><div class="two" id="add-staff-areas"></div></fieldset>
+        <p class="hint">You can change this later in Permissions.</p>
+        <p class="err" id="add-err" role="alert" hidden></p>
+        <p><button class="btn btn-sm" type="submit">Add account</button></p>
+      </form>
+      <div class="a-card">
+        <div class="a-card-h"><h2 class="a-h2">Recent sign-ins</h2></div>
+        <ul id="logins" class="a-list news-list" role="list"></ul>
+      </div>
+      </div>
+    </section>
 
-      <section id="activity" aria-labelledby="activity-h">
-        <h2 id="activity-h" class="h2">Activity</h2>
-        <p class="muted">Who changed what, newest first (the last 200 changes and sign-ins).</p>
-        <ul id="activity-list" class="news-list" role="list"></ul>
-        <p><a class="btn btn-sm btn-outline" href={href('/api/admin/backup')} download>Download a backup</a></p>
+    <section id="a-denied" class="a-view" aria-labelledby="denied-h" hidden>
+      <div class="a-head"><div><h1 class="a-title" id="denied-h" tabindex="-1">No access</h1></div></div>
+      <div class="a-card"><p>You don’t have access to this area. Ask an admin to change your permissions.</p><p><a class="btn btn-outline" href="#dashboard">Back to the dashboard</a></p></div>
+    </section>
+
+    <section id="activity" class="a-view" aria-labelledby="activity-h" hidden>
+      <div class="a-head"><div><h1 id="activity-h" class="a-title" tabindex="-1">Activity</h1><p class="a-sub">Who changed what, newest first (the last 200 changes and sign-ins).</p></div></div>
+      <div class="a-card"><ul id="activity-list" class="a-list news-list" role="list"></ul></div>
+    </section>
+
+    <section id="backup" class="a-view" aria-labelledby="backup-h" hidden>
+      <div class="a-head"><div><h1 id="backup-h" class="a-title" tabindex="-1">Backup</h1><p class="a-sub">Keep your own copy of everything the church has put on the site.</p></div></div>
+      <div class="a-card">
+        <p><a class="btn" href={href('/api/admin/backup')} download>Download a backup</a></p>
         <p class="hint">One file with the site’s content (alerts, events, groups, team, edits) and the subscriber list. Keep it somewhere safe; the server also keeps 7 nightly copies.</p>
-      </section>
+      </div>
+    </section>
 
-      <section id="live" aria-labelledby="live-h">
-        <h2 id="live-h" class="h2">Livestream</h2>
-        <form id="live-form" class="card form">
-          <fieldset>
-            <legend>Home page live video</legend>
-            <label class="check"><input type="radio" name="mode" value="auto" checked /> Automatic, on the usual Sunday schedule</label>
-            <label class="check"><input type="radio" name="mode" value="on" /> Live now: show the stream</label>
-            <label class="check"><input type="radio" name="mode" value="off" /> Not live: hide the stream</label>
-          </fieldset>
-          <label>YouTube video ID (optional) <input name="video" maxlength="11" pattern="[\w\-]{11}" autocapitalize="off" spellcheck="false" aria-describedby="vid-help" /></label>
-          <p class="hint" id="vid-help">Only if the stream doesn&rsquo;t show on its own: the 11 characters after <code>watch?v=</code>.</p>
-          <p><button class="btn btn-sm" type="submit">Save</button></p>
-        </form>
-      </section>
-      <Fragment set:html="<!--rs:help-->" />
-    </div>
+    <section id="live" class="a-view" aria-labelledby="live-h" hidden>
+      <div class="a-head"><div><h1 id="live-h" class="a-title" tabindex="-1">Livestream</h1><p class="a-sub">The live video on the home page.</p></div></div>
+      <form id="live-form" class="card form">
+        <fieldset>
+          <legend>Home page live video</legend>
+          <label class="check"><input type="radio" name="mode" value="auto" checked /> Automatic, on the usual Sunday schedule</label>
+          <label class="check"><input type="radio" name="mode" value="on" /> Live now: show the stream</label>
+          <label class="check"><input type="radio" name="mode" value="off" /> Not live: hide the stream</label>
+        </fieldset>
+        <label>YouTube video ID (optional) <input name="video" maxlength="11" pattern="[\w\-]{11}" autocapitalize="off" spellcheck="false" aria-describedby="vid-help" /></label>
+        <p class="hint" id="vid-help">Only if the stream doesn&rsquo;t show on its own: the 11 characters after <code>watch?v=</code>.</p>
+        <p><button class="btn btn-sm" type="submit">Save</button></p>
+      </form>
+    </section>
+    <Fragment set:html="<!--rs:help-->" />
   </div>
 
   <dialog id="confirm" class="card">
     <form method="dialog">
-      <h2 class="h3" id="c-title"></h2>
+      <h2 class="a-h2" id="c-title"></h2>
       <p id="c-text"></p>
       <div class="btn-row">
         <button class="btn btn-outline" value="cancel" id="c-cancel">Cancel</button>
@@ -220,7 +331,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
 </Base>
 
 <script>
-  import { timeLabel, DAYS, GROUP_TYPES, MAX_NEWS, VARIES, TZ, alertCard, activeAlerts, applyOverride, esc, etDay, groupStatus } from '../lib/state.js';
+  import { timeLabel, upcomingItems, ALERT_PRESETS, URGENT_PRESETS, LABEL_MAX, DAYS, GROUP_TYPES, MAX_NEWS, VARIES, TZ, alertCard, activeAlerts, applyOverride, esc, etDay, groupStatus } from '../lib/state.js';
 
   const $ = <T extends Element = HTMLElement>(s: string, r: ParentNode = document) => r.querySelector(s) as unknown as T;
   const app = $('#app');
@@ -239,6 +350,10 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     });
     const j = await r.json().catch(() => ({}));
     if (r.status === 401) gate();
+    if (r.status === 403 && j.error === 'forbidden') {
+      fail(undefined, 'You don’t have permission to change this. Ask an admin.');
+      throw Object.assign(new Error('forbidden'), { data: j, status: 403, handled: true });
+    }
     if (!r.ok) throw Object.assign(new Error(j.error || String(r.status)), { data: j, status: r.status });
     return j;
   }
@@ -267,7 +382,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   // Runs a save; on error keeps the fields as they are and offers "Try again".
   async function save(fn: () => Promise<void>, ok: string) {
     try { await fn(); $('#toast-err').textContent = ''; toast(ok); }
-    catch (e: any) { if (e.status !== 401) fail(() => save(fn, ok)); }
+    catch (e: any) { if (e.status !== 401 && !e.handled) fail(() => save(fn, ok)); }
   }
   function ask(title: string, text: string, verb: string): Promise<boolean> {
     const d = $<HTMLDialogElement>('#confirm');
@@ -280,6 +395,8 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     return new Promise((res) => d.addEventListener('close', () => res(d.returnValue === 'ok'), { once: true }));
   }
   function gate() {
+    body.classList.remove('a-in', 'a-must');
+    $('#a-user').hidden = true;
     app.hidden = true;
     $('#must-change').hidden = true;
     $('#sign-out').hidden = true;
@@ -288,7 +405,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   const PW_ERR: Record<string, string> = {
     too_short: 'Use at least 12 characters.', too_long: 'That is too long (200 characters at most).', too_easy: 'Choose something other than “admin” or your username.',
     same: 'Choose a password you haven’t used for this account.', current: 'Your current password isn’t right.', taken: 'That username is taken.',
-    username: 'Use 3–32 lowercase letters, numbers, dots, dashes or underscores.', last: 'You can’t remove the last account.', self: 'Someone else has to remove your account.',
+    username: 'Use 3–32 lowercase letters, numbers, dots, dashes or underscores.', last: 'You can’t remove the last account.', self: 'Someone else has to remove your account.', last_admin: 'There must always be at least one admin. Make someone else an admin first.',
   };
   const showErr = (id: string, msg: string) => { const e = $(id); e.textContent = msg ? `⚠ ${msg}` : ''; e.hidden = !msg; };
 
@@ -343,6 +460,10 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   let sitewideTouched = false;
   let popupTouched = false;
   let editingPopup = false;
+  let typeTouched = false;
+  // Seal and other site images follow the site's base path (the admin's own logo tells us what it is).
+  const BASE = ($('.a-brand img')?.getAttribute('src') ?? '').replace(/\/brand\/.*$/, '');
+  const chosenLabel = () => (el.label.value === 'custom' ? el.customLabel.value.trim() : el.label.value);
   const groupName = (id: string) => (state.groups ?? []).find((g: any) => g.id === id)?.name ?? '';
   /** Email topics for the alert being written: the group's list and/or the site-wide topics. */
   const emailTopics = () => (el.group.value
@@ -381,16 +502,30 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     ($('#test-btn') as HTMLButtonElement).hidden = !emailOn || !String(me).includes('@'); // password accounts have no address to test to
     let link = '';
     link = el.link.value.trim() || (group ? `/groups#${group}` : '');
-    $('#preview').innerHTML = alertCard({ id: 'preview', type, message: el.message.value.trim() || 'Your message appears here.', link });
+    const custom = el.label.value === 'custom';
+    $('#custom-row').hidden = !custom;
+    $('#custom-count').textContent = `${el.customLabel.value.length} / ${LABEL_MAX}`;
+    $('#preview').innerHTML = alertCard({ id: 'preview', type, label: chosenLabel(), message: el.message.value.trim() || 'Your message appears here.', link }, BASE);
     $('#preview').classList.toggle('is-empty', !el.message.value.trim());
   }
   f.addEventListener('input', (e) => { if (e.target === el.expires) expTouched = true; if (e.target === el.sitewide) sitewideTouched = true; if (e.target === el.popup) popupTouched = true; syncCompose(); });
-  f.addEventListener('change', (e) => { if (e.target === el.type[0] || e.target === el.type[1]) { if (!expTouched) defaultExpiry(); } syncCompose(); });
+  f.addEventListener('change', (e) => {
+    if (e.target === el.label && !typeTouched) { // Weather, Closing, Cancelled start as Important; the rest as News
+      el.type.value = URGENT_PRESETS.includes(el.label.value) ? 'urgent' : 'news';
+      if (!expTouched) defaultExpiry();
+    }
+    if (e.target === el.type[0] || e.target === el.type[1]) { typeTouched = true; if (!expTouched) defaultExpiry(); }
+    syncCompose();
+  });
 
   function renderAlerts() {
     const list = activeAlerts(state.alerts);
+    const badge = $('#a-alert-count');
+    badge.textContent = String(list.length);
+    badge.hidden = !list.length;
+    badge.setAttribute('aria-label', `${list.length} active`);
     $('#active').innerHTML = list.length
-      ? list.map((a: any) => `<div class="active-row">${alertCard(a)}<p class="hint">${a.group ? `${esc(groupName(a.group))} · ${a.sitewide ? 'Also site-wide' : 'Only on the group'} · ` : ''}Ends ${ends(a.expires)}${a.popup ? ' · Pop-up' : ''}${a.emailed ? ' · Emailed' : ''}</p><div class="btn-row"><button type="button" class="btn btn-sm btn-outline" data-edit="${esc(a.id)}">Edit</button><button type="button" class="btn btn-sm btn-outline" data-end="${esc(a.id)}">End now</button></div></div>`).join('')
+      ? list.map((a: any) => `<div class="active-row">${alertCard(a, BASE)}<p class="hint">${a.group ? `${esc(groupName(a.group))} · ${a.sitewide ? 'Also site-wide' : 'Only on the group'} · ` : ''}Ends ${ends(a.expires)}${a.popup ? ' · Pop-up' : ''}${a.emailed ? ' · Emailed' : ''}</p><div class="btn-row"><button type="button" class="btn btn-sm btn-outline" data-edit="${esc(a.id)}">Edit</button><button type="button" class="btn btn-sm btn-outline" data-end="${esc(a.id)}">End now</button></div></div>`).join('')
       : '<p class="muted">No active alerts. The site shows no banner.</p>';
   }
   function resetCompose() {
@@ -400,6 +535,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     sitewideTouched = false;
     popupTouched = false;
     editingPopup = false;
+    typeTouched = false;
     $('#editing').hidden = true;
     defaultExpiry();
     syncCompose();
@@ -414,6 +550,8 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
       el.type.value = a.type; el.message.value = a.message; el.link.value = a.link ?? ''; el.expires.value = local(new Date(a.expires));
       el.group.value = a.group ?? ''; el.sitewide.checked = Boolean(a.sitewide); sitewideTouched = true;
       el.popup.checked = Boolean(a.popup); popupTouched = true; editingPopup = Boolean(a.popup); el.showAgain.checked = false;
+      const preset = ALERT_PRESETS.includes(a.label);
+      el.label.value = preset ? a.label : 'custom'; el.customLabel.value = preset ? '' : (a.label ?? ''); typeTouched = true;
       editing = a.id; expTouched = true; $('#editing').hidden = false; syncCompose();
       el.message.focus();
       return;
@@ -421,13 +559,13 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     if (!(await ask('End this alert now?', 'It disappears from every page right away.', 'End alert'))) return;
     save(async () => { await call('DELETE', `/alerts/${encodeURIComponent(a.id)}`); state.alerts = state.alerts.filter((x: any) => x !== a); renderAlerts(); }, 'Alert ended.');
   });
-  const alertBody = () => ({ type: el.type.value, message: el.message.value, link: el.link.value.trim(), expires: new Date(el.expires.value).toISOString(),
+  const alertBody = () => ({ type: el.type.value, label: chosenLabel(), message: el.message.value, link: el.link.value.trim(), expires: new Date(el.expires.value).toISOString(),
     group: el.group.value || undefined, sitewide: el.group.value ? el.sitewide.checked : undefined,
     popup: !$('#popup-row').hidden && el.popup.checked, showAgain: el.showAgain.checked });
   const linkOk = (v: string) => { if (!v || /^\/(?!\/)/.test(v)) return true; try { return /^https?:$/.test(new URL(v).protocol); } catch { return false; } };
   function checkCompose() {
     const err = $('#compose-err');
-    const msg = !el.message.value.trim() ? 'Write a message.' : !el.expires.value || new Date(el.expires.value) <= new Date() ? 'Choose an end time in the future.' : !linkOk(el.link.value.trim()) ? 'Enter a full link starting with https://, or a page on this site starting with /' : el.email.checked && el.group.value && !emailTopics().length ? 'Choose who gets the email.' : '';
+    const msg = el.label.value === 'custom' && !el.customLabel.value.trim() ? 'Write your own type, or pick one from the list.' : !el.message.value.trim() ? 'Write a message.' : !el.expires.value || new Date(el.expires.value) <= new Date() ? 'Choose an end time in the future.' : !linkOk(el.link.value.trim()) ? 'Enter a full link starting with https://, or a page on this site starting with /' : el.email.checked && el.group.value && !emailTopics().length ? 'Choose who gets the email.' : '';
     err.textContent = msg ? `⚠ ${msg}` : '';
     err.hidden = !msg;
     return !msg;
@@ -464,34 +602,135 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     catch (e: any) { if (e.status !== 401) fail(undefined, 'Couldn’t send the test. Check the email settings and try again.'); }
   };
 
-  // ---------- videos & podcast ----------
+  // ---------- videos & podcast (feed items + items added here) ----------
   let kind: 'video' | 'podcast' = 'video';
   const pending = new Map<string, Blob>();
   const overrides = () => (kind === 'video' ? (state.videos ??= {}) : (state.podcast ??= {}));
-  function renderItems() {
-    const list = ITEMS[kind];
-    const map = overrides();
-    $('#item-list').innerHTML = !list.length
-      ? `<li class="muted">${kind === 'video' ? 'No videos yet. New YouTube uploads appear here automatically.' : 'No podcast episodes found.'}</li>`
-      : list.map((it: any) => {
-        const o = map[it.id] ?? {};
-        const shown = applyOverride(it, o);
-        return `<li class="card item${kind === 'podcast' ? ' no-thumb' : ''}" data-id="${esc(it.id)}">`
-          + (kind === 'video' ? `<img class="ithumb" src="${esc(shown.thumb)}" alt="" width="120" height="68" loading="lazy">` : '')
-          + `<div class="ifields"><p class="hint">${esc(it.date)}</p><label>Title <input name="title" maxlength="120" value="${esc(shown.title)}"></label><p class="hint">Original: ${esc(it.title)}</p>`
-          + '<div class="btn-row">'
-          + (kind === 'video' ? '<label class="btn btn-sm btn-outline file">Change thumbnail<input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"></label>' : '')
-          + `${o.title || o.thumb ? '<button type="button" class="link reset">Reset to original</button>' : ''}</div>`
-          + (kind === 'video' ? '<p class="hint">JPG, PNG or WebP up to 5 MB. 1280×720 works best.</p>' : '')
-          + '<p class="dirty" hidden><span>Unsaved changes</span> <button type="button" class="btn btn-sm save">Save</button></p></div></li>';
-      }).join('');
+  const addedKey = () => (kind === 'video' ? 'videos' : 'episodes');
+  const addedList = (): any[] => ((state.added ??= {})[addedKey()] ??= []);
+  const AUDIO_ERR: Record<string, string> = { audio: 'That file isn’t an MP3. Choose an .mp3 file.', too_large: 'That file is over 200 MB.', title: 'Give it a title.', date: 'Choose a date.', id: 'That isn’t a YouTube video.' };
+  function addedRow(x: any) {
+    const ep = kind === 'podcast';
+    return `<li class="card item${ep ? ' no-thumb' : ''}" data-added="${esc(x.id)}">`
+      + (ep ? '' : `<img class="ithumb" src="https://i.ytimg.com/vi/${esc(x.id)}/hqdefault.jpg" alt="" width="120" height="68" loading="lazy">`)
+      + `<div class="ifields"><p><span class="chip-imp">Added here</span></p>`
+      + `<label>Title <input name="title" maxlength="120" value="${esc(x.title)}"></label>`
+      + `<label>Date <input name="date" type="date" value="${esc(x.date)}"></label>`
+      + (ep ? `<label>Description (optional) <textarea name="about" rows="3" maxlength="600">${esc(x.about)}</textarea></label><p class="hint">Audio: ${x.audio.startsWith('/api/audio/') ? 'an uploaded MP3' : esc(x.audio)}</p>` : '')
+      + '<div class="btn-row">'
+      + (ep ? '<label class="btn btn-sm btn-outline file">Replace audio<input type="file" accept="audio/mpeg,.mp3" class="sr-only" data-replace></label>' : '')
+      + '<button type="button" class="link remove-added">Remove</button></div>'
+      + '<progress max="100" value="0" hidden></progress>'
+      + '<p class="dirty" hidden><span>Unsaved changes</span> <button type="button" class="btn btn-sm save-added">Save</button></p></div></li>';
   }
-  document.querySelectorAll<HTMLButtonElement>('#items .seg .chip').forEach((b) => (b.onclick = () => {
+  function renderItems() {
+    $('#add-video').hidden = kind !== 'video';
+    $('#add-episode').hidden = kind !== 'podcast';
+    const feed = ITEMS[kind];
+    const added = [...addedList()].sort((a, b) => b.date.localeCompare(a.date));
+    const map = overrides();
+    const rows = feed.map((it: any) => {
+      const o = map[it.id] ?? {};
+      const shown = applyOverride(it, o);
+      return `<li class="card item${kind === 'podcast' ? ' no-thumb' : ''}" data-id="${esc(it.id)}">`
+        + (kind === 'video' ? `<img class="ithumb" src="${esc(shown.thumb)}" alt="" width="120" height="68" loading="lazy">` : '')
+        + `<div class="ifields"><p><span class="chip-imp">${kind === 'video' ? 'From YouTube' : 'From the podcast feed'}</span> <span class="hint">${esc(it.date)}</span></p><label>Title <input name="title" maxlength="120" value="${esc(shown.title)}"></label><p class="hint">Original: ${esc(it.title)}</p>`
+        + '<div class="btn-row">'
+        + (kind === 'video' ? '<label class="btn btn-sm btn-outline file">Change thumbnail<input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"></label>' : '')
+        + `${o.title || o.thumb ? '<button type="button" class="link reset">Reset to original</button>' : ''}</div>`
+        + (kind === 'video' ? '<p class="hint">JPG, PNG or WebP up to 5 MB. 1280×720 works best.</p>' : '')
+        + '<p class="dirty" hidden><span>Unsaved changes</span> <button type="button" class="btn btn-sm save">Save</button></p></div></li>';
+    });
+    $('#item-list').innerHTML = added.length || rows.length ? added.map(addedRow).join('') + rows.join('')
+      : `<li class="a-muted">${kind === 'video' ? 'No videos yet. New YouTube uploads appear here automatically.' : 'No podcast episodes found.'}</li>`;
+  }
+  document.querySelectorAll<HTMLButtonElement>('#items [data-kind]').forEach((b) => (b.onclick = () => {
     kind = b.dataset.kind as typeof kind;
-    document.querySelectorAll('#items .seg .chip').forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
+    document.querySelectorAll('#items [data-kind]').forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
     pending.clear();
     renderItems();
   }));
+
+  /** Streams an MP3 to the server (XHR, for upload progress). Resolves to its /api/audio/… address. */
+  function uploadMp3(file: File, onProgress: (pct: number) => void): Promise<string> {
+    return new Promise((res, rej) => {
+      const x = new XMLHttpRequest();
+      x.open('POST', `${API}/audio`);
+      x.setRequestHeader('Content-Type', 'audio/mpeg');
+      x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100)); };
+      x.onload = () => {
+        let j: any = {};
+        try { j = JSON.parse(x.responseText); } catch {}
+        if (x.status === 200) res(j.audio);
+        else rej(Object.assign(new Error(j.error || 'upload'), { status: x.status, data: j }));
+      };
+      x.onerror = () => rej(new Error('network'));
+      x.send(file);
+    });
+  }
+  const okMp3 = (f: File) => (f.type === 'audio/mpeg' || /\.mp3$/i.test(f.name)) && f.size <= 200 * 1024 * 1024;
+
+  // Add a video: paste a YouTube link, the server looks it up, then title and date can be edited.
+  $('#add-video').onclick = () => {
+    if ($('#video-form')) return $<HTMLInputElement>('#yt-url').focus();
+    $('#item-list').insertAdjacentHTML('afterbegin', `<li class="card form add-form" id="video-form"><h2 class="a-h2">Add a video</h2>
+      <label>YouTube link <input id="yt-url" type="url" inputmode="url" autocapitalize="off" spellcheck="false" aria-describedby="yt-help"></label>
+      <p class="hint" id="yt-help">Paste the link from YouTube’s Share button.</p>
+      <p class="hint" id="yt-status" role="status"></p>
+      <div class="item" id="yt-found" hidden><img class="ithumb" alt="" width="120" height="68"><div class="ifields">
+        <label>Title <input name="title" maxlength="120"></label><label>Date <input name="date" type="date"></label></div></div>
+      <div class="btn-row"><button type="button" class="btn" id="yt-add" disabled>Add video</button><button type="button" class="btn btn-outline" data-cancel>Cancel</button></div></li>`);
+    const input = $<HTMLInputElement>('#yt-url');
+    let looked = '';
+    const lookup = async () => {
+      const v = input.value.trim();
+      if (!v || v === looked) return;
+      looked = v;
+      const status = $('#yt-status');
+      $('#yt-found').hidden = true;
+      ($('#yt-add') as HTMLButtonElement).disabled = true;
+      status.textContent = 'Looking up the video…';
+      try {
+        const r = await call('GET', `/youtube?url=${encodeURIComponent(v)}`);
+        if (ITEMS.video.some((x: any) => x.id === r.id) || (state.added?.videos ?? []).some((x: any) => x.id === r.id)) {
+          status.innerHTML = `That video is already on the site. <button type="button" class="link" data-show="${esc(r.id)}">Show it</button>`;
+          return;
+        }
+        status.textContent = '';
+        const found = $('#yt-found');
+        found.dataset.id = r.id;
+        $<HTMLImageElement>('img', found).src = r.thumb;
+        $<HTMLInputElement>('[name=title]', found).value = r.title;
+        $<HTMLInputElement>('[name=date]', found).value = r.published ?? etDay(new Date());
+        found.hidden = false;
+        ($('#yt-add') as HTMLButtonElement).disabled = false;
+      } catch (x: any) {
+        if (x.status !== 401) status.textContent = 'We couldn’t find that video. Check the link, or that the video is public.';
+      }
+    };
+    input.addEventListener('change', lookup);
+    input.addEventListener('blur', lookup);
+    input.addEventListener('paste', () => setTimeout(lookup, 0));
+    input.focus();
+  };
+  // Add a podcast episode: an uploaded MP3 or an https link.
+  $('#add-episode').onclick = () => {
+    if ($('#ep-form')) return $<HTMLInputElement>('#ep-form [name=title]').focus();
+    $('#item-list').insertAdjacentHTML('afterbegin', `<li class="card form add-form" id="ep-form"><h2 class="a-h2">Add a podcast episode</h2>
+      <label>Title <input name="title" required maxlength="120"></label>
+      <label>Date <input name="date" type="date" required value="${etDay(new Date())}"></label>
+      <label>Description (optional) <textarea name="about" rows="3" maxlength="600"></textarea></label>
+      <fieldset class="types"><legend>Audio</legend>
+        <label class="type-card"><input type="radio" name="src" value="upload" checked> Upload an MP3</label>
+        <label class="type-card"><input type="radio" name="src" value="link"> Link to an MP3</label></fieldset>
+      <label data-src="upload">MP3 file <input type="file" name="file" accept="audio/mpeg,.mp3" aria-describedby="ep-file-help"></label>
+      <p class="hint" data-src="upload" id="ep-file-help">Up to 200 MB.</p>
+      <label data-src="link" hidden>Link to the MP3 <input name="link" type="url" inputmode="url" placeholder="https://" autocapitalize="off" spellcheck="false"></label>
+      <progress max="100" value="0" hidden></progress><p class="hint" id="ep-progress" role="status"></p>
+      <p class="err" role="alert" hidden></p>
+      <div class="btn-row"><button type="button" class="btn" id="ep-add">Add episode</button><button type="button" class="btn btn-outline" data-cancel>Cancel</button></div></li>`);
+    $<HTMLInputElement>('#ep-form [name=title]').focus();
+  };
   // Resize in the browser (centre crop), so uploads stay small: 1280×720 for video cards, 600×600 for team photos.
   async function toThumb(file: File, w = 1280, h = 720): Promise<Blob> {
     const img = await createImageBitmap(file);
@@ -501,14 +740,36 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('encode'))), 'image/jpeg', 0.85));
   }
   const list = $('#item-list');
-  const rowOf = (t: EventTarget | null) => (t as HTMLElement).closest<HTMLElement>('.item')!;
-  const dirty = (row: HTMLElement) => ($('.dirty', row).hidden = false);
-  list.addEventListener('input', (e) => { if ((e.target as HTMLInputElement).name === 'title') dirty(rowOf(e.target)); });
+  const rowOf = (t: EventTarget | null) => (t as HTMLElement).closest<HTMLElement>('.item, .add-form')!;
+  const dirty = (row: HTMLElement) => { const d = row.querySelector<HTMLElement>('.dirty'); if (d) d.hidden = false; };
+  const field = (row: HTMLElement, n: string) => $<HTMLInputElement>(`[name=${n}]`, row);
+  list.addEventListener('input', (e) => {
+    const t = e.target as HTMLInputElement;
+    const row = rowOf(t);
+    if (row?.classList.contains('item') && ['title', 'date', 'about'].includes(t.name)) dirty(row);
+  });
   list.addEventListener('change', async (e) => {
     const input = e.target as HTMLInputElement;
-    if (input.type !== 'file' || !input.files?.[0]) return;
     const row = rowOf(input);
+    if (input.name === 'src') { row.querySelectorAll<HTMLElement>('[data-src]').forEach((x) => (x.hidden = x.dataset.src !== input.value)); return; }
+    if (input.type !== 'file' || !input.files?.[0] || input.name === 'file') return;
     const file = input.files[0];
+    if (input.hasAttribute('data-replace')) { // replace an added episode's audio
+      if (!okMp3(file)) return fail(undefined, AUDIO_ERR.audio);
+      const id = row.dataset.added!;
+      const bar = $<HTMLProgressElement>('progress', row);
+      bar.hidden = false;
+      try {
+        const audio = await uploadMp3(file, (n) => (bar.value = n));
+        const old = addedList().find((x) => x.id === id);
+        const { item } = await call('PUT', `/added/episode/${encodeURIComponent(id)}`, { ...old, audio });
+        Object.assign(old, item);
+        toast('Audio replaced.');
+        renderItems();
+      } catch (x: any) { if (x.status !== 401) fail(undefined, AUDIO_ERR[x.data?.error] ?? 'Couldn’t upload it. Try again.'); }
+      finally { bar.hidden = true; }
+      return;
+    }
     if (file.size > 5 * 1024 * 1024 || !/^image\/(jpeg|png|webp)$/.test(file.type)) return fail(undefined, 'Choose a JPG, PNG or WebP image up to 5 MB.');
     try {
       const blob = await toThumb(file);
@@ -519,6 +780,60 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   });
   list.addEventListener('click', async (e) => {
     const t = e.target as HTMLElement;
+    if (t.matches('[data-cancel]')) { rowOf(t).remove(); return $<HTMLButtonElement>(kind === 'video' ? '#add-video' : '#add-episode').focus(); }
+    if (t.matches('[data-show]')) {
+      $('#video-form')?.remove();
+      const row = list.querySelector<HTMLElement>(`[data-id="${t.dataset.show}"], [data-added="${t.dataset.show}"]`);
+      row?.scrollIntoView({ block: 'center' });
+      return $<HTMLInputElement>('[name=title]', row!)?.focus();
+    }
+    if (t.id === 'yt-add') {
+      const found = $('#yt-found');
+      const body = { id: found.dataset.id, title: field(found, 'title').value, date: field(found, 'date').value };
+      return save(async () => { const { item } = await call('POST', '/added/video', body); state.added.videos = [item, ...(state.added.videos ?? []).filter((x: any) => x.id !== item.id)]; renderItems(); }, 'Video added. It’s on the Watch page.');
+    }
+    if (t.id === 'ep-add') {
+      const row = $('#ep-form');
+      const err = $('.err', row);
+      const show = (k: string) => { err.textContent = `⚠ ${AUDIO_ERR[k] ?? 'Couldn’t add it. Try again.'}`; err.hidden = false; };
+      err.hidden = true;
+      const title = field(row, 'title').value.trim();
+      const date = field(row, 'date').value;
+      if (!title) return show('title');
+      if (!date) return show('date');
+      let audio = '';
+      try {
+        if ((row.querySelector<HTMLInputElement>('[name=src]:checked')!).value === 'upload') {
+          const file = field(row, 'file').files?.[0];
+          if (!file || !okMp3(file)) return show(file && file.size > 200 * 1024 * 1024 ? 'too_large' : 'audio');
+          const bar = $<HTMLProgressElement>('progress', row);
+          bar.hidden = false;
+          audio = await uploadMp3(file, (n) => { bar.value = n; $('#ep-progress').textContent = `Uploading… ${n}%`; });
+          $('#ep-progress').textContent = '';
+        } else {
+          audio = field(row, 'link').value.trim();
+          if (!/^https:\/\//.test(audio)) { err.textContent = '⚠ Enter a link that starts with https://'; err.hidden = false; return; }
+        }
+        const { item } = await call('POST', '/added/episode', { title, date, about: field(row, 'about').value, audio });
+        state.added.episodes = [item, ...(state.added.episodes ?? [])];
+        renderItems();
+        toast('Episode added. It’s on the Podcast page.');
+      } catch (x: any) { if (x.status !== 401) show(x.data?.error); }
+      return;
+    }
+    if (t.matches('.save-added, .remove-added')) {
+      const row = rowOf(t);
+      const id = row.dataset.added!;
+      const ep = kind === 'podcast';
+      const path = `/added/${ep ? 'episode' : 'video'}/${encodeURIComponent(id)}`;
+      if (t.matches('.remove-added')) {
+        if (!(await (ep ? ask('Remove this episode?', 'The uploaded audio is deleted.', 'Remove episode') : ask('Remove this video from the website?', 'It stays on YouTube.', 'Remove video')))) return;
+        return save(async () => { await call('DELETE', path); state.added[addedKey()] = addedList().filter((x) => x.id !== id); renderItems(); }, ep ? 'Episode removed.' : 'Video removed.');
+      }
+      const old = addedList().find((x) => x.id === id);
+      const body = { ...old, title: field(row, 'title').value, date: field(row, 'date').value, ...(ep ? { about: field(row, 'about').value } : {}) };
+      return save(async () => { const { item } = await call('PUT', path, body); Object.assign(old, item); renderItems(); }, 'Saved.');
+    }
     if (!t.matches('.save, .reset')) return;
     const row = rowOf(t);
     const id = row.dataset.id!;
@@ -689,7 +1004,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
       resetCompose();
       el.group.value = card.dataset.id; el.type.value = 'urgent';
       syncCompose();
-      $('#alerts').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+      go('alerts');
       return el.message.focus({ preventScroll: true });
     }
     if (!t.matches('.remove')) return;
@@ -713,6 +1028,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
         + '<p><button class="btn btn-sm" type="submit">Set temporary password</button></p></form>' : '') + '</li>').join('');
     $('#logins').innerHTML = r.logins.length ? r.logins.map((l: any) => `<li><p><strong>${esc(l.who)}</strong> · ${when(l.at)}</p><p class="hint">${l.method === 'link' ? 'Email link' : 'Password'} · ${esc(l.ip)}</p></li>`).join('') : '<li class="hint">No sign-ins yet.</li>';
     $('#default-warning').hidden = !r.accounts.some((a: any) => a.defaultPassword);
+    renderPerms(r);
   }
   const op = $<HTMLFormElement>('#own-pw');
   op.addEventListener('submit', async (e) => {
@@ -739,7 +1055,9 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   as.addEventListener('submit', async (e) => {
     e.preventDefault();
     const v = as.elements as any;
-    try { await call('POST', '/staff', { username: v.username.value, password: v.password.value }); as.reset(); showErr('#add-err', ''); toast('Account added. They must choose a new password when they sign in.'); renderStaff(); }
+    const role = (as.querySelector<HTMLInputElement>('[name=role]:checked')!).value;
+    const areas = [...as.querySelectorAll<HTMLInputElement>('[name=areas]:checked')].map((b) => b.value);
+    try { await call('POST', '/staff', { username: v.username.value, password: v.password.value, role, areas }); as.reset(); showErr('#add-err', ''); toast('Account added. They must choose a new password when they sign in.'); renderStaff(); }
     catch (err: any) { if (err.status !== 401) showErr('#add-err', PW_ERR[err.data?.error] ?? 'Couldn’t save. Try again.'); }
   });
   $('#accounts').addEventListener('click', async (e) => {
@@ -894,135 +1212,514 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     save(async () => { state.live = (await call('PUT', '/live', { mode: lv.mode.value, video: lv.video.value.trim() })).live; }, 'Saved.');
   });
 
+  // ---------- shell: views by #hash, phone drawer, user menu ----------
+  const VIEWS: Record<string, string> = {
+    dashboard: 'Dashboard', alerts: 'Alerts', events: 'Events', groups: 'Groups', email: 'Email', items: 'Videos & podcast', live: 'Livestream',
+    team: 'Our team', stats: 'Statistics', activity: 'Activity', staff: 'Staff accounts', backup: 'Backup', help: 'Help',
+  };
+  const body = document.body;
+  const side = $('#a-side');
+  const menuBtn = $<HTMLButtonElement>('#a-menu');
+  const scrim = $('#a-scrim');
+  const mainEl = $('#main');
+  const drawerOpen = () => body.classList.contains('a-drawer');
+  function openDrawer() {
+    body.classList.add('a-drawer');
+    scrim.hidden = false;
+    menuBtn.setAttribute('aria-expanded', 'true');
+    mainEl.inert = true;
+    side.scrollTop = 0;
+    $<HTMLElement>('.a-nav', side).focus({ preventScroll: true });
+  }
+  function closeDrawer(returnFocus: boolean) {
+    if (!drawerOpen()) return;
+    body.classList.remove('a-drawer');
+    scrim.hidden = true;
+    menuBtn.setAttribute('aria-expanded', 'false');
+    mainEl.inert = false;
+    if (returnFocus) menuBtn.focus();
+  }
+  menuBtn.onclick = () => (drawerOpen() ? closeDrawer(true) : openDrawer());
+  scrim.onclick = () => closeDrawer(true);
+
+  const userBtn = $<HTMLButtonElement>('#a-user-btn');
+  const userMenu = $('#a-user-menu');
+  const userMenuOpen = (open: boolean, returnFocus = false) => {
+    userMenu.hidden = !open;
+    userBtn.setAttribute('aria-expanded', String(open));
+    if (open) $<HTMLElement>('#a-change-pw').focus();
+    else if (returnFocus) userBtn.focus();
+  };
+  userBtn.onclick = () => userMenuOpen(userMenu.hidden);
+  document.addEventListener('click', (e) => { if (!userMenu.hidden && !(e.target as HTMLElement).closest('#a-user')) userMenuOpen(false); });
+  $('#a-change-pw').addEventListener('click', () => {
+    userMenuOpen(false);
+    setTimeout(() => $<HTMLInputElement>('#own-pw:not([hidden]) input, #accounts button, #staff h1').focus(), 0);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!userMenu.hidden) return userMenuOpen(false, true);
+    if (drawerOpen()) closeDrawer(true);
+  });
+
+  /** Show one view (from the hash). Unknown or missing ones show the dashboard. */
+  function show(focus = true) {
+    let v = location.hash.slice(1);
+    if (!VIEWS[v] || !document.getElementById(v)) v = 'dashboard';
+    const denied = !can(VIEW_AREA[v]);
+    for (const id of Object.keys(VIEWS)) { const s = document.getElementById(id); if (s) s.hidden = denied || id !== v; }
+    $('#a-denied').hidden = !denied;
+    document.querySelectorAll<HTMLElement>('.a-nav').forEach((a) => { if (a.dataset.view === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    $('#a-crumb').textContent = VIEWS[v];
+    document.title = `${VIEWS[v]} · Admin`;
+    closeDrawer(false);
+    scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    if (v === 'dashboard' && !denied) renderDashboard();
+    if (focus) {
+      const h = document.getElementById(denied ? 'a-denied' : v)!.querySelector<HTMLElement>('h1, h2');
+      if (h) { if (!h.hasAttribute('tabindex')) h.tabIndex = -1; h.focus({ preventScroll: true }); }
+    }
+  }
+  /** Open a view from code (Post a meeting alert, quick actions). */
+  function go(v: string) { if (location.hash === `#${v}`) show(); else location.hash = v; }
+  addEventListener('hashchange', () => show());
+  document.querySelectorAll<HTMLButtonElement>('[data-quick]').forEach((b) => (b.onclick = () => {
+    const v = b.dataset.quick!;
+    go(v);
+    if (v === 'alerts') el.message.focus();
+    if (v === 'events') $<HTMLButtonElement>('#add-event').click();
+  }));
+
+  // ---------- dashboard (existing APIs only) ----------
+  const tile = (label: string, num: unknown, note = '', delta?: number) => `<div class="a-tile"><p class="a-tile-label">${esc(label)}</p><p class="a-tile-num">${esc(num ?? '–')}</p>`
+    + (delta === undefined ? '' : `<p class="a-tile-note"><span class="a-delta${delta > 0 ? ' is-up' : delta < 0 ? ' is-down' : ''}">${delta > 0 ? `▲ ${delta}` : delta < 0 ? `▼ ${-delta}` : 'No change'}</span> in 7 days</p>`)
+    + (note ? `<p class="a-tile-note">${esc(note)}</p>` : '') + '</div>';
+  async function renderDashboard() {
+    const hour = +new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: TZ }).format(new Date());
+    $('#a-greeting').textContent = `Good ${hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'}, ${me}.`;
+    // Alerts
+    const list = activeAlerts(state.alerts);
+    $('#d-alerts').innerHTML = list.length
+      ? list.map((a: any) => `<div class="active-row">${alertCard(a, BASE)}<p class="hint">Ends ${ends(a.expires)} <a class="btn btn-sm btn-outline" href="#alerts">Manage</a></p></div>`).join('')
+      : '<p class="a-muted">No active alerts. The site shows no banner.</p><p><button type="button" class="btn btn-sm" data-go="alerts">Post an alert</button></p>';
+    // Coming up: church events and group events, next two weeks
+    const items = upcomingItems(state.events, state.groups ?? [], new Date(), 14).filter((it: any) => it.kind !== 'meeting').slice(0, 6);
+    $('#d-events').innerHTML = items.length
+      ? items.map((it: any) => `<li><span class="a-list-text"><span class="a-list-main">${esc(it.title)}</span><span class="a-list-meta">${new Date(`${it.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}${it.time ? ` · ${it.time}` : ''}${it.group ? ` · ${esc(it.group.name)}` : ''}${it.major ? ' <span class="chip-imp is-major">Major</span>' : ''}</span></span></li>`).join('')
+      : '<li><span class="a-muted">No events in the next two weeks.</span><button type="button" class="btn btn-sm btn-outline a-list-end" data-go="events">Add an event</button></li>';
+    // Groups this week
+    const gs = state.groups ?? [];
+    $('#d-groups').innerHTML = gs.length
+      ? gs.map((g: any) => { const s = groupStatus(g, new Date()); return `<li><a class="a-list-main a-link" href="#groups">${esc(g.name)}</a><span class="chip-status is-${s.kind} a-list-end">${s.label}</span></li>`; }).join('')
+      : '<li class="a-muted">No groups yet.</li>';
+    // Activity
+    if (can('activity')) call('GET', '/activity').then((r) => {
+      $('#d-activity').innerHTML = r.activity.length
+        ? r.activity.slice(0, 6).map((a: any) => `<li><span class="a-list-text"><span class="a-list-main">${esc(a.what)}</span><span class="a-list-meta">${esc(a.who)} · ${when(a.at)}</span></span></li>`).join('')
+        : '<li class="a-muted">Nothing yet.</li>';
+    }).catch(() => {});
+    // This week at a glance
+    if (!can('stats')) return;
+    const [sum, counts] = await Promise.all([call('GET', '/stats/summary?range=7d').catch(() => null), can('email') ? call('GET', '/email/counts').catch(() => null) : null]);
+    const subs = counts?.total ?? sum?.subscribers?.total;
+    $('#d-tiles').innerHTML = tile('Email subscribers', subs, '', sum?.subscribers?.change)
+      + (sum ? tile('Visits', sum.visitors, `${sum.views} page views`) + tile('Video plays', sum.plays?.video) + tile('Podcast plays', sum.plays?.podcast) : '');
+    $('#d-tiles-note').hidden = Boolean(sum);
+  }
+  $('#dashboard').addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-go]');
+    if (!b) return;
+    go(b.dataset.go!);
+    if (b.dataset.go === 'alerts') el.message.focus();
+    if (b.dataset.go === 'events') $<HTMLButtonElement>('#add-event').click();
+  });
+
+  // ---------- permissions (Staff accounts › Permissions) ----------
+  const AREA_LABEL: [string, string][] = [['alerts', 'Alerts'], ['events', 'Events'], ['groups', 'Groups'], ['email', 'Email'], ['media', 'Videos & podcast'], ['live', 'Livestream'],
+    ['team', 'Our team'], ['stats', 'Statistics'], ['staff', 'Staff accounts & permissions'], ['activity', 'Activity'], ['backup', 'Backup']];
+  const areaBoxes = (areas: string[], disabled: boolean) => AREA_LABEL.map(([k, l]) => `<label class="check"><input type="checkbox" name="areas" value="${k}"${areas.includes(k) ? ' checked' : ''}${disabled ? ' disabled' : ''}> ${l}</label>`).join('');
+  function renderPerms(r: any) {
+    const admins = r.accounts.filter((a: any) => a.role === 'admin').length;
+    $('#staff-perms').innerHTML = r.accounts.map((a: any) => {
+      const last = a.role === 'admin' && admins <= 1;
+      const isAdmin = a.role === 'admin';
+      return `<form class="card form perm" data-u="${esc(a.username)}" novalidate><h2 class="a-h2">${esc(a.username)}${a.username === r.me ? ' (you)' : ''}</h2>
+        <fieldset class="types"><legend>Role</legend>
+          <label class="type-card"><input type="radio" name="role" value="admin"${isAdmin ? ' checked' : ''}> Admin: can do everything</label>
+          <label class="type-card"><input type="radio" name="role" value="limited"${isAdmin ? '' : ' checked'}${last ? ' disabled aria-describedby="last-' + esc(a.username) + '"' : ''}> Limited: only the areas ticked below</label>
+        </fieldset>
+        ${last ? `<p class="hint" id="last-${esc(a.username)}">There must always be at least one admin. Make someone else an admin first.</p>` : ''}
+        <p class="hint all-areas"${isAdmin ? '' : ' hidden'}>Admins can use every area.</p>
+        <fieldset class="area-boxes"${isAdmin ? ' hidden' : ''}><legend>Areas</legend><div class="two">${areaBoxes(a.areas ?? [], false)}</div></fieldset>
+        <p><button class="btn btn-sm" type="submit">Save permissions</button></p></form>`;
+    }).join('');
+  }
+  $('#staff-perms').addEventListener('change', (e) => {
+    const t = e.target as HTMLInputElement;
+    if (t.name !== 'role') return;
+    $('.area-boxes', t.form!).hidden = t.value === 'admin';
+    $('.all-areas', t.form!).hidden = t.value !== 'admin';
+  });
+  $('#staff-perms').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const u = form.dataset.u!;
+    const role = (form.querySelector<HTMLInputElement>('[name=role]:checked')!).value;
+    const areas = [...form.querySelectorAll<HTMLInputElement>('[name=areas]:checked')].map((b) => b.value);
+    const self = u === me;
+    if (self && role !== 'admin' && access.role === 'admin' && !(await ask('Remove your own admin rights?', 'You’ll only see the areas you tick.', 'Save permissions'))) return;
+    try {
+      await call('PUT', `/staff/${encodeURIComponent(u)}/access`, { role, areas });
+      if (self) return location.reload();
+      toast(`Permissions saved. They apply the next time ${u} loads the admin.`);
+      renderStaff();
+    } catch (x: any) { if (x.status !== 401 && !x.handled) fail(undefined, x.data?.error === 'last_admin' ? 'There must always be at least one admin. Make someone else an admin first.' : 'Couldn’t save. Try again.'); }
+  });
+  document.querySelectorAll<HTMLButtonElement>('[data-staff-tab]').forEach((b) => (b.onclick = () => {
+    document.querySelectorAll('[data-staff-tab]').forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
+    $('#staff-accounts').hidden = b.dataset.staffTab !== 'accounts';
+    $('#staff').dataset.tab = b.dataset.staffTab;
+    $('#staff-perms').hidden = b.dataset.staffTab !== 'permissions';
+  }));
+  // New accounts: Limited with Alerts, Events and Groups unless changed.
+  $('#add-staff-areas').innerHTML = areaBoxes(['alerts', 'events', 'groups'], false);
+  $('#add-staff').addEventListener('change', (e) => {
+    const t = e.target as HTMLInputElement;
+    if (t.name === 'role') { $('#add-staff .area-boxes').hidden = t.value === 'admin'; $('#add-staff .all-areas').hidden = t.value !== 'admin'; }
+  });
+
+  // ---------- what this account may use ----------
+  let access: { kind: string; role: string; areas: string[] } = { kind: 'email', role: 'admin', areas: [] };
+  const VIEW_AREA: Record<string, string> = { alerts: 'alerts', events: 'events', groups: 'groups', email: 'email', items: 'media', live: 'live', team: 'team', stats: 'stats', activity: 'activity', backup: 'backup' };
+  const can = (area?: string) => !area || access.kind === 'email' || access.role === 'admin' || access.areas.includes(area);
+  /** Limited accounts: only their areas in the menu and on the dashboard (the server enforces it as well). */
+  function applyAccess() {
+    // The menu lists only usable areas; Staff accounts stays reachable from the user menu for your own password.
+    document.querySelectorAll<HTMLElement>('.a-navs .a-nav[data-view]').forEach((a) => (a.closest('li')!.hidden = !can(a.dataset.view === 'staff' ? 'staff' : VIEW_AREA[a.dataset.view!])));
+    document.querySelectorAll<HTMLElement>('.a-navs > ul').forEach((ul) => {
+      const empty = ![...ul.children].some((li) => !(li as HTMLElement).hidden);
+      ul.hidden = empty;
+      const label = ul.getAttribute('aria-labelledby');
+      if (label) document.getElementById(label)!.hidden = empty;
+    });
+    document.querySelectorAll<HTMLElement>('#dashboard [data-area]').forEach((x) => (x.hidden = !can(x.dataset.area)));
+    const staffAll = can('staff');
+    $('#staff-tabs').hidden = !staffAll;
+    $('#staff-accounts').hidden = !staffAll;
+    if (!staffAll) $('#staff-perms').hidden = true;
+  }
+
+  function setUser(name: string) {
+    $('#a-user').hidden = false;
+    $('#a-initials').textContent = (name.replace(/@.*/, '').match(/[a-z0-9]/gi) ?? ['?']).slice(0, 2).join('');
+    $('#a-user-name').textContent = name;
+    $('#a-user-who').textContent = name ? `Signed in as ${name}` : 'Signed in';
+  }
+
   // ---------- start ----------
   (async () => {
+    if (!document.documentElement.hasAttribute('data-signed-in')) return gate();
+    if (document.documentElement.hasAttribute('data-must-change')) {
+      body.classList.add('a-must');
+      setUser('');
+      $('#must-change').hidden = false;
+      $('#sign-out').hidden = false;
+      return $<HTMLInputElement>('#change-form [name=password]').focus();
+    }
     try {
       const r = await call('GET', '/state');
       state = r.state; emailOn = r.email; me = r.user;
-      $('#default-warning').hidden = !r.defaultPassword;
+      access = { kind: r.kind ?? 'email', role: r.role ?? 'admin', areas: r.areas ?? [] };
+      $('#default-warning').hidden = !(r.defaultPassword && can('staff'));
     } catch (e: any) {
       if (e.data?.error !== 'must_change') return gate();
+      body.classList.add('a-must');
+      setUser(String(e.data?.user ?? ''));
       $('#must-change').hidden = false;
       $('#sign-out').hidden = false;
       return $<HTMLInputElement>('#change-form [name=password]').focus();
     }
     app.hidden = false;
+    body.classList.add('a-in');
+    setUser(me);
     $('#sign-out').hidden = false;
     lv.mode.value = state.live?.mode ?? 'auto';
     lv.video.value = state.live?.video ?? '';
-    renderAlerts(); renderItems(); renderGroups(); resetCompose(); renderStaff(); renderEvents(); renderTeam(); renderActivity();
+    applyAccess();
+    renderAlerts(); renderItems(); renderGroups(); resetCompose(); renderEvents();
+    if (can('staff')) renderStaff();
+    if (can('team')) renderTeam();
+    if (can('activity')) renderActivity();
+    show(false);
   })();
 </script>
 
 <style is:global>
-  body:has(.admin-top) { background: var(--cream); }
-  .admin-top { background: var(--paper); border-bottom: 1px solid var(--line); }
-  .admin-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem; min-height: 60px; padding-block: 0.5rem; }
-  .admin-bar > .link { white-space: nowrap; }
-  .admin-brand { flex-shrink: 0; display: flex; align-items: center; gap: 0.6rem; margin-right: auto; text-decoration: none; }
-  .admin-brand img { height: 36px; width: auto; }
-  .admin-brand span { font-size: var(--step--1); font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
-  #app .subnav { top: 0; }
-  .gate { padding-block: 4rem; }
-  .gate .card { max-width: 28rem; margin-inline: auto; display: grid; gap: 1rem; }
-  .gate .card + .card { margin-top: 1.5rem; }
-  .default-warning { padding-top: 1rem; }
-  .default-warning .alert-x { display: none; }
-  .admin-body { padding-block: 2rem 6rem; }
-  .admin-body > section { padding-top: 2.5rem; scroll-margin-top: 5rem; }
-  .admin-body > section + section { margin-top: 2.5rem; border-top: 1px solid var(--line); }
-  .admin-body h2.h2 { margin-bottom: 1rem; }
-  .admin-body h3.h3 { margin: 1.5rem 0 0.75rem; }
-  .stack-s { display: grid; gap: 1rem; }
-  .form { display: grid; gap: 0.6rem; margin-top: 1.5rem; }
-  .form h3.h3 { margin: 0 0 0.5rem; }
-  .form label, .item label { display: grid; gap: 0.3rem; font-weight: 700; font-size: var(--step--1); }
-  .form input:not([type='radio'], [type='checkbox'], [type='file']), .form textarea, .form select, .item input[name='title'] {
-    width: 100%; min-width: 0; padding: 0.7rem 0.9rem; min-height: 48px; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s);
-    background: #fff; font-weight: 400; font-size: max(1rem, 16px);
+  /* ===== Admin tokens (only on /admin: <body class="adm">). Shared with the email, stats and help views. ===== */
+  .adm {
+    --a-bg: #f6f5f2; --a-surface: #ffffff; --a-sunken: #faf8f3; --a-border: #e6e2db; --a-border-strong: #d3cdc6;
+    --a-text: #1c1c1c; --a-muted: #5c5852; --a-accent: #7a5c14; --a-accent-bg: #f4ecda; --a-accent-line: #c7a359; --a-ink: #1c1c1c;
+    --a-ok: #2f6b3a; --a-down: #9a3412;
+    --a-radius: 12px; --a-radius-s: 8px; --a-shadow: 0 1px 2px rgb(28 28 28 / 0.04);
+    --a-side: 264px; --a-top: 64px; --a-content: 72rem;
+    background: var(--a-bg); color: var(--a-text); font: 16px/1.5 var(--font-body);
   }
-  .form fieldset { border: 0; padding: 0; display: grid; gap: 0.4rem; margin-top: 0.4rem; }
-  .form legend { padding: 0; margin-bottom: 0.3rem; font-weight: 700; }
-  .form label.check { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem; min-height: 44px; font-size: var(--step-0); font-weight: 400; }
-  .form label.check input[type='date'] { width: auto; min-height: 44px; }
-  .form .check input[type='radio'], .form .check input[type='checkbox'], .type-card input { width: 22px; height: 22px; accent-color: var(--gold-ink); }
+  .adm h1, .adm h2, .adm h3, .adm h4 { font-family: var(--font-body); letter-spacing: 0; text-wrap: balance; }
+  .adm :focus-visible { outline: 2px solid var(--a-accent); outline-offset: 2px; border-radius: 4px; }
+  .adm [hidden] { display: none !important; } /* no display rule may beat the hidden attribute */
+  .adm .a-muted, .adm .hint, .adm .card p.hint { color: var(--a-muted); }
+  .adm .hint { font-size: 14px; }
+
+  /* ===== Shell ===== */
+  .a-side {
+    position: fixed; inset: 0 auto 0 0; z-index: 40; width: var(--a-side); display: flex; flex-direction: column;
+    padding: 0 16px 16px; overflow-y: auto; background: var(--a-surface); border-right: 1px solid var(--a-border);
+  }
+  .adm:not(.a-in) .a-side, .adm:not(.a-in) .a-menu, .adm:not(.a-in) .a-crumbs, .adm:not(.a-in) .a-scrim { display: none !important; }
+  .a-brand, .a-top-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .a-brand { flex: none; height: var(--a-top); margin: 0 -16px 4px; padding: 0 28px; border-bottom: 1px solid var(--a-border); }
+  .a-brand img, .a-top-brand img { height: 32px; width: auto; }
+  .a-brand span, .a-top-brand span { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--a-muted); }
+  .adm.a-in .a-top-brand { display: none; }
+  @media (max-height: 819px) { .adm .a-group-label { margin: 12px 12px 4px; } }
+  .a-group-label { margin: 20px 12px 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--a-muted); }
+  .a-navs ul, .a-side-foot { list-style: none; padding: 0; display: grid; gap: 2px; }
+  .a-navs > ul:first-child { margin-top: 12px; }
+  .a-nav {
+    display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: var(--a-radius-s);
+    color: var(--a-text); font-size: 15px; font-weight: 500; text-decoration: none;
+  }
+  .a-nav svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .a-nav:hover { background: var(--a-sunken); }
+  .a-nav[aria-current='page'] { background: var(--a-accent-bg); color: var(--a-accent); font-weight: 600; box-shadow: inset 3px 0 0 var(--a-accent-line); }
+  .a-nav[aria-current='page']:focus-visible { outline-offset: 3px; }
+  .a-badge { margin-left: auto; min-width: 1.5rem; padding: 0 7px; border: 1px solid var(--a-border); border-radius: 999px; background: var(--a-sunken); color: var(--a-muted); font-size: 13px; font-weight: 600; text-align: center; }
+  .a-side-foot { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--a-border); }
+  .a-scrim { position: fixed; inset: 0; z-index: 79; background: rgb(28 28 28 / 0.4); }
+
+  .a-top {
+    position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 16px; height: var(--a-top); padding: 0 32px;
+    background: var(--a-surface); border-bottom: 1px solid var(--a-border);
+  }
+  .adm.a-in .a-top, .adm.a-in .a-main { margin-left: var(--a-side); }
+  .a-menu {
+    display: none; flex: none; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0;
+    border: 1px solid var(--a-border-strong); border-radius: var(--a-radius-s); background: var(--a-surface); color: var(--a-text);
+  }
+  .a-menu svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; }
+  .a-crumbs ol { list-style: none; display: flex; gap: 6px; padding: 0; font-size: 14px; color: var(--a-muted); white-space: nowrap; }
+  .a-crumbs li + li::before { content: '\203A'; margin-right: 6px; }
+  .a-crumbs [aria-current] { color: var(--a-text); font-weight: 600; }
+  .a-spacer { flex: 1; }
+  .a-link { color: var(--a-accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+  .a-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .a-top > .a-link { display: inline-flex; align-items: center; gap: 0.3em; min-height: 44px; }
+  .a-user { position: relative; }
+  .a-user-btn { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 10px 4px 4px; border: 0; border-radius: 999px; background: none; color: var(--a-text); font-weight: 600; }
+  .a-user-btn:hover { background: var(--a-sunken); }
+  .a-avatar { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--a-accent-bg); color: var(--a-accent); font-size: 14px; font-weight: 600; text-transform: uppercase; }
+  .a-user-menu {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; display: grid; width: 220px; padding: 8px;
+    background: var(--a-surface); border: 1px solid var(--a-border); border-radius: var(--a-radius); box-shadow: 0 8px 24px rgb(28 28 28 / 0.12);
+  }
+  .a-user-menu p { margin: 0 0 4px; padding: 6px 12px 10px; border-bottom: 1px solid var(--a-border); font-size: 14px; color: var(--a-muted); overflow-wrap: anywhere; }
+  .a-user-menu a, .a-user-menu button {
+    display: flex; align-items: center; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--a-radius-s); background: none;
+    color: var(--a-text); font: inherit; font-size: 15px; text-align: left; text-decoration: none; cursor: pointer;
+  }
+  .a-user-menu a:hover, .a-user-menu button:hover { background: var(--a-sunken); }
+  @media (prefers-reduced-motion: no-preference) { .a-user-menu:not([hidden]) { animation: a-fade 0.12s ease-out; } @keyframes a-fade { from { opacity: 0; } } }
+
+  .a-main { padding: 32px; }
+  #app { max-width: var(--a-content); }
+  .gate { display: grid; gap: 24px; max-width: 28rem; margin: 32px auto; }
+  .gate .card { display: grid; gap: 12px; }
+  .a-warn { margin-bottom: 24px; }
+  .a-warn .alert-x { display: none; }
+  .a-view { display: grid; gap: 24px; }
+  .a-view > * { min-width: 0; }
+  .a-stack { display: grid; gap: 24px; }
+  #staff[data-tab='permissions'] #own-pw { display: none; }
+  .a-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .a-title { font-size: 28px; line-height: 1.2; font-weight: 700; color: var(--a-text); }
+  .a-title:focus { outline: none; }
+  .a-sub { margin-top: 4px; color: var(--a-muted); max-width: 60ch; }
+  .a-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .a-h2 { font-size: 18px; line-height: 1.3; font-weight: 600; color: var(--a-text); }
+
+  /* ===== Shared components (email, stats and help use these too) ===== */
+  .adm .card, .a-card {
+    display: block; padding: 24px; color: var(--a-text); background: var(--a-surface);
+    border: 1px solid var(--a-border); border-radius: var(--a-radius); box-shadow: var(--a-shadow); transition: none;
+  }
+  .adm .card p:not(.alert p) { color: var(--a-text); }
+  .adm .card h3 { font-size: 18px; margin-bottom: 0; }
+  .a-card-h { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 16px; }
+  .a-card-tools { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 14px; }
+  .a-sunken { background: var(--a-sunken); border-radius: var(--a-radius-s); padding: 16px; }
+  .a-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); overflow: hidden; background: var(--a-surface); border: 1px solid var(--a-border); border-radius: var(--a-radius); }
+  .a-card .a-tiles { border-radius: var(--a-radius-s); }
+  .a-tile { padding: 20px 24px; background: var(--a-surface); box-shadow: 1px 0 0 var(--a-border), 0 1px 0 var(--a-border); }
+  .a-tile-label { font-size: 14px; font-weight: 600; color: var(--a-muted); }
+  .a-tile-num { margin-top: 4px; font-size: 30px; line-height: 1.2; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--a-text); }
+  .a-tile-note { margin-top: 4px; font-size: 13px; color: var(--a-muted); }
+  .a-delta { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--a-muted); }
+  .a-delta.is-up { color: var(--a-ok); background: #eef5ef; }
+  .a-delta.is-down { color: var(--a-down); background: #fbefe9; }
+  .a-list { list-style: none; padding: 0; display: grid; }
+  .a-list > li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-height: 52px; padding: 12px 0; border-top: 1px solid var(--a-border); }
+  .a-list > li:first-child { border-top: 0; }
+  .a-list-main { font-weight: 600; color: var(--a-text); }
+  .a-list-meta { font-size: 14px; color: var(--a-muted); }
+  .a-list-text { min-width: 0; flex: 1 1 14rem; display: grid; }
+  .a-list-end { margin-left: auto; }
+  .a-bar { flex-basis: 100%; height: 4px; border-radius: 2px; overflow: hidden; background: var(--a-border); }
+  .a-bar > span { display: block; height: 100%; background: var(--a-accent-line); }
+  .a-table-wrap { overflow-x: auto; }
+  .a-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  .a-table th { padding: 10px 12px; background: var(--a-sunken); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--a-muted); text-align: left; }
+  .a-table td { height: 52px; padding: 8px 12px; border-top: 1px solid var(--a-border); }
+  .a-tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--a-border); }
+  .a-tabs button {
+    min-height: 44px; margin-bottom: -1px; padding: 0 14px; border: 0; border-bottom: 2px solid transparent; background: none;
+    color: var(--a-muted); font: inherit; font-size: 15px; font-weight: 500; white-space: nowrap; cursor: pointer;
+  }
+  .a-tabs button[aria-pressed='true'] { color: var(--a-text); font-weight: 600; border-bottom-color: var(--a-accent); }
+  .a-seg { display: inline-flex; flex-wrap: wrap; overflow: hidden; border: 1px solid var(--a-border-strong); border-radius: var(--a-radius-s); background: var(--a-surface); }
+  .a-seg button { min-height: 40px; padding: 0 14px; border: 0; border-left: 1px solid var(--a-border-strong); background: none; color: var(--a-text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .a-seg button:first-child { border-left: 0; }
+  .a-seg button[aria-pressed='true'] { background: var(--a-ink); color: #fff; }
+
+  /* Buttons: squarer, ink primary, quiet outline. Gold stays an accent. */
+  .adm .btn {
+    --btn-bg: var(--a-ink); --btn-fg: #fff; --btn-border: var(--a-ink);
+    min-height: 44px; padding: 0 18px; border-width: 1px; border-radius: var(--a-radius-s); font-size: 15px; font-weight: 600; box-shadow: none;
+  }
+  .adm .btn:hover { --btn-bg: #000; --btn-border: #000; box-shadow: none; }
+  .adm .btn-outline { --btn-bg: var(--a-surface); --btn-fg: var(--a-text); --btn-border: var(--a-border-strong); }
+  .adm .btn-outline:hover { --btn-bg: var(--a-sunken); --btn-fg: var(--a-text); --btn-border: var(--a-border-strong); }
+  .adm .btn-sm { min-height: 40px; padding: 0 14px; }
+  .adm .btn:focus-visible { outline-offset: 3px; }
+  .adm .toast .btn-light { --btn-bg: transparent; --btn-fg: var(--cream); --btn-border: var(--cream); }
+  .adm .reset-staff[aria-expanded='true'] { --btn-bg: var(--a-ink); --btn-fg: #fff; --btn-border: var(--a-ink); }
+  .adm button.link { border: 0; background: none; cursor: pointer; font-size: 15px; padding-block: 0.6rem; }
+  .btn-row { align-items: center; }
+
+  /* Forms */
+  .adm .form { display: grid; gap: 12px; }
+  .adm .form label, .adm .item label, #team-list label { display: grid; gap: 6px; font-size: 14px; font-weight: 600; color: var(--a-text); }
+  .adm .form input:not([type='radio'], [type='checkbox'], [type='file']), .adm .form textarea, .adm .form select,
+  .adm .item input[name='title'], #team-list input:not([type=file]), #team-list textarea {
+    width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--a-border-strong); border-radius: var(--a-radius-s);
+    background: #fff; color: var(--a-text); font: 400 max(1rem, 16px)/1.45 var(--font-body);
+  }
+  #team-list textarea { min-height: 7.5rem; }
+  .adm .form input:hover, .adm .form textarea:hover, .adm .form select:hover { border-color: var(--a-muted); }
+  .adm [aria-invalid='true'] { border-color: var(--a-down) !important; }
+  .adm .form fieldset { display: grid; gap: 6px; margin-top: 4px; padding: 0; border: 0; }
+  .adm .form legend { margin-bottom: 4px; padding: 0; font-size: 14px; font-weight: 600; }
+  .adm .form label.check { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-height: 44px; font-size: 16px; font-weight: 400; }
+  .adm .form label.check input[type='date'] { width: auto; }
+  .adm .form .check input[type='radio'], .adm .form .check input[type='checkbox'], .type-card input { width: 20px; height: 20px; accent-color: var(--a-accent); }
   .week label:has(input[type='radio']:not(:checked)) input[type='date'] { display: none; }
   .types { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
   .type-card {
-    display: flex !important; align-items: center; grid-auto-flow: column; gap: 0.6rem !important; min-height: 56px; padding: 0.5rem 0.9rem;
-    border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; font-size: var(--step-0) !important; cursor: pointer;
+    display: flex !important; align-items: center; gap: 10px !important; min-height: 56px; padding: 8px 14px; cursor: pointer;
+    border: 1px solid var(--a-border-strong); border-radius: var(--a-radius-s); background: #fff; font-size: 16px !important;
   }
-  .type-card:has(:checked) { border-color: var(--gold); background: var(--gold-soft); }
-  .type-card svg, .admin-body .alert .ic { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
-  .hint, .card p.hint { font-size: var(--step--1); color: var(--muted); }
-  .label { font-weight: 700; font-size: var(--step--1); margin-top: 0.5rem; }
-  .err, .card p.err { color: var(--ink); font-weight: 700; }
-  .note { padding: 0.6rem 0.9rem; background: var(--parchment); border-left: 3px solid var(--gold); color: var(--ink) !important; }
-  .admin-body .alert-x { display: none; }
-  .active-row { display: grid; gap: 0.5rem; }
-  .preview { margin-bottom: 0.5rem; }
-  .preview.is-empty .alert-msg { font-weight: 400; font-style: italic; opacity: 0.75; }
-  .seg { margin-block: 1rem; }
-  .chip { display: inline-flex; align-items: center; min-height: 44px; padding: 0.4rem 1.1rem; border-radius: var(--radius-pill); background: var(--paper); border: 1.5px solid var(--line); font-weight: 700; font-size: 0.95rem; }
-  .chip[aria-pressed='true'] { background: var(--ink); color: var(--cream); border-color: var(--ink); }
-  .item-list { list-style: none; padding: 0; display: grid; gap: 1rem; }
-  .item { display: grid; grid-template-columns: 120px 1fr; gap: 1rem; align-items: start; padding: 1rem; }
-  .item.no-thumb { grid-template-columns: 1fr; }
-  .ithumb { width: 120px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius-s); background: var(--ink); }
-  .ifields { display: grid; gap: 0.5rem; min-width: 0; }
-  .item .btn-row { align-items: center; }
-  .file:focus-within { outline: 3px solid var(--gold-ink); outline-offset: 3px; }
-  .dirty { display: flex; align-items: center; gap: 0.75rem; font-weight: 700; color: var(--ink) !important; }
-  .dirty[hidden] { display: none; }
-  button.link { border: 0; cursor: pointer; font-size: 1rem; }
-  .gcard { margin-top: 0; padding: 0; }
-  .gcard > summary { position: relative; display: grid; gap: 0.35rem; min-height: 56px; padding: 1rem 3.25rem 1rem clamp(1.25rem, 1rem + 1vw, 2rem); cursor: pointer; list-style: none; color: var(--ink); }
-  .gcard > summary::-webkit-details-marker { display: none; }
-  .gcard > summary::after { content: '+'; position: absolute; right: 1.4rem; top: 1rem; font-size: 1.6rem; line-height: 1; color: var(--gold-ink); }
-  .gcard[open] > summary::after { content: '\2212'; }
-  .gname { font-weight: 700; font-size: var(--step-0); }
-  .gmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; font-size: 0.95rem; }
-  .gmeta .hint { font-size: 0.9rem; }
-  .gform { margin: 0; padding: 0 clamp(1.25rem, 1rem + 1vw, 2rem) clamp(1.25rem, 1rem + 1vw, 2rem); }
-  .chip-status { display: inline-flex; align-items: center; min-height: 32px; padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); font-size: 0.9rem; font-weight: 700; line-height: 1.2; color: var(--ink); white-space: nowrap; }
-  .chip-status.is-meeting { background: var(--gold-soft); border: 1.5px solid var(--gold); }
-  .chip-status.is-off { background: var(--stone); border: 1.5px solid var(--stone-2); }
-  .chip-status.is-break { border: 1.5px dashed var(--muted); color: var(--muted); }
-  .news-list { list-style: none; padding: 0; display: grid; }
-  /* Our team fields sit outside .form: same 16px inputs, so phones don't zoom. */
-  #team-list input:not([type=file]), #team-list textarea { font: 400 max(1rem, 16px)/1.45 var(--font-body); padding: 0.65rem 0.9rem; min-height: 48px; width: 100%; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; }
-  #team-list textarea { min-height: 7.5rem; }
-  #team-list label { display: grid; gap: 0.3rem; font-weight: 700; font-size: var(--step--1); }
-  .chip-imp { display: inline-flex; align-items: center; min-height: 32px; padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); border: 1.5px solid var(--stone-2); font-size: 0.9rem; font-weight: 700; color: var(--ink); }
-  .chip-imp.is-major { background: var(--gold-soft); border-color: var(--gold); }
-  .reset-staff[aria-expanded='true'] { --btn-bg: var(--ink); --btn-fg: var(--cream); --btn-border: var(--ink); }
-  #app .subnav .chips a { min-height: 44px; padding-block: 0.4rem; }
-  .team-photo { width: 96px; height: 96px; object-fit: cover; border-radius: 50%; background: var(--stone); }
-  .item.member-row { grid-template-columns: 96px 1fr; }
-  #team-dirty:not([hidden]) { display: block; margin-top: 0.75rem; }
+  .type-card:has(:checked) { border-color: var(--a-accent-line); background: var(--a-accent-bg); }
+  .type-card svg, .adm .a-main .alert .ic { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .label { margin-top: 4px; font-size: 14px; font-weight: 600; }
+  .adm .err, .adm .card p.err { color: var(--a-down); font-weight: 600; }
+  .note { padding: 10px 14px; border-left: 3px solid var(--a-accent-line); border-radius: 0 var(--a-radius-s) var(--a-radius-s) 0; background: var(--a-accent-bg); color: var(--a-text) !important; }
+  .two { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
   .email-to { padding-left: 2rem !important; }
-  .news-list > li { padding-block: 0.75rem; border-top: 1px solid var(--line); }
-  .news-list p + p { margin-top: 0.15rem; }
-  .ev { display: grid; gap: 0.6rem; padding: 0.9rem 0 0.9rem 1rem; border-left: 2px solid var(--line-gold) !important; }
-  .ev-list { display: grid; gap: 0.75rem; }
-  .two { display: grid; gap: 0.6rem; grid-template-columns: 1fr 1fr; }
-  #confirm { margin: auto; width: min(28rem, calc(100% - 2rem)); border: 0; box-shadow: var(--shadow-l); }
+
+  /* Alerts */
+  .a-main .alert-x { display: none; }
+  .stack-s { display: grid; gap: 12px; }
+  .active-row { display: grid; gap: 8px; }
+  .preview.is-empty .alert-msg { font-weight: 400; font-style: italic; opacity: 0.75; }
+
+  /* Accordion cards (groups, events) */
+  .adm .gcard { padding: 0; }
+  .gcard > summary {
+    position: relative; display: grid; gap: 6px; min-height: 56px; padding: 16px 56px 16px 24px; cursor: pointer; list-style: none; color: var(--a-text);
+    border-radius: var(--a-radius);
+  }
+  .gcard > summary::-webkit-details-marker { display: none; }
+  .gcard > summary::after { content: '+'; position: absolute; right: 20px; top: 14px; font-size: 1.5rem; line-height: 1; color: var(--a-accent); }
+  .gcard[open] > summary::after { content: '\2212'; }
+  .gcard[open] > summary { border-bottom: 1px solid var(--a-border); border-radius: var(--a-radius) var(--a-radius) 0 0; }
+  .gname { font-size: 16px; font-weight: 600; }
+  .gmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 14px; color: var(--a-muted); }
+  .gform { margin: 0; padding: 20px 24px 24px; }
+  .chip-status, .chip-imp { display: inline-flex; align-items: center; min-height: 28px; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; line-height: 1.2; color: var(--a-text); white-space: nowrap; border: 1px solid var(--a-border-strong); }
+  .chip-status.is-meeting, .chip-imp.is-major { background: var(--a-accent-bg); border-color: var(--a-accent-line); }
+  .chip-status.is-off { background: var(--a-sunken); }
+  .chip-status.is-break { border-style: dashed; color: var(--a-muted); }
+  .ev { display: grid; gap: 10px; padding: 12px 0 12px 16px; border-left: 2px solid var(--a-accent-line) !important; }
+  .ev-list { display: grid; gap: 12px; }
+  .news-list { list-style: none; padding: 0; display: grid; }
+  .news-list > li { padding-block: 12px; border-top: 1px solid var(--a-border); }
+  .news-list > li:first-child { border-top: 0; }
+  .news-list p + p { margin-top: 2px; }
+
+  /* Videos & podcast, Our team */
+  .item-list { list-style: none; padding: 0; display: grid; gap: 12px; }
+  .item { display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: start; }
+  .item.no-thumb { grid-template-columns: 1fr; }
+  .item.member-row { grid-template-columns: 96px 1fr; }
+  .ithumb { width: 120px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--a-radius-s); background: var(--a-ink); }
+  .team-photo { width: 96px; height: 96px; object-fit: cover; border-radius: 50%; background: var(--a-sunken); border: 1px solid var(--a-border); }
+  .ifields { display: grid; gap: 10px; min-width: 0; }
+  .file:focus-within { outline: 2px solid var(--a-accent); outline-offset: 2px; }
+  .dirty { display: flex; align-items: center; gap: 12px; font-weight: 600; color: var(--a-text) !important; }
+
+  /* Dashboard */
+  .a-quick { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+  .a-quick-btn { display: flex; align-items: center; gap: 12px; min-height: 72px; padding: 0 20px !important; cursor: pointer; font: inherit; font-size: 16px; font-weight: 600; text-align: left; }
+  .a-quick-btn svg { width: 24px; height: 24px; flex: none; fill: none; stroke: var(--a-accent); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .a-quick-btn:hover { background: var(--a-sunken); border-color: var(--a-border-strong); }
+  .a-grid2 { display: grid; gap: 24px; }
+  @media (min-width: 1024px) { .a-grid2 { grid-template-columns: 1.4fr 1fr; } }
+
+  /* Dialog and toasts (unchanged behaviour) */
+  #confirm { margin: auto; width: min(28rem, calc(100% - 2rem)); box-shadow: 0 12px 40px rgb(28 28 28 / 0.18); }
   #confirm:not([open]) { display: none; }
-  /* .btn and other display rules must not beat the hidden attribute anywhere in the admin */
-  .admin-top [hidden], #gate [hidden], #must-change [hidden], #app [hidden] { display: none !important; }
-  .admin-body button.link { padding-block: 0.6rem; } /* 44px tap rows */
   #confirm::backdrop { background: rgb(28 28 28 / 0.5); }
-  #confirm form { display: grid; gap: 1rem; }
-  .toasts { position: fixed; left: 50%; translate: -50% 0; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 70; display: grid; gap: 0.5rem; width: max-content; max-width: calc(100% - 32px); }
+  #confirm form { display: grid; gap: 16px; }
+  .toasts { position: fixed; left: 50%; translate: -50% 0; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 90; display: grid; gap: 0.5rem; width: max-content; max-width: calc(100% - 32px); }
   .toast { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1.2rem; border-radius: var(--radius-pill); background: var(--ink); color: var(--cream); font-weight: 600; box-shadow: var(--shadow-l); }
   .toast:empty { padding: 0; box-shadow: none; }
   .toast :focus-visible { outline-color: var(--gold); }
-  .toast-x { border: 0; background: none; width: 44px; height: 44px; margin: -0.5rem -0.75rem -0.5rem 0; border-radius: 50%; }
+  .toast-x { border: 0; background: none; color: inherit; width: 44px; height: 44px; margin: -0.5rem -0.75rem -0.5rem 0; border-radius: 50%; }
+
+  /* ===== Tablets and phones: the sidebar becomes a drawer ===== */
+  @media (max-width: 1023px) {
+    .adm.a-in .a-top, .adm.a-in .a-main { margin-left: 0; }
+    .a-menu { display: inline-flex; }
+    .a-side { z-index: 80; width: min(288px, 85vw); translate: -100%; visibility: hidden; transition: translate 0.2s ease, visibility 0s linear 0.2s; }
+    .a-drawer .a-side { translate: 0; visibility: visible; transition: translate 0.2s ease; box-shadow: 0 0 40px rgb(28 28 28 / 0.2); }
+    .a-main { padding: 24px; }
+  }
   @media (max-width: 699px) {
+    .a-top { gap: 8px; padding: 0 16px; }
+    .a-crumbs li:first-child { display: none; }
+    .a-crumbs li + li::before { content: none; }
+    .a-user-name { display: none; }
+    .a-main { padding: 16px; }
+    .a-title { font-size: 24px; }
+    .adm .card, .a-card { padding: 16px; }
+    .gcard > summary { padding: 14px 52px 14px 16px; }
+    .gform { padding: 16px; }
+    .two { grid-template-columns: 1fr; }
     .item { grid-template-columns: 96px 1fr; }
     .ithumb { width: 96px; }
-    .two { grid-template-columns: 1fr; }
-    .admin-bar { column-gap: 0.75rem; }
-    .admin-brand img { height: 30px; }
+    .adm .btn-sm, .a-seg button { min-height: 44px; }
+    .a-tiles { grid-template-columns: 1fr 1fr; }
+    .a-tile { padding: 16px; }
   }
+  @media (max-width: 379px) { .a-tiles { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: reduce) { .a-side, .a-drawer .a-side { transition: none !important; } }
 </style>

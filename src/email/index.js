@@ -69,6 +69,7 @@ export function createEmail({ db, env = {}, church, publicUrl, renderPage, getGr
   const clean = (v, gs = groups()) => cleanTopics(v, gs);
   const base = String(publicUrl || env.PUBLIC_URL || 'http://localhost:8080').replace(/\/$/, '');
   const site = new URL(base).hostname.replace(/^www\./, '');
+  const logo = `${base}/brand/email-seal.png`; // served from dist/brand
   const prod = env.NODE_ENV === 'production' || Boolean(env.WEBSITE_SITE_NAME); // Azure App Service always sets WEBSITE_SITE_NAME
   const secret = env.TOKEN_SECRET || (prod ? '' : 'dev-only-token-secret');
   if (!secret) throw new Error('TOKEN_SECRET is required in production');
@@ -192,7 +193,7 @@ export function createEmail({ db, env = {}, church, publicUrl, renderPage, getGr
     }
     const t = signToken(secret, 'c', row.id, { exp: now + CONFIRM_TTL, topics });
     const subject = 'Confirm your Riverside emails';
-    const m = renderEmail({ church, subject,
+    const m = renderEmail({ church, logo, subject,
       body: invite ? `You’re invited to get emails for ${whyLabels(topics, gs)} from ${church.name}. Tap the button to say yes.`
         : `Tap the button to start getting ${whyLabels(topics, gs)} from ${church.name}.`,
       button: { text: 'Yes, sign me up', url: `${base}/subscribe/confirm?t=${t}` },
@@ -251,7 +252,7 @@ export function createEmail({ db, env = {}, church, publicUrl, renderPage, getGr
     db.exec('BEGIN IMMEDIATE');
     try {
       const id = q('INSERT INTO campaigns (subject, body, topics, priority, label, created_by, created_at, recipients) VALUES (?, ?, ?, ?, ?, ?, ?, 0)')
-        .run(s, b, tp.join(','), priority ? 1 : 0, line(label, 20), line(createdBy, 254), now).lastInsertRowid;
+        .run(s, b, tp.join(','), priority ? 1 : 0, line(label, 24), line(createdBy, 254), now).lastInsertRowid;
       // One row per confirmed person, however many of the topics they have: that is the de-dup.
       const n = q(`INSERT OR IGNORE INTO queue (campaign_id, subscriber_id, status, attempts, next_at) SELECT ?, id, 'queued', 0, ? FROM subscribers WHERE status = 'confirmed' AND ${hasTopic(tp)}`)
         .run(id, now, ...tp).changes;
@@ -272,7 +273,7 @@ export function createEmail({ db, env = {}, church, publicUrl, renderPage, getGr
     if (!mine.length) return null;
     const prefs = prefsUrl(r.sid);
     const unsub = `${base}/email/unsubscribe?t=${new URL(prefs).searchParams.get('t')}`;
-    const m = renderEmail({ church, subject: r.subject, body: r.body, label: r.label, footer: { topics: whyLabels(mine, gs), site, unsub: `${prefs}&u=1`, prefs } });
+    const m = renderEmail({ church, logo, subject: r.subject, body: r.body, label: r.label, footer: { topics: whyLabels(mine, gs), site, unsub: `${prefs}&u=1`, prefs } });
     return { to: r.email, subject: r.subject, ...m,
       headers: { 'List-Unsubscribe': `<${unsub}>, <mailto:${unsubMailbox}?subject=unsubscribe>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } };
   }
@@ -328,7 +329,7 @@ export function createEmail({ db, env = {}, church, publicUrl, renderPage, getGr
     return { news: c.news ?? 0, alerts: c.alerts ?? 0, total: c.total ?? 0, pending: c.pending ?? 0, unsubscribed: c.unsubscribed ?? 0, configured: Boolean(mailer), groups: types };
   };
   const compose = (b) => ({ topics: clean(b?.topics), subject: line(b?.subject, 100), body: multiline(b?.body, 10000) });
-  const sample = (b) => renderEmail({ church, subject: b.subject || 'Subject', body: b.body, footer: { topics: whyLabels(b.topics.length ? b.topics : Object.keys(TOPICS), groups()), site, unsub: '#', prefs: '#' } });
+  const sample = (b) => renderEmail({ church, logo, subject: b.subject || 'Subject', body: b.body, footer: { topics: whyLabels(b.topics.length ? b.topics : Object.keys(TOPICS), groups()), site, unsub: '#', prefs: '#' } });
 
   async function adminHandle(req, url, adminEmail) {
     const PRE = '/api/admin/email/';

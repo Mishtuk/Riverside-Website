@@ -8,6 +8,7 @@ import Facade from '../components/Facade.astro';
 import VideoCard from '../components/VideoCard.astro';
 import { CHURCH, LIVE, href } from '../lib/site';
 import { getVideos } from '../lib/youtube';
+import { videoCardHtml } from '../lib/state.js';
 
 const CHANNEL_ID = 'UCWcjfHPkDfMiiGgp0L8zDjQ';
 const PLAYLIST = 'https://www.youtube.com/playlist?list=PLbS1l_W_y15idxZN2oJY6xpN-6NlCaRNE';
@@ -66,10 +67,9 @@ const videos = await getVideos(12);
         <h2 class="h1">Catch up on <span class="accent">Sunday.</span></h2>
       </div>
       {videos.length > 0 ? (
-        <ul class="grid" role="list">
-          {videos.map((v) => (
-            <li><VideoCard v={v} /></li>
-          ))}
+        <VideoCard />
+        <ul class="grid" role="list" data-merge="videos" data-limit="12">
+          <Fragment set:html={videos.map((v) => `<li data-date="${v.dateISO}">${videoCardHtml(v)}</li>`).join('')} />
         </ul>
       ) : (
         <p class="muted">Recent videos are unavailable right now. Please visit <a class="link" href={CHURCH.socials.youtube} rel="noopener">our YouTube channel</a>.</p>

@@ -2,18 +2,19 @@
 // fills live data into the HTML at <!--rs:*--> markers (alerts, title edits, groups board, live switch),
 // answers /api/*, runs staff sign-in, and hosts the email module. No framework; Node 22+ built-ins only.
 import { createServer } from 'node:http';
-import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join, normalize, sep } from 'node:path';
 import { brotliCompressSync, constants as zc, gzipSync } from 'node:zlib';
 import { openDb, getState, setState, backup, logActivity, recentActivity } from './src/db.js';
 import {
   allow, allowList, addStaff, resetPassword, checkLogin, clearFailures, clientIp, consumeToken, cookieHeader, defaultInUse, issueToken, locked, logLogin,
-  needsChange, readCookie, recentLogins, recordFailure, removeStaff, sameOrigin, seedStaff, setPassword, signSession, staffList, staffRow,
+  needsChange, readCookie, areaFor, canUse, accessOf, setAccess, recentLogins, recordFailure, removeStaff, sameOrigin, seedStaff, setPassword, signSession, staffList, staffRow,
   verifySession, MUST_CHANGE_ROUTES, SESSION_DAYS, USERNAME,
 } from './src/auth.js';
 import {
   ALERT_CSS, ALERT_TYPES, EMAIL, VIDEO_ID, PHOTO_FILE, activeAlerts, siteAlerts, majorAlerts, popupHtml, carryPopKey, upcomingItems, homeEventsHtml,
-  eventsPageHtml, currentEvents, validateChurchEvent, teamHtml, teamSeed, validateTeam, etDay, addNews, alertsHtml, boardHtml, esc, imageType, text,
+  eventsPageHtml, currentEvents, parseYouTubeId, isMp3, AUDIO_MAX, AUDIO_FILE, validateAddedVideo, validateEpisode, videoCardHtml, addedVideoCard,
+  episodeHtml, addedEpisode, mergeLists, validateChurchEvent, teamHtml, teamSeed, validateTeam, etDay, addNews, alertsHtml, boardHtml, esc, imageType, text,
   validateAlert, validateGroups, validateLive, validateNews,
 } from './src/lib/state.js';
 import { CHURCH } from './src/lib/church.js';
@@ -126,6 +127,21 @@ function applyItemOverrides(html, videos, podcast) {
   });
 }
 
+/** Home "Latest message": if a video added here is newer than the feed's newest, it becomes the featured one. */
+function swapLatest(html, v) {
+  const m = html.match(/<div class="feature" data-iso="([^"]*)"[^>]*>[\s\S]*?<div class="feature-meta"/);
+  if (!m || v.date <= m[1]) return html;
+  const old = m[0].match(/data-yt="([^"]+)"/)?.[1];
+  if (!old) return html;
+  const label = new Date(`${v.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  const end = html.indexOf('</h3>', html.indexOf('feature-meta', m.index));
+  if (end < 0) return html;
+  const block = html.slice(m.index, end + 5); // player + date + title of the featured video
+  const next = block.split(old).join(v.id).replace(/data-date="[^"]*"/, () => `data-date="${esc(label)}"`).replace(/<time datetime="[^"]*"([^>]*)>[^<]*<\/time>/, (x, a) => `<time datetime="${v.date}"${a}>${esc(label)}</time>`)
+    .replace(/(<span class="sr-only">Play <span data-vid="[^"]*"[^>]*>[^<]*<\/span>, )[^<]*/, (x, a) => a + esc(label));
+  return html.slice(0, m.index) + next + html.slice(m.index + block.length);
+}
+
 function inject(html, state, path) {
   const now = new Date();
   const live = state.live ?? { mode: 'auto' };
@@ -143,7 +159,14 @@ function inject(html, state, path) {
     else top = alertsHtml(alerts, false) + top;
   }
   if (top) html = html.replace('<!--rs:alerts-->', () => top);
-  html = applyItemOverrides(html, state.videos ?? {}, state.podcast ?? {});
+  const added = state.added ?? {};
+  const vids = [...(added.videos ?? [])].sort((a, b) => b.date.localeCompare(a.date));
+  html = mergeLists(html, 'videos', vids.map((v) => ({ key: v.id, date: v.date, html: `<li data-date="${v.date}">${videoCardHtml(addedVideoCard(v))}</li>` })));
+  html = mergeLists(html, 'episodes', (added.episodes ?? []).map((e) => ({ key: `added-${e.id}`, date: e.date, html: `<li class="ep" data-date="${e.date}">${episodeHtml(addedEpisode(e))}</li>` })));
+  if (path === '/' && vids[0]) html = swapLatest(html, vids[0]);
+  // Staff titles for added videos work like title edits (an explicit edit still wins).
+  const titles = Object.fromEntries(vids.map((v) => [v.id, { title: v.title }]));
+  html = applyItemOverrides(html, { ...titles, ...(state.videos ?? {}) }, state.podcast ?? {});
   const groups = state.groups ?? SEED;
   if (html.includes('<!--rs:coming-up-->')) html = html.replace('<!--rs:coming-up-->', () => homeEventsHtml(upcomingItems(state.events, groups, now), majors, now, CONTACT));
   if (html.includes('<!--rs:events-->')) html = html.replace('<!--rs:events-->', () => eventsPageHtml(upcomingItems(state.events, groups, now, 90), CONTACT));
@@ -181,8 +204,12 @@ async function serveStatic(nreq, nres, url) {
       if (!isAdmin) html = inject(html, getState(db), p);
       else { // the Email tab (and its script) only for a signed-in session that may use it
         const user = adminUser(new Request(url, { headers: { cookie: String(nreq.headers.cookie ?? '') } }), url);
+        // Tell the page what to show first, so it doesn't probe /state just to get a 401 or 403.
+        if (user) html = html.replace('<html', user.mustChange ? '<html data-signed-in data-must-change' : '<html data-signed-in');
         if (user && !user.mustChange) {
-          html = html.replace('<!--rs:email-->', () => email.adminPartial()).replace('<!--rs:stats-->', () => stats.adminPartial()).replace('<!--rs:help-->', () => helpSection(CHURCH));
+          html = html.replace('<!--rs:email-->', () => (canUse(user, 'email') ? email.adminPartial() : ''))
+            .replace('<!--rs:stats-->', () => (canUse(user, 'stats') ? stats.adminPartial() : ''))
+            .replace('<!--rs:help-->', () => helpSection(CHURCH));
         }
       }
     }
@@ -203,7 +230,11 @@ async function serveStatic(nreq, nres, url) {
     nres.writeHead(200, headers);
     return nres.end(nreq.method === 'HEAD' ? undefined : body);
   }
-  // Video needs byte ranges (iPhone Safari will not play an mp4 without them).
+  return sendRange(nreq, nres, file, st, headers);
+}
+
+/** Video and audio need byte ranges (iPhone Safari won't play an mp4/mp3 without them). */
+function sendRange(nreq, nres, file, st, headers) {
   headers['Accept-Ranges'] = 'bytes';
   const range = /^bytes=(\d*)-(\d*)$/.exec(nreq.headers.range ?? '');
   let start = 0, end = st.size - 1, status = 200;
@@ -256,6 +287,8 @@ async function route(req, url) {
     if (req.method !== 'GET' && !sameOrigin(req, origin)) return bad('origin', 403);
     // A new account (or admin/admin, unless ALLOW_DEFAULT_ADMIN=1) can only choose a new password until it does.
     if (user.mustChange && !MUST_CHANGE_ROUTES.has(p)) return bad('must_change', 403);
+    // Permissions: every admin route belongs to an area (email and stats included); limited accounts only reach theirs.
+    if (!canUse(user, areaFor(p))) return bad('forbidden', 403);
     const copy = req.method === 'GET' ? null : req.clone(); // read again below, for the activity log
     if (p.startsWith('/api/admin/stats/')) return (await stats.adminHandle(req, url)) ?? bad('not_found', 404);
     const res = p.startsWith('/api/admin/email/') ? (await email.adminHandle(req, url, user.name)) ?? bad('not_found', 404) : await adminApi(req, url, user);
@@ -274,12 +307,13 @@ async function route(req, url) {
  *  Sessions hold an email (sign-in link, checked against ADMIN_EMAILS) or a username (checked against the staff table). */
 function adminUser(req, url) {
   // Local development only: DEV_ADMIN=1 is ignored in production and on any non-local hostname.
-  if (env.DEV_ADMIN === '1' && !PROD && ['localhost', '127.0.0.1'].includes(url.hostname)) return { name: env.DEV_EMAIL || 'dev@localhost', kind: 'email' };
+  if (env.DEV_ADMIN === '1' && !PROD && ['localhost', '127.0.0.1'].includes(url.hostname)) return { name: env.DEV_EMAIL || 'dev@localhost', kind: 'email', role: 'admin', areas: [] };
   const known = { has: (n) => (n.includes('@') ? ADMINS.has(n) : Boolean(staffRow(db, n))), version: sessionVersion };
   const name = verifySession(readCookie(req.headers.get('cookie')), SESSION_SECRET, known);
   if (!name) return null;
-  if (name.includes('@')) return { name, kind: 'email' };
-  return { name, kind: 'password', mustChange: needsChange(staffRow(db, name), ALLOW_DEFAULT_ADMIN) };
+  if (name.includes('@')) return { name, kind: 'email', role: 'admin', areas: [] };
+  const row = staffRow(db, name);
+  return { name, kind: 'password', mustChange: needsChange(row, ALLOW_DEFAULT_ADMIN), ...accessOf(row) };
 }
 // Password accounts carry a session version; a new password or a removed account ends their other sessions.
 const sessionVersion = (name) => (name.includes('@') ? 0 : staffRow(db, name)?.session_v ?? 0);
@@ -302,10 +336,14 @@ function describe(method, p, body, res) {
     case 'POST password': return 'Changed their password';
     case 'POST staff': return a2 === 'reset' ? `Reset the password for ${a1}` : `Added the staff account ${String(body.username ?? '').toLowerCase()}`;
     case 'DELETE staff': return `Removed the staff account ${a1}`;
+    case 'PUT staff': return `Changed ${a1}’s permissions`;
     case 'PUT events': return `Saved the event ${q(body.title)}`;
     case 'DELETE events': return 'Removed an event';
     case 'PUT team': return 'Updated Our team';
     case 'POST photo': return 'Uploaded a team photo';
+    case 'POST added': return `Added the ${a1 === 'video' ? 'video' : 'podcast episode'} ${q(body.title)}`;
+    case 'PUT added': return `Changed the added ${a1 === 'video' ? 'video' : 'podcast episode'} ${q(body.title)}`;
+    case 'DELETE added': return `Removed an added ${a1 === 'video' ? 'video' : 'podcast episode'}`;
     case 'POST email':
       if (a1 === 'preview') return ''; // read-only: the composer previews on every keystroke
       if (a1 === 'invite') return `Invited ${res.sent?.length ?? 0} to a group list`;
@@ -390,7 +428,7 @@ async function adminApi(req, url, user) {
 
   switch (key) {
     case 'GET state':
-      return json({ state: { ...state, groups: state.groups ?? SEED }, email: emailOn, user: user.name, defaultPassword: defaultInUse(db) });
+      return json({ state: { ...state, groups: state.groups ?? SEED }, email: emailOn, user: user.name, kind: user.kind, role: user.role, areas: user.areas, defaultPassword: defaultInUse(db) });
 
     case 'GET activity':
       return json({ activity: recentActivity(db) });
@@ -432,6 +470,49 @@ async function adminApi(req, url, user) {
       return json({ team: state.team });
     }
 
+    case 'PUT staff': { // /api/admin/staff/<username>/access {role, areas}
+      if (a2 !== 'access') return bad('not_found', 404);
+      const r = setAccess(db, decodeURIComponent(a1 ?? ''), body?.role, body?.areas);
+      if (r.error) return bad(r.error, r.error === 'not_found' ? 404 : 400);
+      log('permissions changed', r.value.username, 'by', user.name);
+      return json({ ok: true, ...r.value });
+    }
+
+    case 'GET youtube': { // ?url= → { id, title, thumb } via YouTube's public oEmbed (no key)
+      const id = parseYouTubeId(url.searchParams.get('url'));
+      if (!id) return bad('link');
+      try {
+        const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}`, { signal: AbortSignal.timeout(6000) });
+        if (!r.ok) return bad('not_found', 404);
+        const j = await r.json();
+        return json({ id, title: text(j.title, 120), thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, published: null });
+      } catch { return bad('lookup_failed', 502); }
+    }
+
+    case 'POST added':
+    case 'PUT added':
+    case 'DELETE added': { // /api/admin/added/video[/<id>] and /api/admin/added/episode[/<id>]
+      const list = a1 === 'video' ? 'videos' : a1 === 'episode' ? 'episodes' : null;
+      if (!list) return bad('not_found', 404);
+      const box = (state.added ??= {});
+      const items = (box[list] ??= []);
+      const old = a2 ? items.find((x) => x.id === decodeURIComponent(a2)) : null;
+      if (req.method !== 'POST' && !old) return bad('not_found', 404);
+      const dropAudio = (e) => { if (e?.audio?.startsWith('/api/audio/')) rmSync(join(DATA, 'audio', e.audio.slice(11)), { force: true }); };
+      if (req.method === 'DELETE') {
+        if (list === 'episodes') dropAudio(old);
+        box[list] = items.filter((x) => x !== old);
+        save();
+        return json({ ok: true });
+      }
+      const v = list === 'videos' ? validateAddedVideo({ ...body, id: old?.id ?? body?.id }) : validateEpisode({ ...body, id: old?.id });
+      if (v.error) return bad(v.error);
+      if (list === 'episodes' && old && old.audio !== v.value.audio) dropAudio(old); // replaced audio
+      box[list] = [v.value, ...items.filter((x) => x !== old && x.id !== v.value.id)];
+      save();
+      return json({ item: v.value });
+    }
+
     case 'GET me':
       return json({ name: user.name, kind: user.kind, mustChange: Boolean(user.mustChange), defaultPassword: defaultInUse(db) });
 
@@ -448,7 +529,7 @@ async function adminApi(req, url, user) {
     }
 
     case 'GET staff':
-      return json({ me: user.name, kind: user.kind, accounts: staffList(db).map((a) => ({ username: a.username, mustChange: Boolean(a.must_change), defaultPassword: Boolean(a.default_pw), updated: a.updated_at })),
+      return json({ me: user.name, kind: user.kind, accounts: staffList(db).map((a) => ({ username: a.username, mustChange: Boolean(a.must_change), defaultPassword: Boolean(a.default_pw), updated: a.updated_at, ...accessOf(a) })),
         logins: recentLogins(db, 10) });
 
     case 'POST staff': {
@@ -458,7 +539,7 @@ async function adminApi(req, url, user) {
         log('password reset', rr.value, 'by', user.name);
         return json({ ok: true, username: rr.value });
       }
-      const r = addStaff(db, body?.username, body?.password);
+      const r = addStaff(db, body?.username, body?.password, Date.now(), { role: body?.role, areas: body?.areas });
       if (r.error) return bad(r.error);
       log('staff account added', r.value, 'by', user.name);
       return json({ ok: true, username: r.value });
@@ -498,7 +579,7 @@ async function adminApi(req, url, user) {
       let recipients;
       try {
         ({ recipients } = await email.enqueueBlast({ topics: alertTopics(body.topics, alert), subject: `${alert.group ? `${groups.find((g) => g.id === alert.group).name}: ` : ''}${alert.message}`.slice(0, 90),
-          body: `${alert.message}${alert.link ? `\n\n[Learn more →](${alert.link.startsWith('/') ? PUBLIC_URL + alert.link : alert.link})` : ''}`, label: ALERT_TYPES[alert.type].label, priority: 1, createdBy: user.name }));
+          body: `${alert.message}${alert.link ? `\n\n[Learn more →](${alert.link.startsWith('/') ? PUBLIC_URL + alert.link : alert.link})` : ''}`, label: alert.label, priority: 1, createdBy: user.name }));
       } catch (e) {
         log('alert email not queued', e.message); // the alert itself is already posted
         return json({ error: 'email_failed', alert }, 502);
@@ -609,6 +690,44 @@ async function thumbRoute(req, id) {
 }
 
 // ---------- HTTP ----------
+function serveAudio(nreq, nres, url) {
+  const name = url.pathname.slice('/api/audio/'.length);
+  const file = AUDIO_FILE.test(name) && join(DATA, 'audio', name);
+  const st = file && statSafe(file);
+  if (!st?.isFile()) return notFound(nreq, nres, url);
+  return sendRange(nreq, nres, file, st, { ...baseHeaders(url), 'Content-Type': 'audio/mpeg', 'Cache-Control': 'public, max-age=31536000, immutable' });
+}
+
+/** POST /api/admin/audio: one MP3 (≤ AUDIO_MAX), streamed to DATA_DIR/audio. Signed in, same origin, Videos & podcast area. */
+async function uploadAudio(nreq, nres, url) {
+  const reply = (status, data) => { if (!nres.headersSent) { nres.writeHead(status, { ...baseHeaders(url), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); nres.end(JSON.stringify(data)); } };
+  const req = new Request(url, { headers: { cookie: String(nreq.headers.cookie ?? ''), origin: String(nreq.headers.origin ?? '') } });
+  const user = adminUser(req, url);
+  if (!user) { nreq.resume(); return reply(401, { error: 'signed_out' }); }
+  if (!sameOrigin(req, url.origin) || user.mustChange || !canUse(user, 'media')) { nreq.resume(); return reply(403, { error: 'forbidden' }); }
+  if (+(nreq.headers['content-length'] ?? 0) > AUDIO_MAX) { nreq.resume(); return reply(413, { error: 'too_large' }); }
+  mkdirSync(join(DATA, 'audio'), { recursive: true });
+  const name = `ep-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.mp3`;
+  const file = join(DATA, 'audio', name);
+  const out = createWriteStream(file);
+  let size = 0;
+  let checked = false;
+  const fail = (status, error) => { out.destroy(); rmSync(file, { force: true }); nreq.unpipe?.(); nreq.resume(); reply(status, { error }); };
+  nreq.on('data', (chunk) => {
+    if (nres.headersSent) return;
+    size += chunk.length;
+    if (!checked) { checked = true; if (!isMp3(chunk)) return fail(400, 'audio'); } // ponytail: first chunk ≥3 bytes in practice
+    if (size > AUDIO_MAX) return fail(413, 'too_large');
+    if (!out.write(chunk)) { nreq.pause(); out.once('drain', () => nreq.resume()); }
+  });
+  nreq.on('end', () => {
+    if (nres.headersSent) return;
+    if (!size) return fail(400, 'audio');
+    out.end(() => { logActivity(db, user.name, 'Uploaded podcast audio'); reply(200, { audio: `/api/audio/${name}` }); });
+  });
+  nreq.on('error', () => fail(400, 'upload'));
+}
+
 const SERVER_ROUTES = /^\/(api\/|admin\/login$|email\/|subscribe\/confirm)/;
 const MAX_BODY = 2.5 * 1024 * 1024;
 
@@ -633,6 +752,8 @@ const server = createServer(async (nreq, nres) => {
     return;
   }
   try {
+    if (url.pathname.startsWith('/api/audio/') && ['GET', 'HEAD'].includes(nreq.method)) return serveAudio(nreq, nres, url);
+    if (url.pathname === '/api/admin/audio' && nreq.method === 'POST') return uploadAudio(nreq, nres, url);
     if (!SERVER_ROUTES.test(url.pathname)) {
       if (!['GET', 'HEAD'].includes(nreq.method)) { nres.writeHead(405, baseHeaders(url)).end(); return; }
       return await serveStatic(nreq, nres, url);

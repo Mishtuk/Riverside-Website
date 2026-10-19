@@ -158,8 +158,12 @@ test('accounts: never remove the last one, or your own', async () => {
   assert.equal(removeStaff(db, 'admin', 'office@example.org').error, 'last', 'signed in by email link, still the last account');
   addStaff(db, 'office', 'a long enough password');
   assert.equal(removeStaff(db, 'admin', 'admin').error, 'self');
-  assert.equal(removeStaff(db, 'admin', 'office').value, 'admin');
-  assert.equal(removeStaff(db, 'office', 'someone@example.org').error, 'last');
+  assert.equal(removeStaff(db, 'admin', 'office').error, 'last_admin', 'office is Limited, so admin is the last admin');
+  addStaff(db, 'pastor', 'a long enough password', Date.now(), { role: 'admin' });
+  assert.equal(removeStaff(db, 'admin', 'pastor').value, 'admin');
+  assert.equal(removeStaff(db, 'pastor', 'office').error, 'last_admin');
+  removeStaff(db, 'office', 'pastor');
+  assert.equal(removeStaff(db, 'pastor', 'someone@example.org').error, 'last');
   assert.equal(removeStaff(db, 'ghost', 'office').error, 'not_found');
   db.close();
 });
@@ -227,5 +231,40 @@ test('reset password: temporary password, forced change, sessions end, never you
   assert.equal(verifySession(cookie, SECRET, known, NOW), null, 'their sessions end');
   assert.equal(checkLogin(db, 'office', 'first temporary pass'), null);
   assert.ok(needsChange(checkLogin(db, 'office', 'second temporary pass'), true), 'must choose a new one, even with ALLOW_DEFAULT_ADMIN');
+  db.close();
+});
+
+test('permissions: every admin route has an area; limited accounts get only theirs', async () => {
+  const { areaFor, canUse, AREAS } = await import('../src/auth.js');
+  const cases = {
+    '/api/admin/alerts': 'alerts', '/api/admin/alerts/x': 'alerts', '/api/admin/recipients': 'alerts', '/api/admin/events/new': 'events',
+    '/api/admin/groups': 'groups', '/api/admin/groups/prayer/news': 'groups', '/api/admin/email/send': 'email', '/api/admin/email/subscribers': 'email',
+    '/api/admin/items/video/x': 'media', '/api/admin/thumb/x': 'media', '/api/admin/youtube': 'media', '/api/admin/added/episode': 'media', '/api/admin/audio': 'media',
+    '/api/admin/live': 'live', '/api/admin/team': 'team', '/api/admin/photo': 'team', '/api/admin/stats/summary': 'stats', '/api/admin/staff': 'staff',
+    '/api/admin/staff/office/access': 'staff', '/api/admin/activity': 'activity', '/api/admin/backup': 'backup',
+    '/api/admin/state': null, '/api/admin/me': null, '/api/admin/password': null, '/api/admin/something-new': 'admin-only',
+  };
+  for (const [p, area] of Object.entries(cases)) assert.equal(areaFor(p), area, p);
+  const limited = { kind: 'password', role: 'limited', areas: ['alerts', 'events'] };
+  assert.ok(canUse(limited, 'alerts') && canUse(limited, 'events') && canUse(limited, null));
+  for (const a of AREAS.filter((x) => !limited.areas.includes(x))) assert.ok(!canUse(limited, a), a);
+  assert.ok(!canUse(limited, 'admin-only'), 'unknown routes fail closed');
+  assert.ok(canUse({ kind: 'password', role: 'admin', areas: [] }, 'backup'));
+  assert.ok(canUse({ kind: 'email', role: 'admin' }, 'admin-only'), 'emailed-link staff are admins');
+});
+
+test('permissions: last admin protected; old accounts are admins; new ones limited', async () => {
+  const { addStaff, accessOf, seedStaff, setAccess, staffRow } = await import('../src/auth.js');
+  const db = openDb(':memory:');
+  seedStaff(db);
+  assert.deepEqual(accessOf(staffRow(db, 'admin')), { role: 'admin', areas: [] }, 'existing/seeded accounts are admins');
+  addStaff(db, 'office', 'a long enough password');
+  assert.deepEqual(accessOf(staffRow(db, 'office')), { role: 'limited', areas: ['alerts', 'events', 'groups'] });
+  assert.equal(setAccess(db, 'admin', 'limited', ['alerts']).error, 'last_admin');
+  assert.deepEqual(setAccess(db, 'office', 'limited', ['alerts', 'bogus', 'alerts']).value.areas, ['alerts'], 'unknown areas dropped');
+  assert.equal(setAccess(db, 'office', 'admin', []).value.role, 'admin');
+  assert.equal(setAccess(db, 'admin', 'limited', ['stats']).value.role, 'limited', 'fine once someone else is admin');
+  assert.equal(setAccess(db, 'office', 'limited', []).error, 'last_admin');
+  assert.equal(setAccess(db, 'ghost', 'admin').error, 'not_found');
   db.close();
 });

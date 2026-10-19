@@ -178,3 +178,14 @@ test('invite sends a confirmation for the group; nobody is subscribed until they
   await call('subscribers/remove-topic', { id: row.id, topic: 'group:esl' });
   assert.equal(db.prepare('SELECT topics, status FROM subscribers WHERE id = ?').get(row.id).topics, 'news');
 });
+
+test('email header shows the seal (decorative) and a custom alert label as the lead', async () => {
+  const { sent, email, add } = setup();
+  add('a@x.org', 'alerts');
+  await email.enqueueBlast({ topics: ['alerts'], subject: 'Lot B is closed', body: 'Use the street.', priority: 1, label: 'Parking' });
+  await email.tick();
+  const m = sent[0];
+  assert.match(m.html, /<img src="https:\/\/www\.example\.org\/brand\/email-seal\.png" width="48" height="48" alt=""/);
+  assert.match(m.html, /text-transform:uppercase[^>]*>Parking<\/p><h1[^>]*>Lot B is closed<\/h1>/);
+  assert.match(m.text, /^Riverside Community Church\n\nPARKING: Lot B is closed\n/);
+});

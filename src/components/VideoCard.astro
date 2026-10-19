@@ -1,18 +1,12 @@
 ---
-// Sermon card: branded thumbnail (ink gradient, play disc) + display title + date.
+// Sermon card: branded thumbnail (ink gradient, play disc) + display title + date. The markup lives in state.js
+// (videoCardHtml) because the server renders the same card for videos staff add in the admin.
 import type { Video } from '../lib/youtube';
-interface Props { v: Video }
+import { videoCardHtml } from '../lib/state.js';
+interface Props { v?: Video } // without v it renders nothing: pages that build card lists themselves include it once for the styles
 const { v } = Astro.props;
 ---
-<a class="card vid" href={`https://www.youtube.com/watch?v=${v.id}`} rel="noopener">
-  <div class="vthumb">
-    <img data-vid={v.id} src={v.thumbnail} alt="" width="1280" height="720" loading="lazy" decoding="async"
-      data-fb={v.thumbFallback} onerror="this.onerror=null;this.src=this.dataset.fb" />
-    <span class="vplay" aria-hidden="true"></span>
-  </div>
-  <p class="date"><time datetime={v.dateISO}>{v.dateCard}</time></p>
-  <h3 data-vid={v.id}>{v.displayTitle}</h3>
-</a>
+{v && <Fragment set:html={videoCardHtml(v)} />}
 
 <style is:global>
   .vthumb { position: relative; overflow: hidden; aspect-ratio: 16 / 9; background: var(--ink); isolation: isolate; }
@@ -29,7 +23,7 @@ const { v } = Astro.props;
   a:hover > .vthumb img { transform: scale(1.04); }
   a:hover > .vthumb .vplay { transform: scale(1.1); background: var(--gold-soft); }
 </style>
-<style>
+<style is:global>
   .vid { height: 100%; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
   .vid .date, .vid h3 { padding-inline: 1.15rem; }
   .vid .date { margin-top: 1rem; white-space: nowrap; font-size: var(--step--1); font-weight: 700; color: var(--gold-ink-sm); }

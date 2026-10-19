@@ -73,11 +73,11 @@ const fontCss = [
     <slot name="head" />
     <Fragment set:html="<!--rs:head-->" />
   </head>
-  <body>
+  <body class={admin ? 'adm' : undefined}>
     <a class="skip-link" href="#main">Skip to content</a>
     {!admin && <LiveBanner />}
     <slot name="header" />
-    <main id="main"><Fragment set:html="<!--rs:alerts-->" /><slot /></main>
+    <main id="main" class={admin ? 'a-main' : undefined}><Fragment set:html="<!--rs:alerts-->" /><slot /></main>
     <slot name="footer" />
     {!admin && <MobileBar />}
   </body>

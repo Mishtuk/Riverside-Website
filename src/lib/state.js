@@ -38,24 +38,37 @@ const ICON = {
 };
 const icon = (k, size) => `<svg class="ic" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">${ICON[k]}</svg>`;
 
-export const alertCard = (a) => {
-  const t = ALERT_TYPES[a.type] ?? ALERT_TYPES.news;
-  return `<article class="alert alert-${a.type === 'urgent' ? 'urgent' : 'news'}" data-alert-id="${esc(a.id)}">${icon(a.type === 'urgent' ? 'urgent' : 'news', 22)}`
-    + `<div><p class="alert-label">${t.label}</p><p class="alert-msg">${esc(a.message)}</p>`
+/** Alert types staff pick from (or write their own, up to 24 characters). The type is only the words on the alert;
+ *  how urgent it looks (dark Important vs light News) is a separate choice. */
+export const ALERT_PRESETS = ['Weather', 'Closing', 'Schedule change', 'Cancelled', 'Event', 'Prayer', 'News'];
+export const URGENT_PRESETS = ['Weather', 'Closing', 'Cancelled'];
+export const LABEL_MAX = 24;
+export const alertLabel = (a) => a.label || (a.type === 'urgent' ? 'Important' : 'News');
+// The church seal in a light disc: looks the same on the dark Important card and the light News card.
+const seal = (base, px) => `<span class="alert-seal" aria-hidden="true"><img src="${base}/brand/alert-seal.png" alt="" width="${px}" height="${px}" decoding="async"></span>`;
+
+/** One alert. Urgency shows three ways at once, never by colour alone: the card style, the icon, and a spoken prefix. */
+export const alertCard = (a, base = '') => {
+  const urgent = a.type === 'urgent';
+  return `<article class="alert alert-${urgent ? 'urgent' : 'news'}" data-alert-id="${esc(a.id)}">${seal(base, 28)}`
+    + `<div><p class="alert-label">${icon(urgent ? 'urgent' : 'news', 16)}<span>${esc(alertLabel(a))}</span></p><p class="alert-msg"><span class="sr-only">${urgent ? 'Important' : 'News'}: </span>${esc(a.message)}</p>`
     + (a.link ? `<p class="alert-more"><a class="link link-arrow" href="${esc(a.link)}">Learn more</a></p>` : '')
     + `</div><button class="alert-x" type="button" aria-label="Dismiss alert: ${esc(a.message.slice(0, 40))}">&#x2715;</button></article>`;
 };
 
 /** Banner block: first child of <main> on inner pages; on home (`home`), first child of .hero-content, in flow. */
 export const alertsHtml = (alerts, home) =>
-  `<div class="${home ? 'site-alerts-wrap is-home' : 'container site-alerts-wrap'}"><section class="site-alerts" aria-label="Church alerts">${alerts.map(alertCard).join('')}</section></div><script>${ALERT_JS}</script>`;
+  `<div class="${home ? 'site-alerts-wrap is-home' : 'container site-alerts-wrap'}"><section class="site-alerts" aria-label="Church alerts">${alerts.map((a) => alertCard(a)).join('')}</section></div><script>${ALERT_JS}</script>`;
 
 export const ALERT_CSS = `.site-alerts-wrap{margin-top:12px}
 .site-alerts-wrap.is-home{margin:0 0 1.5rem}
 .site-alerts{display:grid;gap:8px}
 .alert{display:grid;grid-template-columns:auto 1fr auto;gap:.75rem;align-items:start;padding:.85rem 1rem;border-radius:var(--radius);box-shadow:var(--shadow-m);overflow:hidden;transition:height .25s var(--ease),opacity .25s var(--ease),padding .25s var(--ease)}
-.alert .ic{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;margin-top:.15rem}
-.alert-label{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;line-height:1.4}
+.alert .ic{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.alert-seal{display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:50%;background:var(--paper);box-shadow:0 0 0 1.5px var(--gold)}
+.alert-seal img{width:28px;height:28px}
+@media (max-width:399px){.alert .alert-seal{width:28px;height:28px}.alert .alert-seal img{width:22px;height:22px}}
+.alert-label{display:flex;align-items:center;gap:.4rem;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;line-height:1.4}
 .alert .alert-msg{font-size:1rem;line-height:1.45;font-weight:600;color:inherit}
 .alert-more{margin-top:.3rem;font-size:1rem}
 .alert-x{width:44px;height:44px;margin:-.5rem -.5rem 0 0;border:0;border-radius:50%;background:none;font-size:1rem;line-height:1}
@@ -70,7 +83,9 @@ export const ALERT_CSS = `.site-alerts-wrap{margin-top:12px}
 .alert-pop{max-width:32rem;width:min(32rem,calc(100% - 2rem));margin:auto;padding:1.5rem;border:0;border-left:4px solid var(--gold);box-shadow:var(--shadow-l);color:var(--ink)}
 .alert-pop:not([open]){display:none}
 .alert-pop::backdrop{background:rgb(28 28 28/.5)}
-.alert-pop h2{margin:0 2.75rem 1rem 0}
+.alert-pop-head{display:flex;align-items:center;gap:12px;margin:0 2.75rem 1rem 0}
+.alert-pop .alert-seal{width:48px;height:48px}
+.alert-pop .alert-seal img{width:38px;height:38px}
 .alert-pop-x{position:absolute;top:.5rem;right:.5rem;width:44px;height:44px;border:0;border-radius:50%;background:none;font-size:1rem;line-height:1}
 .alert-pop-x:hover{background:rgb(127 127 127/.18)}
 .alert-pop-body{max-height:min(70vh,34rem);overflow:auto}
@@ -243,6 +258,9 @@ export function validateAlert(b, now = new Date(), groupIds = []) {
   let link = text(b?.link, 500);
   const group = b?.group ? String(b.group) : undefined;
   if (!['urgent', 'news'].includes(b?.type)) return { error: 'type' };
+  const rawLabel = typeof b?.label === 'string' ? b.label.trim() : '';
+  if (rawLabel.length > LABEL_MAX) return { error: 'label' };
+  const label = text(rawLabel, LABEL_MAX) || (b.type === 'urgent' ? 'Important' : 'News');
   if (!message) return { error: 'message' };
   if (!(expires > +now) || expires > +now + 90 * 864e5) return { error: 'expires' };
   if (group && !groupIds.includes(group)) return { error: 'group' };
@@ -251,7 +269,7 @@ export function validateAlert(b, now = new Date(), groupIds = []) {
   if (link === null) return { error: 'link' };
   const sitewide = group ? Boolean(b.sitewide) : true;
   const id = crypto.randomUUID();
-  return { value: { id, type: b.type, message, link: link || undefined, expires: new Date(expires).toISOString(), created: now.toISOString(),
+  return { value: { id, type: b.type, label, message, link: link || undefined, expires: new Date(expires).toISOString(), created: now.toISOString(),
     ...(group ? { group, sitewide } : {}),
     // Pop-up: only for alerts on every page. popKey is what visitors' browsers remember as "seen".
     ...(b.popup && sitewide ? { popup: true, popKey: id } : {}) } };
@@ -339,16 +357,16 @@ for(const n of['localStorage','sessionStorage']){try{const t=window[n];t.setItem
 let seen=[];try{seen=JSON.parse(st&&st.getItem(K))||[]}catch(e){}
 const rows=[...d.querySelectorAll('.alert-pop-row')].filter(r=>{if(seen.includes(r.dataset.key)){r.remove();return false}return true});
 if(!rows.length){d.remove();return}
-if(rows.length>1)d.querySelector('h2').textContent='Important updates ('+rows.length+')';
+const imp=rows.some(r=>r.dataset.type==='urgent');d.querySelector('h2').textContent=(imp?'Important update':'Update')+(rows.length>1?'s ('+rows.length+')':'');
 d.addEventListener('close',()=>{try{st&&st.setItem(K,JSON.stringify(seen.concat(rows.map(r=>r.dataset.key)).slice(-50)))}catch(e){}const s=document.querySelector('.skip-link');if(s)s.focus({preventScroll:true})});
 d.querySelector('.alert-pop-x').onclick=()=>d.close();
 const busy=()=>document.fullscreenElement||document.querySelector('.hero.is-focused');
 const open=()=>{if(busy())return setTimeout(open,1000);d.showModal();d.querySelector('.alert-pop-ok').focus()};
 if(document.readyState==='complete')open();else addEventListener('load',open)})()`;
 
-export const popupHtml = (majors) => (!majors.length ? '' : `<dialog class="card alert-pop" id="alert-pop" aria-labelledby="alert-pop-h">`
-  + `<button class="alert-pop-x" type="button" aria-label="Close">&#x2715;</button><h2 class="h3" id="alert-pop-h">Important update</h2><div class="alert-pop-body">`
-  + majors.map((a) => `<div class="alert-pop-row" data-key="${esc(a.popKey ?? a.id)}">${icon('urgent', 22)}<div><p class="alert-label">Important</p><p class="alert-pop-msg">${esc(a.message)}</p>`
+export const popupHtml = (majors, base = '') => (!majors.length ? '' : `<dialog class="card alert-pop" id="alert-pop" aria-labelledby="alert-pop-h">`
+  + `<button class="alert-pop-x" type="button" aria-label="Close">&#x2715;</button><div class="alert-pop-head">${seal(base, 38)}<h2 class="h3" id="alert-pop-h">${majors.some((a) => a.type === 'urgent') ? 'Important update' : 'Update'}</h2></div><div class="alert-pop-body">`
+  + majors.map((a) => `<div class="alert-pop-row" data-key="${esc(a.popKey ?? a.id)}" data-type="${a.type === 'urgent' ? 'urgent' : 'news'}">${icon(a.type === 'urgent' ? 'urgent' : 'news', 22)}<div><p class="alert-label">${esc(alertLabel(a))}</p><p class="alert-pop-msg"><span class="sr-only">${a.type === 'urgent' ? 'Important' : 'News'}: </span>${esc(a.message)}</p>`
     + (a.link ? `<p><a class="link link-arrow" href="${esc(a.link)}">Learn more</a></p>` : '') + '</div></div>').join('')
   + `</div><form method="dialog"><button class="btn alert-pop-ok">Got it</button></form></dialog><script>${POP_JS}</script>`);
 
@@ -416,7 +434,7 @@ export function homeEventsHtml(items, alerts, now, c) {
   if (!cards.length && !rows.length && !alerts.length) return '';
   return `<section class="section coming-up" aria-labelledby="coming-up-h"><div class="container"><div class="cu-head"><div><p class="eyebrow">This week &amp; ahead</p><h2 class="h1" id="coming-up-h">Coming up</h2></div>`
     + `<a class="link link-arrow" href="${esc(c.events)}">All events</a></div>`
-    + (alerts.length ? `<div class="cu-alerts">${alerts.map(alertCard).join('')}</div>` : '')
+    + (alerts.length ? `<div class="cu-alerts">${alerts.map((a) => alertCard(a)).join('')}</div>` : '')
     + (cards.length ? `<ul class="cu-cards" role="list">${cards.map((it) => eventCard(it, c)).join('')}</ul>` : '')
     + (rows.length ? `<ol class="cu-list" role="list">${rows.map((it) => eventRow(it, c)).join('')}</ol>` : '')
     + '</div></section>';
@@ -480,3 +498,74 @@ export function validateTeam(list, old = []) {
   return { value: out };
 }
 
+
+// ---------- Videos and podcast episodes added in the admin (merged with the feeds, newest first) ----------
+/** The 11-character id from a YouTube link: youtu.be/…, watch?v=…, /live/…, /shorts/…, /embed/…, or a bare id. */
+export function parseYouTubeId(input) {
+  const s = String(input ?? '').trim();
+  if (VIDEO_ID.test(s)) return s;
+  let u;
+  try { u = new URL(s); } catch { return null; }
+  if (!/^((www|m|music)\.)?(youtube\.com|youtube-nocookie\.com)$|^youtu\.be$/.test(u.hostname)) return null;
+  const id = u.hostname === 'youtu.be' ? u.pathname.slice(1).split('/')[0] : u.searchParams.get('v') ?? u.pathname.match(/^\/(live|shorts|embed)\/([^/?#]+)/)?.[2];
+  return id && VIDEO_ID.test(id) ? id : null;
+}
+
+export const AUDIO_MAX = 200 * 1024 * 1024;
+export const AUDIO_FILE = /^ep-[a-z0-9]{1,16}\.mp3$/;
+/** An MP3 starts with an ID3 tag or an MPEG audio frame sync. Anything else is refused. */
+export function isMp3(head) {
+  const b = new Uint8Array(head.buffer ? head.buffer.slice(head.byteOffset, head.byteOffset + Math.min(3, head.byteLength)) : head);
+  return b.length >= 3 && ((b[0] === 0x49 && b[1] === 0x44 && b[2] === 0x33) || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0));
+}
+
+export function validateAddedVideo(b) {
+  const id = String(b?.id ?? '');
+  const title = text(b?.title, 120);
+  const date = ymd(b?.date);
+  if (!VIDEO_ID.test(id)) return { error: 'id' };
+  if (!title) return { error: 'title' };
+  if (!date) return { error: 'date' };
+  return { value: { id, title, date } };
+}
+
+/** audio: a file we stored (/api/audio/ep-….mp3) or an https link to an MP3 somewhere else. */
+export function validateEpisode(b) {
+  const title = text(b?.title, 120);
+  const date = ymd(b?.date);
+  const audio = typeof b?.audio === 'string' ? b.audio.trim() : '';
+  if (!title) return { error: 'title' };
+  if (!date) return { error: 'date' };
+  const local = audio.startsWith('/api/audio/') && AUDIO_FILE.test(audio.slice(11));
+  let remote = false;
+  try { remote = !local && new URL(audio).protocol === 'https:'; } catch {}
+  if (!local && !remote) return { error: 'audio' };
+  return { value: { id: okId(b?.id), title, date, about: text(b?.about, 600) || undefined, audio } };
+}
+
+const longDate = (ymd, o) => new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-US', { ...o, timeZone: 'UTC' });
+/** One sermon card, the same on the built pages and from the server (v: id, thumbnail, thumbFallback, dateISO, dateCard, displayTitle). */
+export const videoCardHtml = (v) => `<a class="card vid" href="https://www.youtube.com/watch?v=${esc(v.id)}" rel="noopener"><div class="vthumb">`
+  + `<img data-vid="${esc(v.id)}" src="${esc(v.thumbnail)}" alt="" width="1280" height="720" loading="lazy" decoding="async" data-fb="${esc(v.thumbFallback)}" onerror="this.onerror=null;this.src=this.dataset.fb">`
+  + `<span class="vplay" aria-hidden="true"></span></div><p class="date"><time datetime="${esc(v.dateISO)}">${esc(v.dateCard)}</time></p><h3 data-vid="${esc(v.id)}">${esc(v.displayTitle)}</h3></a>`;
+export const addedVideoCard = (v) => ({ id: v.id, thumbnail: `https://i.ytimg.com/vi/${v.id}/maxresdefault.jpg`, thumbFallback: `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`,
+  dateISO: v.date, dateCard: longDate(v.date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }), displayTitle: v.title });
+
+/** One podcast row (s: guid, title, audioUrl, dateISO, dateLabel). */
+export const episodeHtml = (s) => `<a class="ep-btn" data-pod="${esc(s.guid)}" href="${esc(s.audioUrl)}" aria-label="Play ${esc(s.title)}"></a><div class="ep-info">`
+  + `<h3 data-pod="${esc(s.guid)}">${esc(s.title)}</h3><p class="date"><time datetime="${esc(s.dateISO)}">${esc(s.dateLabel)}</time><span class="ep-time" aria-live="off"></span></p>`
+  + `<input class="ep-seek" data-pod="${esc(s.guid)}" type="range" min="0" max="100" step="1" value="0" aria-label="Seek ${esc(s.title)}"></div>`;
+export const addedEpisode = (e) => ({ guid: `added-${e.id}`, title: e.title, audioUrl: e.audio, dateISO: e.date, dateLabel: longDate(e.date, { month: 'long', day: 'numeric', year: 'numeric' }) });
+
+/** Put extra list items into every <ul|ol data-merge="kind"> by date, newest first. Items already in the list
+ *  (same data-vid / data-pod) are skipped, so a video that later arrives in the feed shows once. */
+export function mergeLists(html, kind, extra) {
+  if (!extra.length) return html;
+  return html.replace(new RegExp(`(<(ul|ol)\\b[^>]*\\bdata-merge="${kind}"[^>]*>)([\\s\\S]*?)(</\\2>)`, 'g'), (m, open, tag, inner, close) => {
+    const limit = Number(open.match(/\bdata-limit="(\d+)"/)?.[1] ?? Infinity);
+    const rows = [...inner.matchAll(/<li\b[^>]*\bdata-date="([^"]*)"[\s\S]*?<\/li>/g)].map((x) => ({ date: x[1], html: x[0] }));
+    const add = extra.filter((e) => !inner.includes(`="${e.key}"`)).map((e) => ({ date: e.date, html: e.html }));
+    const all = [...rows, ...add].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit);
+    return open + all.map((r) => r.html).join('') + close;
+  });
+}

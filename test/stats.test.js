@@ -97,4 +97,6 @@ test('play beacon: our pages only, known kinds only, rate-limited, private visit
   assert.equal((await send('video')).status, 204);
   const d = stats.summary('day');
   assert.deepEqual(d.plays, { video: 11, podcast: 10 }, 'live counts as a video play; the GPC one was not counted');
+  assert.equal(d.series.reduce((t, b) => t + b.p, 0), 21, 'the graph has the same plays, by hour');
+  assert.equal(stats.summary('7d').series.at(-1).p, 21, 'and by day');
 });

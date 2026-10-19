@@ -124,6 +124,7 @@ export function createStats({ db, env = {}, log = console, getGroups = () => [],
     if (recent.length >= 20) return done(429); // one person, 20 plays an hour at most
     plays.set(v.id, [...recent, +now]);
     add(v.day, 'play', kind);
+    add(v.day, 'playhour', etHour(now)); // for the "Last day" graph
     return done(204);
   }
 
@@ -173,22 +174,24 @@ export function createStats({ db, env = {}, log = console, getGroups = () => [],
     } catch { return { total: 0, change: 0, added: 0, removed: 0, lists: [], groups: [] }; } // email tables not made yet
   }
 
+  /** Visits (n) and plays (p) per hour, day or month, zeros filled in. */
   function series(r) {
     if (r.unit === 'hour') {
-      const rows = Object.fromEntries(q("SELECT item, n FROM stats_daily WHERE metric = 'hour' AND day = ?").all(r.end).map((x) => [x.item, x.n]));
-      return Array.from({ length: +etHour(clock()) + 1 }, (_, h) => ({ key: String(h).padStart(2, '0'), n: rows[String(h).padStart(2, '0')] ?? 0 }));
+      const by = (metric) => Object.fromEntries(q('SELECT item, n FROM stats_daily WHERE metric = ? AND day = ?').all(metric, r.end).map((x) => [x.item, x.n]));
+      const v = by('hour'), pl = by('playhour');
+      return Array.from({ length: +etHour(clock()) + 1 }, (_, h) => { const k = String(h).padStart(2, '0'); return { key: k, n: v[k] ?? 0, p: pl[k] ?? 0 }; });
     }
-    const rows = q("SELECT day, n FROM stats_daily WHERE metric = 'visitors' AND day BETWEEN ? AND ?").all(r.start, r.end);
-    if (r.unit === 'day') {
-      const by = Object.fromEntries(rows.map((x) => [x.day, x.n]));
-      const out = [];
-      for (let d = r.start; d <= r.end; d = addDays(d, 1)) out.push({ key: d, n: by[d] ?? 0 });
-      return out;
-    }
-    const by = {};
-    for (const x of rows) by[x.day.slice(0, 7)] = (by[x.day.slice(0, 7)] ?? 0) + x.n;
+    const month = r.unit === 'month';
+    const bucket = (day) => (month ? day.slice(0, 7) : day);
+    const by = (metric) => {
+      const o = {};
+      for (const x of q('SELECT day, SUM(n) n FROM stats_daily WHERE metric = ? AND day BETWEEN ? AND ? GROUP BY day').all(metric, r.start, r.end)) o[bucket(x.day)] = (o[bucket(x.day)] ?? 0) + x.n;
+      return o;
+    };
+    const v = by('visitors'), pl = by('play');
     const out = [];
-    for (let m = r.start.slice(0, 7); m <= r.end.slice(0, 7); m = addDays(`${m}-28`, 7).slice(0, 7)) out.push({ key: m, n: by[m] ?? 0 });
+    if (month) for (let m = r.start.slice(0, 7); m <= r.end.slice(0, 7); m = addDays(`${m}-28`, 7).slice(0, 7)) out.push({ key: m, n: v[m] ?? 0, p: pl[m] ?? 0 });
+    else for (let d = r.start; d <= r.end; d = addDays(d, 1)) out.push({ key: d, n: v[d] ?? 0, p: pl[d] ?? 0 });
     return out;
   }
 

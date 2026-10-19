@@ -12,7 +12,7 @@ const watch = (id: string) => `https://www.youtube.com/watch?v=${id}`;
     <h2 id="latest-title" class="h1">Latest message</h2>
 
     {latest ? (
-      <div class="feature">
+      <div class="feature" data-iso={latest.dateISO}>
         <a class="player" href={watch(latest.id)} data-yt={latest.id} data-vid={latest.id} data-date={latest.dateLabel} data-title={`${latest.displayTitle}, ${latest.dateLabel}`}>
           <img data-vid={latest.id}
             src={latest.thumbnail} data-fb={latest.thumbFallback} onerror="this.onerror=null;this.src=this.dataset.fb"

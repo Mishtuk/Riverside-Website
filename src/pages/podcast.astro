@@ -8,6 +8,7 @@ import VideoCard from '../components/VideoCard.astro';
 import { CHURCH, href } from '../lib/site';
 import { APPLE_PODCASTS_URL, getSermons } from '../lib/podcast';
 import { getVideos } from '../lib/youtube';
+import { videoCardHtml, episodeHtml } from '../lib/state.js';
 
 const [videos, sermons] = await Promise.all([getVideos(3), getSermons()]);
 const date = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
@@ -22,6 +23,8 @@ const nice = (t: string) => {
     /^[ivx]+$/.test(w) || /^(esv|niv|nt|ot|ad|bc|usa|tv)$/.test(w) ? w.toUpperCase()
     : i > 0 && SMALL.has(w) ? w : w[0].toUpperCase() + w.slice(1));
 };
+// One row markup (state.js episodeHtml), shared with the server for episodes staff add in the admin.
+const row = (s: (typeof sermons)[number]) => `<li class="ep" data-date="${s.pubDate.toISOString().slice(0, 10)}">${episodeHtml({ guid: s.guid, title: nice(s.title), audioUrl: s.audioUrl, dateISO: s.pubDate.toISOString(), dateLabel: date(s.pubDate) })}</li>`;
 const shown = sermons.slice(0, 6);
 const rest = sermons.slice(6);
 const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${year(sermons[0].pubDate)}` : '';
@@ -53,32 +56,14 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
       ) : (
         <>
           <audio id="pod-audio" preload="none"></audio>
-          <ol class="episodes" role="list">
-            {shown.map((s) => (
-              <li class="ep">
-      <a class="ep-btn" data-pod={s.guid} href={s.audioUrl} aria-label={`Play ${nice(s.title)}`}></a>
-      <div class="ep-info">
-        <h3 data-pod={s.guid}>{nice(s.title)}</h3>
-        <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time><span class="ep-time" aria-live="off"></span></p>
-        <input class="ep-seek" data-pod={s.guid} type="range" min="0" max="100" step="1" value="0" aria-label={`Seek ${nice(s.title)}`} />
-      </div>
-    </li>
-            ))}
+          <ol class="episodes" role="list" data-merge="episodes">
+            <Fragment set:html={shown.map(row).join('')} />
           </ol>
           {rest.length > 0 && (
             <details class="older">
               <summary class="btn btn-outline">Show {rest.length} more episodes</summary>
               <ol class="episodes" role="list">
-                {rest.map((s) => (
-                  <li class="ep">
-      <a class="ep-btn" data-pod={s.guid} href={s.audioUrl} aria-label={`Play ${nice(s.title)}`}></a>
-      <div class="ep-info">
-        <h3 data-pod={s.guid}>{nice(s.title)}</h3>
-        <p class="date"><time datetime={s.pubDate.toISOString()}>{date(s.pubDate)}</time><span class="ep-time" aria-live="off"></span></p>
-        <input class="ep-seek" data-pod={s.guid} type="range" min="0" max="100" step="1" value="0" aria-label={`Seek ${nice(s.title)}`} />
-      </div>
-    </li>
-                ))}
+                <Fragment set:html={rest.map(row).join('')} />
               </ol>
             </details>
           )}
@@ -95,10 +80,9 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
         <p>Current messages are on YouTube.</p>
       </div>
       {videos.length > 0 ? (
-        <ul class="vids" role="list">
-          {videos.map((v) => (
-            <li><VideoCard v={v} /></li>
-          ))}
+        <VideoCard />
+        <ul class="vids" role="list" data-merge="videos" data-limit="3">
+          <Fragment set:html={videos.map((v) => `<li data-date="${v.dateISO}">${videoCardHtml(v)}</li>`).join('')} />
         </ul>
       ) : (
         <p class="muted">Recent videos are unavailable right now. Please visit <a class="link" href={CHURCH.socials.youtube} rel="noopener">our YouTube channel</a>.</p>
@@ -158,7 +142,7 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
   }
 </script>
 
-<style>
+<style is:global>
   .vids { list-style: none; padding: 0; display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); }
   @media (max-width: 599px) { .vids { gap: 0.75rem; } }
   .date { font-size: var(--step--1); font-weight: 700; color: var(--gold-ink-sm); }

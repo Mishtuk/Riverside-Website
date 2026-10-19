@@ -259,3 +259,66 @@ test('team: one render for static + server; photos must be ours; ids kept', asyn
   assert.equal(validateTeam([], seed).error, 'team');
   assert.match(teamHtml([{ id: 'x', name: 'A <b>', role: 'R', bio: 'B', photo: '' }]), /class="lead no-photo"[\s\S]*A &lt;b&gt;/);
 });
+
+test('alert types: presets or a custom label (1–24 characters, plain text), urgency separate', async () => {
+  const { alertCard, popupHtml } = await import('../src/lib/state.js');
+  const now = new Date(NOW);
+  const base = { type: 'urgent', message: 'Lot B is closed.', expires: '2026-10-19T03:59:00Z' };
+  assert.equal(validateAlert({ ...base, label: 'Parking' }, now).value.label, 'Parking');
+  assert.equal(validateAlert({ ...base, label: 'x'.repeat(25) }, now).error, 'label', 'over 24 characters is refused, not cut');
+  assert.equal(validateAlert({ ...base, label: '<b>Parking</b>' }, now).value.label, 'Parking');
+  assert.equal(validateAlert({ ...base, label: '' }, now).value.label, 'Important', 'missing = the urgency word');
+  assert.equal(validateAlert({ ...base, type: 'news' }, now).value.label, 'News');
+  const card = alertCard({ id: 'a', type: 'urgent', label: 'Parking & lot', message: 'Lot B <closed>' });
+  assert.match(card, /class="alert alert-urgent"/);
+  assert.match(card, /<span class="alert-seal" aria-hidden="true"><img src="\/brand\/alert-seal.png" alt=""/, 'logo seal');
+  assert.match(card, /<span>Parking &amp; lot<\/span>/);
+  assert.match(card, /<span class="sr-only">Important: <\/span>Lot B &lt;closed&gt;/, 'urgency is spoken, not just shown');
+  assert.match(alertCard({ id: 'b', type: 'news', message: 'Hi' }), /<span class="sr-only">News: <\/span>/);
+  assert.match(popupHtml([{ id: 'c', type: 'news', label: 'Event', message: 'Picnic', popup: true }]), /id="alert-pop-h">Update</);
+  assert.match(popupHtml([{ id: 'c', type: 'urgent', label: 'Weather', message: 'Snow', popup: true }]), /id="alert-pop-h">Important update</);
+});
+
+test('YouTube links: id parser', async () => {
+  const { parseYouTubeId } = await import('../src/lib/state.js');
+  for (const u of ['https://youtu.be/dQw4w9WgXcQ?si=abc', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42', 'https://m.youtube.com/watch?v=dQw4w9WgXcQ',
+    'https://www.youtube.com/live/dQw4w9WgXcQ?feature=share', 'https://youtube.com/shorts/dQw4w9WgXcQ', 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', 'dQw4w9WgXcQ']) {
+    assert.equal(parseYouTubeId(u), 'dQw4w9WgXcQ', u);
+  }
+  for (const u of ['https://evil.example/watch?v=dQw4w9WgXcQ', 'https://youtu.be/short', 'https://www.youtube.com/watch?v=<script>', 'javascript:alert(1)', '', null]) {
+    assert.equal(parseYouTubeId(u), null, String(u));
+  }
+});
+
+test('podcast audio: MP3 by magic bytes, 200 MB limit, links must be https', async () => {
+  const { isMp3, AUDIO_MAX, validateEpisode } = await import('../src/lib/state.js');
+  assert.ok(isMp3(Buffer.from('ID3\x04\x00')), 'ID3 tag');
+  assert.ok(isMp3(Buffer.from([0xff, 0xfb, 0x90, 0x00])), 'MPEG frame sync');
+  assert.ok(!isMp3(Buffer.from('<svg onload=alert(1)>')));
+  assert.ok(!isMp3(Buffer.from('RIFF....WAVE')));
+  assert.ok(!isMp3(Buffer.from([0xff])), 'too short to tell');
+  assert.equal(AUDIO_MAX, 200 * 1024 * 1024);
+  const ok = { title: 'Easter', date: '2026-04-05' };
+  assert.equal(validateEpisode({ ...ok, audio: '/api/audio/ep-abc123.mp3' }).value.audio, '/api/audio/ep-abc123.mp3');
+  assert.equal(validateEpisode({ ...ok, audio: 'https://cdn.example.org/easter.mp3' }).value.title, 'Easter');
+  assert.equal(validateEpisode({ ...ok, audio: 'http://cdn.example.org/easter.mp3' }).error, 'audio');
+  assert.equal(validateEpisode({ ...ok, audio: '/api/audio/../../riverside.db' }).error, 'audio');
+  assert.equal(validateEpisode({ ...ok, date: '2026-02-30', audio: '/api/audio/ep-a.mp3' }).error, 'date');
+});
+
+test('added videos and episodes merge into the lists newest first, once', async () => {
+  const { mergeLists, videoCardHtml, addedVideoCard } = await import('../src/lib/state.js');
+  const li = (id, date) => `<li data-date="${date}">${videoCardHtml(addedVideoCard({ id, title: id, date }))}</li>`;
+  const html = `<ul class="grid" data-merge="videos" data-limit="3">${li('aaaaaaaaaaa', '2026-10-18')}${li('bbbbbbbbbbb', '2026-10-11')}${li('ccccccccccc', '2026-10-04')}</ul>`;
+  const out = mergeLists(html, 'videos', [{ key: 'ddddddddddd', date: '2026-10-15', html: li('ddddddddddd', '2026-10-15') }, { key: 'aaaaaaaaaaa', date: '2026-10-19', html: li('aaaaaaaaaaa', '2026-10-19') }]);
+  const order = [...out.matchAll(/<li data-date="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(order, ['2026-10-18', '2026-10-15', '2026-10-11'], 'sorted, limited to 3, the duplicate id skipped');
+});
+
+test('banner, board and Coming up all point the seal at /brand (no index leaking into the path)', async () => {
+  const { alertsHtml, homeEventsHtml } = await import('../src/lib/state.js');
+  const a = [{ id: 'a', type: 'urgent', label: 'Weather', message: 'Snow', created: '2026-10-18T00:00:00Z' }, { id: 'b', type: 'news', message: 'Hi', created: '2026-10-18T00:00:00Z' }];
+  const seals = (h) => [...h.matchAll(/<img src="([^"]*)alert-seal.png"/g)].map((m) => m[1]);
+  assert.deepEqual(seals(alertsHtml(a, false)), ['/brand/', '/brand/']);
+  assert.deepEqual(seals(homeEventsHtml([], a, new Date(NOW), { email: 'x@y.z', times: '', groups: '/groups', events: '/events' })), ['/brand/', '/brand/']);
+});

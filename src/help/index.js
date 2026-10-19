@@ -8,7 +8,8 @@ const go = (id, s) => `<a class="link" href="#${id}">${s}</a>`;
 
 export const TASKS = [
   ['weather', 'Post a weather or closing alert', [
-    `Go to ${go('alerts', 'Alerts')}. Under ${b('Post an alert')}, choose ${b('Weather / closing (urgent)')}.`,
+    `Go to ${go('alerts', 'Alerts')}. Under ${b('Post an alert')}, choose ${b('Weather')} (or ${b('Closing')}) under ${b('Alert type')}, then ${b('Important: dark banner')} under ${b('How urgent?')}.`,
+    `No type fits? Choose ${b('Custom…')} and type your own in ${b('Your own type')}, for example “Parking”.`,
     `Write the ${b('Message')} in one or two plain sentences: what is happening and when. For example: “Church is closed Sunday, Jan 12 because of snow. Join us online at 10:30.”`,
     `Leave ${b('Group')} on ${b('None')}, so it shows on every page.`,
     `Leave the pop-up box ticked (${b('Also show as a pop-up the first time someone visits')}) so everyone sees it once, straight away.`,
@@ -22,7 +23,7 @@ export const TASKS = [
     `Go to ${go('groups', 'Groups')} and open the group’s card.`,
     `Under ${b('This week')}, choose ${b('Not meeting on')} and pick the date. Press ${b('Save')}. The Groups page now says “Not meeting this week”, and it goes back to normal by itself after that date.`,
     `To explain why, or to say where it moved to, press ${b('Post a meeting alert')} on the same card. The alert form opens with the group already picked.`,
-    `Write the message, for example “Prayer group is meeting in the lobby this week.” Leave ${b('Also show site-wide')} unticked unless the whole church needs to know.`,
+    `Pick an ${b('Alert type')}, for example ${b('Cancelled')} or ${b('Schedule change')}. Write the message, for example “Prayer group is meeting in the lobby this week.” Leave ${b('Also show site-wide')} unticked unless the whole church needs to know.`,
     `To email the group too, tick ${b('Also email subscribers')}. ${b('The group’s list')} is already ticked.`,
     `Press ${b('Post alert')} and confirm.`,
   ]],
@@ -41,13 +42,13 @@ export const TASKS = [
     `New group: press ${b('Add a group')} at the top, fill in the name, type, day, time and place, and press ${b('Save')}.`,
   ]],
   ['email', 'Send an email to a group (or to everyone)', [
-    `Go to ${go('email', 'Email')} and choose ${b('Send an email')}.`,
+    `Go to ${go('email', 'Email')}. ${b('Send an email')} is on the left (on a phone, at the top) and ${b('Subscribers')} beside it (on a phone, below).`,
     `Under ${b('Send to')}, tick the group (or Latest happenings, or Weather &amp; closing alerts). The line under it says how many people it goes to. Someone on two lists gets it once.`,
     `Write the ${b('Subject')} and ${b('Message')}. Leave a blank line between paragraphs. **Two stars** each side make words bold. Paste links as they are.`,
     `Check the ${b('Preview')}. Press ${b('Send test to me')} to see it in your own inbox.`,
     `Press ${b('Send…')} and confirm. Emails can’t be unsent.`,
     `It sends a little at a time, so a big list can take a while. You can close the page. ${b('Sent emails')} shows how many went out and if any failed.`,
-    `To invite someone to a group’s list, choose ${b('Subscribers')}, then ${b('Invite to a group')}. They get an email and join only when they tap the link.`,
+    `To invite someone to a group’s list, use ${b('Invite to a group')} at the bottom of ${b('Subscribers')}. They get an email and join only when they tap the link.`,
   ]],
   ['video', 'Fix a video title or thumbnail', [
     'Best: fix the title on YouTube itself. The website picks it up by itself.',
@@ -55,13 +56,26 @@ export const TASKS = [
     `Change the ${b('Title')}, or press ${b('Change thumbnail')} and pick a picture (JPG, PNG or WebP). Then press ${b('Save')}.`,
     `${b('Reset to original')} brings back the YouTube version.`,
   ]],
+  ['media', 'Add a video or podcast episode', [
+    `Go to ${go('items', 'Videos &amp; podcast')}.`,
+    `A video: on the ${b('Videos')} tab, press ${b('Add a video')}. Paste the ${b('YouTube link')} (from YouTube’s Share button). The title and date fill in by themselves; change them if you like, then press ${b('Add video')}.`,
+    `An episode: on the ${b('Podcast')} tab, press ${b('Add a podcast episode')}. Fill in the ${b('Title')} and ${b('Date')}, then choose ${b('Upload an MP3')} (pick the file) or ${b('Link to an MP3')} (paste the address). Press ${b('Add episode')}.`,
+    `Things you added are marked ${b('Added here')}. You can edit them, ${b('Replace audio')} on an episode, or ${b('Remove')} them.`,
+  ]],
   ['staff', 'Add a staff member, or reset a password', [
     `Go to ${go('staff', 'Staff accounts')}. Under ${b('Add a staff account')}, choose a ${b('Username')} (lowercase, for example “katrina”) and a ${b('Temporary password')} of at least 12 characters.`,
     `Press ${b('Add account')}. Give them the temporary password in person or by phone, never by email. They choose their own the first time they sign in.`,
     `Someone forgot their password: in ${b('Staff accounts')}, press ${b('Reset password')} on their row. Type a new one in ${b('Temporary password for')} (their name), press ${b('Set temporary password')}, then confirm with ${b('Reset password')}. Tell them in person or by phone; they choose their own the next time they sign in.`,
-    `Your own password: use ${b('Change your password')} on the same page.`,
+    `Your own password: open the menu with your name at the top right and choose ${b('Change password')} (it opens ${b('Change your password')}). This works for everyone, including people with limited access.`,
     `Someone leaves: press ${b('Remove')} next to their name. They can’t sign in any more.`,
     `To show a person on the About page (name, role, photo), use ${go('team', 'Our team')}: press ${b('Add a person')}, fill it in, then press ${b('Save team')}. This is separate from sign-in accounts.`,
+  ]],
+  ['permissions', 'Give someone limited access', [
+    `Go to ${go('staff', 'Staff accounts')} and choose the ${b('Permissions')} tab.`,
+    `On the person’s card, choose ${b('Limited: only the areas ticked below')}, tick the areas they look after (for example Groups and Events), and press ${b('Save permissions')}.`,
+    `${b('Admin: can do everything')} gives full access. There must always be at least one admin.`,
+    'What they see: the menu shows only Dashboard, their areas and Help. If they open anything else, it says they don’t have access and to ask an admin.',
+    `New accounts start as Limited (Alerts, Events and Groups). You can change that when you add them, or later in ${b('Permissions')}.`,
   ]],
   ['live', 'Turn the livestream on or off', [
     `Go to ${go('live', 'Livestream')}. Normally leave it on ${b('Automatic, on the usual Sunday schedule')}.`,
@@ -71,7 +85,7 @@ export const TASKS = [
   ]],
   ['stats', 'Read the statistics', [
     `Go to ${go('stats', 'Statistics')} and pick a period: ${b('Last day')}, ${b('7 days')}, ${b('30 days')}, ${b('12 months')} or ${b('All time')}.`,
-    `${b('Email subscribers')}: how many people get our emails now, and how that changed in the period. Open ${b('By list')} for each list and group.`,
+    `${b('Email subscribers')}: how many people get our emails now, and how that changed in the period. ${b('By list')}, further down, shows each list and group.`,
     `${b('Visits')}: people who opened the website, counted once a day each. These are estimates: bots and staff are left out, and nobody is tracked.`,
     `${b('Video plays on our site')} and ${b('Podcast plays')}: how often someone pressed play on our pages. Views on YouTube itself are counted separately.`,
     `${b('Top pages')} shows what people look at most.`,
@@ -80,12 +94,12 @@ export const TASKS = [
 
 export function helpSection(church = {}) {
   const tel = String(church.phone ?? '').replace(/\D/g, '');
-  const tasks = TASKS.map(([id, title, steps]) => `<details class="card help-task" id="help-${id}"><summary>${esc(title)}</summary><ol>${steps.map((s) => `<li>${s}</li>`).join('')}</ol></details>`).join('');
-  return `<section id="help" aria-labelledby="help-h"><style>${CSS}</style>
-<h2 id="help-h" class="h2">Help</h2>
-<p class="muted">Short steps for the everyday jobs. Tap one to open it. The words in bold are what you see on the screen.</p>
+  const tasks = TASKS.map(([id, title, steps]) => `<details class="a-card help-task" id="help-${id}"><summary>${esc(title)}</summary><ol>${steps.map((s) => `<li>${s}</li>`).join('')}</ol></details>`).join('');
+  return `<section id="help" class="a-view" aria-labelledby="help-h" hidden><style>${CSS}</style>
+<div class="a-head"><div><h1 id="help-h" class="a-title" tabindex="-1">Help</h1><p class="a-sub">Short steps for the everyday jobs. Tap one to open it.</p></div></div>
+<p class="help-intro">To open a page, choose it in the menu on the left (on a phone: ${b('☰ Menu')}, then the page). The words in bold are what you see on the screen.</p>
 <div class="help-list">${tasks}
-<details class="card help-task" id="help-wrong"><summary>Something looks wrong</summary><ol>
+<details class="a-card help-task" id="help-wrong"><summary>Something looks wrong</summary><ol>
 <li>Don’t worry: you can’t break the website’s design from here. Everything here changes words, dates and photos, never the layout. If something looks off, you can edit it again or remove it.</li>
 <li>Reload the page. Most hiccups are a weak connection: if a save fails, a message says so and offers ${b('Try again')}.</li>
 <li>A wrong alert or event: edit it, or remove it (${b('End now')} for alerts, ${b('Remove')} for events). An email that went out can’t be taken back; send a short correction.</li>
@@ -96,11 +110,14 @@ ${church.phone ? `<li>For visitors with questions, the church office is <a class
 </section>`;
 }
 
-const CSS = `#help .help-list{display:grid;gap:.75rem;margin-top:1rem}
+// The cards come from the admin's shared .a-card; this only makes them open and close.
+const CSS = `#help .help-intro{max-width:62ch;margin-bottom:1rem}
+#help .help-list{display:grid;gap:.75rem}
 #help .help-task{padding:0}
-#help .help-task summary{display:flex;align-items:center;min-height:56px;padding:.75rem 1.25rem;cursor:pointer;font-weight:700;font-size:var(--step-0)}
-#help .help-task summary::after{content:'+';margin-left:auto;padding-left:1rem;font-size:1.4rem;line-height:1}
-#help .help-task[open] summary::after{content:'\\2212'}
-#help .help-task ol{margin:0;padding:0 1.25rem 1.25rem 2.5rem;display:grid;gap:.6rem;max-width:62ch}
+#help .help-task summary{display:flex;align-items:center;min-height:56px;padding:.75rem 1.5rem;cursor:pointer;font-size:18px;font-weight:600}
+#help .help-task summary::after{content:'+';margin-left:auto;padding-left:1rem;font-size:1.4rem;line-height:1;color:var(--a-muted)}
+#help .help-task[open] summary::after{content:'−'}
+#help .help-task ol{margin:0;padding:0 1.5rem 1.5rem 2.75rem;display:grid;gap:.6rem;max-width:62ch}
 #help .help-task li{line-height:1.5}
-#help .help-task .link{padding-block:.2rem}`;
+#help .help-task .link{padding-block:.2rem}
+@media (max-width:699px){#help .help-task summary{padding-inline:1rem}#help .help-task ol{padding:0 1rem 1rem 2.25rem}}`;
