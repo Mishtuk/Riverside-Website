@@ -293,6 +293,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   const showErr = (id: string, msg: string) => { const e = $(id); e.textContent = msg ? `⚠ ${msg}` : ''; e.hidden = !msg; };
 
   // Username + password.
+  const NO_SERVER = 'Staff sign-in isn’t available on this preview. It will work once the site moves to its new hosting.';
   const pf = $<HTMLFormElement>('#pw-form');
   pf.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -300,6 +301,8 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     if (!v.username.value.trim() || !v.password.value) return showErr('#pw-err', 'Enter your username and password.');
     const r = await fetch(pf.dataset.api!, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: v.username.value, password: v.password.value }) }).catch(() => null);
     const j = await r?.json().catch(() => null);
+    // No JSON back = no server behind the page (the static GitHub Pages preview).
+    if (r && !j) { v.password.value = ''; return showErr('#pw-err', NO_SERVER); }
     if (!r?.ok) { v.password.value = ''; return showErr('#pw-err', j?.message ?? 'Something went wrong. Check your connection and try again.'); }
     location.reload();
   });
@@ -324,7 +327,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     const r = await fetch(lg.dataset.api!, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: input.value }) }).catch(() => null);
     const j = await r?.json().catch(() => null);
     const sent = $('#login-sent');
-    sent.textContent = j?.message ?? 'Something went wrong. Check your connection and try again.';
+    sent.textContent = j?.message ?? (r ? NO_SERVER : 'Something went wrong. Check your connection and try again.');
     sent.hidden = false;
   });
   $('#sign-out').onclick = async () => {

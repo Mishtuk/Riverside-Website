@@ -1,6 +1,6 @@
 import { defineConfig } from 'astro/config';
 
-// Hosting is a Cloudflare Worker at the domain root, so BASE defaults to /. SITE is set per deploy (see HANDOFF).
+// Azure serves the site at the domain root, so BASE defaults to /. The GitHub Pages preview sets BASE=/Riverside-Website (deploy.yml).
 const BASE = process.env.BASE ?? '/';
 
 // Old CMS URL -> new home. Keeps printed links and search rankings working.
