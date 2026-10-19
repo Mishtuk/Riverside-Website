@@ -29,7 +29,7 @@ function client() {
     const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p.n).toFixed(1)}`).join(' ');
     const grid = [0.25, 0.5, 0.75, 1].map((f) => `<path d="M0 ${y(max * f).toFixed(1)}H600" class="st-grid"/>`).join('');
     const ticks = [...new Set([0, Math.round((pts.length - 1) / 3), Math.round((2 * (pts.length - 1)) / 3), pts.length - 1])];
-    const what = d.unit === 'hour' ? 'Visitors per hour today' : `Visits per ${unit}`;
+    const what = d.unit === 'hour' ? 'Visits per hour today' : `Visits per ${unit}`;
     const span = d.unit === 'hour' ? '' : `, ${label(d.unit, pts[0].key)} to ${label(d.unit, pts.at(-1).key)}`;
     box.innerHTML = `<p class="hint">Most in one ${unit}: ${fmt(max)}</p>`
       + `<svg viewBox="0 0 600 200" preserveAspectRatio="none" width="100%" height="220" role="img" aria-label="${esc(`${what}${span}: lowest ${fmt(lo.n)}, highest ${fmt(hi.n)} on ${label(d.unit, hi.key)}`)}">`
@@ -52,7 +52,6 @@ function client() {
         + s.groups.map((t) => `<p class="st-type">${esc(t.label)}</p><ul class="st-rows" role="list">${rows(t.lists)}</ul>`).join('') + '</details>'
       : '<p class="muted">No subscribers yet. People join on the Subscribe page.</p>';
     const one = d.range === 'day';
-    $('#st-vis-h').textContent = one ? 'Visitors' : 'Visits';
     $('#st-vis').innerHTML = d.views
       ? `<span class="st-n">${fmt(d.visitors)}</span><span class="hint">${fmt(d.views)} page ${d.views === 1 ? 'view' : 'views'}</span>`
         + (one ? '' : '<span class="hint">Someone who comes on 3 days counts 3 times.</span>')
@@ -62,7 +61,7 @@ function client() {
     $('#st-pod').innerHTML = `${play(d.plays.podcast)}<span class="hint">Plays started on our podcast page.</span>`;
     const yt = d.youtube;
     $('#st-yt').innerHTML = !yt.on
-      ? '<p class="muted">Not set up. The developer can turn this on with a free YouTube API key (see HANDOFF).</p>'
+      ? '<p class="muted">Not set up yet. Ask your web developer to turn this on.</p>'
       : !yt.channel ? '<p class="muted">The first YouTube count is taken today. Check back tomorrow.</p>'
         : `<span class="st-n">${fmt(yt.channel.n)}</span>${yt.channel.since ? `<span class="hint">Since ${day(yt.channel.since)}, when counting began.</span>` : ''}`
           + (yt.top.length ? `<details><summary>Recent videos</summary><ul class="st-rows" role="list">${yt.top.map((v) => `<li><span>${esc(v.title)}</span><span class="st-num">${fmt(v.n)}</span></li>`).join('')}</ul></details>` : '')
@@ -121,7 +120,7 @@ export function statsSection() {
 <ul class="cards-grid st-tiles" role="list">
 ${tile('st-subs', 'Email subscribers')}${tile('st-vis', 'Visits')}${tile('st-video', 'Video plays on our site')}${tile('st-pod', 'Podcast plays')}${tile('st-yt', 'Views on YouTube')}
 </ul>
-<div class="card st-chart"><h3 class="h3" style="margin-top:0">Visitors over time</h3><div id="st-chart"></div></div>
+<div class="card st-chart"><h3 class="h3" style="margin-top:0">Visits over time</h3><div id="st-chart"></div></div>
 <h3 class="h3">Top pages</h3>
 <ol class="st-pages" id="st-pages"></ol>
 <p class="muted st-foot">Counted by the website itself, without cookies. Bots and staff are left out, so treat these as estimates.</p>

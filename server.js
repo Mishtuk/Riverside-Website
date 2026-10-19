@@ -307,6 +307,8 @@ function describe(method, p, body, res) {
     case 'PUT team': return 'Updated Our team';
     case 'POST photo': return 'Uploaded a team photo';
     case 'POST email':
+      if (a1 === 'preview') return ''; // read-only: the composer previews on every keystroke
+      if (a1 === 'invite') return `Invited ${res.sent?.length ?? 0} to a group list`;
       if (a1 === 'send') return `Sent the email ${q(body.subject)}${res.recipients !== undefined ? ` to ${res.recipients}` : ''}`;
       if (a1 === 'test') return `Sent a test email ${q(body.subject)}`;
       if (a1 === 'subscribers' && a2 === 'unsubscribe') return 'Unsubscribed someone';

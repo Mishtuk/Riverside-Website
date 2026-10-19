@@ -28,8 +28,8 @@ export const TASKS = [
   ]],
   ['event', 'Add a church event', [
     `Go to ${go('events', 'Events')} and press ${b('Add an event')}.`,
-    `Fill in the ${b('Title')} and ${b('Date')}. ${b('Starts')}, ${b('Ends')}, ${b('Place')} and ${b('Description')} are optional. A blank place shows “Contact us”.`,
-    `Choose how important it is. ${b('Major')} shows big on the home page (a picnic, Easter, a baptism Sunday). ${b('Minor')} shows in the list (a work day, a choir practice).`,
+    `Fill in the ${b('Title')} and ${b('Date')}. ${b('Starts (optional)')}, ${b('Ends (optional)')}, ${b('Place')} and ${b('Description (optional)')} can be left blank. A blank place shows “Contact us”.`,
+    `Under ${b('Importance')}, choose ${b('Major: shown big on the home page')} for the big days (a picnic, Easter, a baptism Sunday) or ${b('Minor: shown in the list')} for the rest (a work day, a choir practice).`,
     `Press ${b('Save')}. It appears on the home page and on the Events page.`,
     'Past events disappear by themselves the day after. To change one, open it, edit and press Save. To remove it, press Remove.',
   ]],
@@ -58,7 +58,7 @@ export const TASKS = [
   ['staff', 'Add a staff member, or reset a password', [
     `Go to ${go('staff', 'Staff accounts')}. Under ${b('Add a staff account')}, choose a ${b('Username')} (lowercase, for example “katrina”) and a ${b('Temporary password')} of at least 12 characters.`,
     `Press ${b('Add account')}. Give them the temporary password in person or by phone, never by email. They choose their own the first time they sign in.`,
-    `Someone forgot their password: under ${b('Accounts')}, press ${b('Remove')} next to their name, then add them again with a new temporary password.`,
+    `Someone forgot their password: in ${b('Staff accounts')}, press ${b('Reset password')} on their row. Type a new one in ${b('Temporary password for')} (their name), press ${b('Set temporary password')}, then confirm with ${b('Reset password')}. Tell them in person or by phone; they choose their own the next time they sign in.`,
     `Your own password: use ${b('Change your password')} on the same page.`,
     `Someone leaves: press ${b('Remove')} next to their name. They can’t sign in any more.`,
     `To show a person on the About page (name, role, photo), use ${go('team', 'Our team')}: press ${b('Add a person')}, fill it in, then press ${b('Save team')}. This is separate from sign-in accounts.`,
@@ -86,10 +86,10 @@ export function helpSection(church = {}) {
 <p class="muted">Short steps for the everyday jobs. Tap one to open it. The words in bold are what you see on the screen.</p>
 <div class="help-list">${tasks}
 <details class="card help-task" id="help-wrong"><summary>Something looks wrong</summary><ol>
-<li>Don’t worry: you can’t break the website’s design from here. Alerts, events and emails are the only things visitors see change.</li>
+<li>Don’t worry: you can’t break the website’s design from here. Everything here changes words, dates and photos, never the layout. If something looks off, you can edit it again or remove it.</li>
 <li>Reload the page. Most hiccups are a weak connection: if a save fails, a message says so and offers ${b('Try again')}.</li>
 <li>A wrong alert or event: edit it, or remove it (${b('End now')} for alerts, ${b('Remove')} for events). An email that went out can’t be taken back; send a short correction.</li>
-<li>Locked out: another staff member can remove your account and add it again with a new temporary password.</li>
+<li>Locked out: ask another staff member to press ${b('Reset password')} on your row in ${b('Staff accounts')} and give you a temporary password. You choose your own when you sign in.</li>
 <li>Still stuck, or the site is down: call the developer. Note what you pressed and what you saw (a screenshot helps).</li>
 ${church.phone ? `<li>For visitors with questions, the church office is <a class="link" href="tel:+1${esc(tel)}">${esc(church.phone)}</a>${church.email ? ` or <a class="link" href="mailto:${esc(church.email)}">${esc(church.email)}</a>` : ''}.</li>` : ''}
 </ol></details></div>

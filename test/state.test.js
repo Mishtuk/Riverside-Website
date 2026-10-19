@@ -219,7 +219,8 @@ test('coming up: church + group events + this week\'s meetings, soonest first, m
   const home = homeEventsHtml(upcomingItems(events, groups, mon), [], mon, c);
   assert.match(home, /<ul class="cu-cards"[\s\S]*Fall picnic/, 'major as a card');
   assert.match(home, /Major event/);
-  assert.match(home, /href="\/groups#prayer">Weekly group</);
+  assert.match(home, /href="\/groups#prayer">See the group<span class="sr-only"> Sunday prayer group<\/span>/);
+  assert.match(home, /Wed, Oct 21 &middot; 8pm &middot;/, '12-hour times');
   assert.equal(homeEventsHtml([], [], mon, c), '', 'nothing on: no section at all');
   assert.match(eventsPageHtml([], c), /No special events right now\. Join us Sundays 9:00 &amp; 10:30am\./);
   assert.match(eventsPageHtml(upcomingItems(events, groups, mon), c), /October 2026[\s\S]*id="ev-a"/);

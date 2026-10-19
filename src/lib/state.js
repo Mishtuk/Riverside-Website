@@ -116,7 +116,15 @@ const minutes = (t = '') => {
 export const sortGroups = (gs) => [...gs].sort((a, b) => a.day - b.day || minutes(a.time) - minutes(b.time) || a.name.localeCompare(b.name));
 
 // ---------- Group events (one-offs; the group's weekly day/time is the recurrence) ----------
-const hm12 = (t) => { const [h, m] = t.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')}${h < 12 ? 'am' : 'pm'}`; };
+const hm = (t) => { const [h, m] = t.split(':').map(Number); return { t: `${h % 12 || 12}${m ? `:${String(m).padStart(2, '0')}` : ''}`, ap: h < 12 ? 'am' : 'pm' }; };
+/** "HH:MM" (+ optional end) as people write it: "7pm", "7:30pm", "12–3pm", "11am–1pm". */
+export const timeLabel = (start, end) => {
+  if (!start) return '';
+  const a = hm(start);
+  if (!end) return a.t + a.ap;
+  const b = hm(end);
+  return a.ap === b.ap ? `${a.t}&ndash;${b.t}${b.ap}` : `${a.t}${a.ap}&ndash;${b.t}${b.ap}`;
+};
 /** Next few events from today on (ET), soonest first. Past events drop off by themselves. */
 export const upcomingEvents = (g, now, max = 3) => {
   if (!now) return [];
@@ -128,7 +136,7 @@ const eventsHtml = (g, now) => {
   if (!evs.length) return '';
   return `<div class="group-events"><h3 class="group-events-h">Coming up</h3><ul role="list">${evs.map((e) => {
     const place = e.place || g.place;
-    const when = `${new Date(`${e.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}, ${hm12(e.start)}${e.end ? `&ndash;${hm12(e.end)}` : ''}`;
+    const when = `${new Date(`${e.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}, ${timeLabel(e.start, e.end)}`;
     return `<li><strong>${esc(e.title)}</strong><span>${when}${place ? ` &middot; ${esc(place)}` : ''}</span>${e.note ? `<span class="group-event-note">${esc(e.note)}</span>` : ''}</li>`;
   }).join('')}</ul></div>`;
 };
@@ -347,7 +355,7 @@ export const popupHtml = (majors) => (!majors.length ? '' : `<dialog class="card
 // ---------- Church events + "Coming up" (one merged list for home and /events) ----------
 const toMin = (t) => (t ? minutes(t) : -1); // all-day items first on their date
 const nextOn = (today, day) => addDays(today, (day - new Date(`${today}T00:00:00Z`).getUTCDay() + 7) % 7);
-const timeRange = (start, end) => (start ? `${hm12(start)}${end ? `&ndash;${hm12(end)}` : ''}` : '');
+const timeRange = timeLabel;
 
 /** One church-wide event from staff. Past dates are refused; saved events drop off after their date (ET). */
 export function validateChurchEvent(b, today) {
@@ -387,7 +395,7 @@ export function upcomingItems(events = [], groups = [], now, days = 90) {
 const dayLabel = (ymd, o = { weekday: 'short', month: 'short', day: 'numeric' }) => new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-US', { ...o, timeZone: 'UTC' });
 const placeOf = (it, c) => (it.place ? esc(it.place) : it.kind === 'church' ? `<a class="link" href="mailto:${esc(c.email)}">Contact us</a>` : '');
 const whenLine = (it, c) => [dayLabel(it.date), it.time, placeOf(it, c)].filter(Boolean).join(' &middot; ');
-const groupLink = (it, c) => (it.group ? `<a class="link" href="${esc(c.groups)}#${esc(it.group.id)}">${it.kind === 'meeting' ? 'Weekly group' : esc(it.group.name)}</a>` : '');
+const groupLink = (it, c) => (it.group ? `<a class="link" href="${esc(c.groups)}#${esc(it.group.id)}">${it.kind === 'meeting' ? `See the group<span class="sr-only"> ${esc(it.group.name)}</span>` : esc(it.group.name)}</a>` : '');
 
 const eventCard = (it, c) => `<li><article class="card cu-card" id="${esc(it.key)}"><div class="cu-date" aria-hidden="true"><span class="cu-day">${dayLabel(it.date, { day: 'numeric' })}</span><span class="cu-mon">${dayLabel(it.date, { month: 'short' })}</span></div>`
   + `<div class="cu-body"><p class="cu-label">Major event</p><h3>${esc(it.title)}</h3><p class="cu-when">${whenLine(it, c)}</p>`
@@ -395,7 +403,7 @@ const eventCard = (it, c) => `<li><article class="card cu-card" id="${esc(it.key
   + (it.group ? `<p>${groupLink(it, c)}</p>` : '') + '</div></article></li>';
 const eventRow = (it, c) => `<li class="cu-row" id="${esc(it.key)}"><p class="cu-row-date">${dayLabel(it.date)}</p><p class="cu-row-title">`
   + (it.major ? '<span class="cu-label">Major event</span> ' : '') + `<strong>${esc(it.title)}</strong>`
-  + `<span class="cu-row-meta">${[it.time, placeOf(it, c)].filter(Boolean).map((x) => ` &middot; ${x}`).join('')}</span></p>`
+  + `<span class="cu-row-meta">${[it.time, placeOf(it, c)].filter(Boolean).map((x) => `&nbsp;&middot;&nbsp;${x}`).join('')}</span></p>`
   + (it.about && it.kind !== 'meeting' ? `<p class="cu-row-about">${esc(it.about)}</p>` : '')
   + (it.link ? `<p><a class="link link-arrow" href="${esc(it.link)}">Details</a></p>` : '') + (it.group ? `<p class="cu-row-group">${groupLink(it, c)}</p>` : '') + '</li>';
 

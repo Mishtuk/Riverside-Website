@@ -220,7 +220,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
 </Base>
 
 <script>
-  import { DAYS, GROUP_TYPES, MAX_NEWS, VARIES, TZ, alertCard, activeAlerts, applyOverride, esc, etDay, groupStatus } from '../lib/state.js';
+  import { timeLabel, DAYS, GROUP_TYPES, MAX_NEWS, VARIES, TZ, alertCard, activeAlerts, applyOverride, esc, etDay, groupStatus } from '../lib/state.js';
 
   const $ = <T extends Element = HTMLElement>(s: string, r: ParentNode = document) => r.querySelector(s) as unknown as T;
   const app = $('#app');
@@ -757,11 +757,11 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
 
   // ---------- events (church-wide) ----------
   const EV_ERR: Record<string, string> = { title: 'Give the event a title.', date: 'Choose a date.', past: 'That date has passed.', time: 'The end time must be after the start time (and needs a start time).', link: 'Enter a full link starting with https://, or a page on this site starting with /' };
-  const evDate = (e: any) => [new Date(`${e.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }), e.start].filter(Boolean).join(' · ');
+  const evDate = (e: any) => [new Date(`${e.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }), timeLabel(e.start, e.end).replace('&ndash;', '–')].filter(Boolean).join(' · ');
   function eventCard(e: any, open = false) {
     const id = esc(e.id ?? '');
     const hid = esc(e.id ?? 'new');
-    return `<details class="card gcard" data-id="${id}"${open ? ' open' : ''}><summary><span class="gname">${esc(e.title || 'New event')}</span><span class="gmeta">${e.date ? `<span>${esc(evDate(e))}</span>` : ''}<span class="chip-status ${e.major ? 'is-meeting' : 'is-off'}">${e.major ? 'Major' : 'Minor'}</span></span></summary>
+    return `<details class="card gcard" data-id="${id}"${open ? ' open' : ''}><summary><span class="gname">${esc(e.title || 'New event')}</span><span class="gmeta">${e.date ? `<span>${esc(evDate(e))}</span>` : ''}<span class="chip-imp${e.major ? ' is-major' : ''}">${e.major ? 'Major' : 'Minor'}</span></span></summary>
       <form class="form gform" novalidate>
       <label>Title <input name="title" required maxlength="80" value="${esc(e.title)}"></label>
       <div class="two"><label>Date <input type="date" name="date" required min="${etDay(new Date())}" value="${esc(e.date)}"></label>
@@ -986,6 +986,14 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   .chip-status.is-off { background: var(--stone); border: 1.5px solid var(--stone-2); }
   .chip-status.is-break { border: 1.5px dashed var(--muted); color: var(--muted); }
   .news-list { list-style: none; padding: 0; display: grid; }
+  /* Our team fields sit outside .form: same 16px inputs, so phones don't zoom. */
+  #team-list input:not([type=file]), #team-list textarea { font: 400 max(1rem, 16px)/1.45 var(--font-body); padding: 0.65rem 0.9rem; min-height: 48px; width: 100%; border: 1.5px solid var(--stone-2); border-radius: var(--radius-s); background: #fff; }
+  #team-list textarea { min-height: 7.5rem; }
+  #team-list label { display: grid; gap: 0.3rem; font-weight: 700; font-size: var(--step--1); }
+  .chip-imp { display: inline-flex; align-items: center; min-height: 32px; padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); border: 1.5px solid var(--stone-2); font-size: 0.9rem; font-weight: 700; color: var(--ink); }
+  .chip-imp.is-major { background: var(--gold-soft); border-color: var(--gold); }
+  .reset-staff[aria-expanded='true'] { --btn-bg: var(--ink); --btn-fg: var(--cream); --btn-border: var(--ink); }
+  #app .subnav .chips a { min-height: 44px; padding-block: 0.4rem; }
   .team-photo { width: 96px; height: 96px; object-fit: cover; border-radius: 50%; background: var(--stone); }
   .item.member-row { grid-template-columns: 96px 1fr; }
   #team-dirty:not([hidden]) { display: block; margin-top: 0.75rem; }
