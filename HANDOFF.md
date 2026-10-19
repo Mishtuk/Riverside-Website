@@ -30,11 +30,12 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
 | Church facts (times, address, phone, email, text-to-give, map links, socials) | `src/lib/church.js`, re-exported by `src/lib/site.ts`. **Change facts here only; never hard-code them in pages.** The server uses the same file. |
 | Nav and livestream window | `src/lib/site.ts` |
 | Base-aware links and photo srcsets | `href()` and `photo()` in `src/lib/site.ts` |
-| Latest YouTube videos (read at build time) | `src/lib/youtube.ts`, from the channel RSS feed. No API key needed. |
-| Podcast archive (read at build time) | `src/lib/podcast.ts`, from `riversideconnect.com/feeds/sermons` |
+| Latest YouTube videos (read at build time) | `src/lib/youtube.ts`: the channel RSS feed, with the YouTube Data API as a fallback (see Integrations › YouTube) |
+| Podcast archive | `src/lib/podcast.ts`, from the snapshot `src/content/podcast.json` (taken from `riversideconnect.com/feeds/sermons` on 2026-10-19) |
 | Page copy ported from the old site | `src/content/pages/*.md`, plus `staff.json` and `images.json` |
 | Layout, meta tags, Open Graph, JSON-LD, favicons, manifest link | `src/layouts/Base.astro` |
 | Header and phone menu, footer, phone bottom bar, live banner | `src/components/Header.astro`, `Footer.astro`, `MobileBar.astro`, `LiveBanner.astro` |
+| Live stream in the home hero (loaded only during the live window) | `public/live-hero.js`, with its markup and styles in `src/components/home/Hero.astro` |
 | Home page sections | `src/components/home/*` |
 | Embedded vendor forms | `src/components/MinistryForm.astro` |
 | Old URL → new URL redirects (26) | `moves` in `astro.config.mjs` |
@@ -116,9 +117,13 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
   - channel `UCWcjfHPkDfMiiGgp0L8zDjQ`
   - previous-livestreams playlist `PLbS1l_W_y15idxZN2oJY6xpN-6NlCaRNE`
   - Videos are embedded with a facade, so nothing loads from YouTube until a visitor clicks.
+  - **Video list at build time:** the keyless RSS feed comes first. If it fails or is empty (YouTube's feeds returned 404 on 2026-10-19) and the `YOUTUBE_API_KEY` repo secret is set, the build uses the YouTube Data API instead, at 2 quota units a build out of 10,000 a day. If there are still no videos, the build fails on purpose, so the last good deploy stays live. To build locally without videos, set `ALLOW_EMPTY_VIDEOS=1`. To add the key: Google Cloud console → enable YouTube Data API v3 → create an API key (restrict it to that API) → repo Settings → Secrets and variables → Actions → `YOUTUBE_API_KEY`.
   - The "We're live" banner shows on Sundays 10:25am–12:00pm ET. Add `?live=1` to any URL to preview it.
   - On the Azure server, staff can override the schedule in /admin → Livestream: Automatic (the default), Live now, or Not live, plus an optional video ID. The server adds `data-live-force="on|off"` and `data-live-video="<id>"` to `<html>`, and the home hero reads them.
-- **Podcast:** Apple Podcasts id 387370044. The feed is stale: the last episode is from 2020-06-14.
+  - **Live hero (home):** during the same window, the stream replaces the hero video. It plays muted and blurred behind the copy. Clicking it (or "Watch live", or the banner link) brings it into focus with sound and a control bar: Pause, Sound, Mini player, Full screen, Close. Scrolling down turns it into a mini player in the corner. If the stream hasn't started playing within 8 seconds, or YouTube reports an error, the normal hero video comes back. Outside the window nothing loads from YouTube, and the hero video doesn't download while the stream is showing.
+  - **Overrides:** `<html data-live-force="on">` or `"off"` overrides the schedule (banner and hero), and `<html data-live-video="VIDEO_ID">` shows that video instead of the channel's live stream. Staff will set these once the Cloudflare hosting is live. Until then the schedule decides, and `?live=1` previews it.
+  - **Known limit:** a cancelled stream inside the window can't be detected without that toggle, so visitors may see YouTube's offline notice in the hero.
+- **Podcast:** Apple Podcasts id 387370044. The feed is stale: the last episode is from 2020-06-14. The site reads a committed snapshot (150 episodes, April 2017 to June 2020), because the feed is on the old vendor's site. The audio (about 11.4 GB of MP3s) is still on the vendor's file host `cpmfiles1.com`, so it needs a new home before their contract ends; after moving it, update the `audioUrl`s in `src/content/podcast.json`. Each snapshot entry carries the feed `guid`, which is the key for staff title overrides in /admin → Podcast; keep the `guid`s if you re-take the snapshot.
 - **Text to give:** 267-274-2425.
 
 ## The church
@@ -188,7 +193,7 @@ These stay with the developer: the layout and design, the menu, page wording, an
 - **What is stored.** Only daily totals (for example "Oct 19: 140 visitors, 310 page views; Groups page 42").
 - **What is left out.** Bots, staff who are signed in, and browsers that send "Do Not Track" or Global Privacy Control are not counted.
 - **What it means.** The numbers are estimates. Someone who visits on 3 days counts 3 times.
-- **YouTube views (optional).** Set `YOUTUBE_API_KEY` (a free key from Google Cloud with "YouTube Data API v3" enabled; no owner sign-in is needed). The server then reads the channel's public view count once a day and shows the difference over each period. YouTube now counts a view as soon as a video starts, including muted autoplay, so the home page's live video can add YouTube views.
+- **YouTube views (optional).** Set `YOUTUBE_API_KEY` (the same key the build uses, see Integrations › YouTube: a free key from Google Cloud with "YouTube Data API v3" enabled; no owner sign-in is needed). The server then reads the channel's public view count once a day and shows the difference over each period. YouTube now counts a view as soon as a video starts, including muted autoplay, so the home page's live video can add YouTube views.
 - **Sharing.** Nothing is shared or sold.
 - **Ready-made privacy text** for a privacy page or the Subscribe page, if the church wants one (add the office's phone and email from `church.js`, not by hand):
   > **Privacy.** This website doesn't use cookies or third-party trackers. To see how many people visit, our server counts page visits. It uses your IP address and browser type only to make a scrambled one-day code that can't be traced back to you, and it never saves them. We keep only daily totals. If your browser sends "Do Not Track" or Global Privacy Control, you aren't counted at all. If you sign up for our emails, we keep your email address, the lists you chose, and when and from where you confirmed, so we can prove you asked for them. Every email has a one-click unsubscribe. We never sell or share your information. Questions: contact the church office.
