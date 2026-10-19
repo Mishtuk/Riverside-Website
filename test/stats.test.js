@@ -52,6 +52,10 @@ test('skipped: bots, Global Privacy Control, Do Not Track, staff, prefetch, admi
   assert.equal(stats.record(req('/'), { status: 200, headers: new Headers({ 'content-type': 'text/html' }) }, { staff: true }), false);
   assert.equal(stats.record(req('/'), html), true);
   assert.ok(isBot('Mozilla/5.0 (compatible; bingbot/2.0)') && !isBot(UA));
+  // Speed tests: Lighthouse, headless Chrome and WebPageTest don't count as visitors.
+  for (const ua of ['Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Linux; Android 11; moto g power (2022)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36 Chrome-Lighthouse',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 PTST/250101.123456']) not(req('/', { 'user-agent': ua }));
 });
 
 test('ranges: Eastern days, "Last day" is today, all time starts at the first count, DST-safe midnights', () => {

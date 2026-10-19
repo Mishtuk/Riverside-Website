@@ -13,7 +13,7 @@ import { statsSection } from './admin.js';
 const MIN = 6e4, HOUR = 36e5;
 export const KINDS = ['video', 'live', 'podcast']; // live = someone opened the live hero; counted with video
 // Things that aren't people. Cheap and honest, not exhaustive.
-const BOT = /bot|crawl|spider|slurp|scrap|preview|curl|wget|python|httpclient|java\/|go-http|okhttp|axios|node-fetch|monitor|uptime|pingdom|headless|lighthouse|facebookexternalhit|embedly|whatsapp|scan/i;
+const BOT = /bot|crawl|spider|slurp|scrap|preview|curl|wget|python|httpclient|java\/|go-http|okhttp|axios|node-fetch|monitor|uptime|pingdom|headless|lighthouse|ptst|facebookexternalhit|embedly|whatsapp|scan/i;
 export const isBot = (ua) => !ua || ua.length < 12 || BOT.test(ua);
 
 // Friendly names for the top-pages list; anything else is named from its last path segment.

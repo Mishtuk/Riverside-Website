@@ -234,12 +234,13 @@ These stay with the developer: the layout and design, the menu, page wording, an
 - [ ] Every staff member has their own account or is in `ADMIN_EMAILS`; remove test accounts.
 - [ ] The email sending checklist above is done, and a test email arrived with SPF, DKIM and DMARC passing.
 - [ ] `PUBLIC_URL` is the real address, and HTTPS only and Always on are on.
+- [ ] Podcast audio: back up the 150 MP3s (done: V:\RiversideBackup\podcast-audio, outside the repo), upload them to Azure Blob storage, then find-and-replace the audio URLs in src/content/podcast.json before ending the old contract.
 
 **Backups:** every day the server copies the database to `/home/data/backup/riverside-YYYY-MM-DD.db` and keeps the last 7. To download one: web app → Advanced Tools (Kudu) → Debug console → `/home/data/backup`. To restore: stop the app, copy the backup over `/home/data/riverside.db`, then start it. Also turn on App Service's own backups if the plan includes them, so a copy exists outside the app.
 
 **Known limits:** one instance only. Sign-in needs email, so if the relay is down nobody can get a link until `SMTP_URL` is fixed (for example by switching to SES).
 
-**Monthly cost:** App Service Basic B1 is about $13 a month, and email is a few cents per thousand. These are estimates; check them on Microsoft's (and Amazon's) own pricing pages before quoting them.
+**Monthly cost (checked on Microsoft's own pricing pages, 2026-10-18):** App Service Basic B1 (Linux) is $13.14 a month. Azure Communication Services email is $0.00025 per email plus $0.00012 per MB sent, so 1,000 emails cost about 25 cents. Storage (Table/Blob) for a site this size is a few pennies a month.
 
 **Launching `main` on GitHub Pages instead** (if the church never moves to Azure): set `SITE=https://www.riversideconnect.com` and `BASE=/` in the Pages workflow on `main`, and add `public/CNAME`. Then point `www` at `mishtuk.github.io` with a `CNAME` record, plus apex `A` records 185.199.108.153, .109.153, .110.153 and .111.153. The admin features need the Azure server, so they won't exist there.
 
