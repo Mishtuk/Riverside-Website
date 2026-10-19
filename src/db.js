@@ -13,7 +13,10 @@ export function openDb(dir) {
     CREATE TABLE IF NOT EXISTS login_tokens (hash TEXT PRIMARY KEY, email TEXT NOT NULL, expires_at INTEGER NOT NULL, used INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS staff (username TEXT PRIMARY KEY, salt TEXT NOT NULL, hash TEXT NOT NULL, must_change INTEGER NOT NULL DEFAULT 1,
       default_pw INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS staff_logins (id INTEGER PRIMARY KEY, who TEXT NOT NULL, at INTEGER NOT NULL, ip TEXT NOT NULL, method TEXT NOT NULL);`);
+    CREATE TABLE IF NOT EXISTS staff_logins (id INTEGER PRIMARY KEY, who TEXT NOT NULL, at INTEGER NOT NULL, ip TEXT NOT NULL, method TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS activity (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, who TEXT NOT NULL, what TEXT NOT NULL);`);
+  // Added later: per-account session version (sign out everywhere). Older databases get the column here.
+  if (!db.prepare('PRAGMA table_info(staff)').all().some((c) => c.name === 'session_v')) db.exec('ALTER TABLE staff ADD COLUMN session_v INTEGER NOT NULL DEFAULT 0');
   return db;
 }
 
@@ -33,3 +36,11 @@ export function backup(db, dir, now = new Date()) {
   }
   for (const f of files.slice(0, -7)) rmSync(join(folder, f), { force: true });
 }
+
+export const ACTIVITY_KEEP = 200;
+/** View-only log of staff changes: who did what, when. Keeps the newest ACTIVITY_KEEP entries. */
+export function logActivity(db, who, what, now = Date.now()) {
+  db.prepare('INSERT INTO activity (at, who, what) VALUES (?, ?, ?)').run(now, String(who), String(what).slice(0, 300));
+  db.prepare('DELETE FROM activity WHERE id NOT IN (SELECT id FROM activity ORDER BY id DESC LIMIT ?)').run(ACTIVITY_KEEP);
+}
+export const recentActivity = (db, n = ACTIVITY_KEEP) => db.prepare('SELECT at, who, what FROM activity ORDER BY id DESC LIMIT ?').all(n);

@@ -5,6 +5,7 @@ import Footer from '../components/Footer.astro';
 import PageHead from '../components/PageHead.astro';
 import { CHURCH, href, photo } from '../lib/site';
 import { page } from '../lib/md';
+import ComingUpStyles from '../components/ComingUpStyles.astro';
 
 // Recurring rhythms. Only facts already on the site; unknown times say so instead of guessing.
 const bapt = await page('baptisms');
@@ -62,6 +63,8 @@ const sunday = [
   <Header slot="header" />
 
   <PageHead eyebrow="Events" title="What's happening." image="/media/photos/welcome.jpg" focus="60% 40%" lede="The rhythms of our church family, week in and week out." />
+
+  <Fragment set:html="<!--rs:events-->" />
 
   <section class="section" aria-labelledby="sunday-title">
     <div class="container glance">
@@ -121,6 +124,7 @@ const sunday = [
     </div>
   </section>
 
+  <ComingUpStyles />
   <Footer slot="footer" />
 </Base>
 

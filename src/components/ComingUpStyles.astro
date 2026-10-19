@@ -1,0 +1,30 @@
+---
+// Styles for the "Coming up" lists the server fills in on home and /events (state.js homeEventsHtml / eventsPageHtml).
+---
+<style is:global>
+  .coming-up .cu-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 1rem 2rem; margin-bottom: clamp(1.5rem, 1rem + 2vw, 2.5rem); }
+  .coming-up .cu-head h2 { margin-top: 0.75rem; }
+  .coming-up .cu-alerts { display: grid; gap: 8px; margin-bottom: 1.5rem; }
+  .coming-up .alert-x { display: none; }
+  .coming-up .cu-cards { list-style: none; padding: 0; display: grid; gap: clamp(1rem, 0.5rem + 1.5vw, 1.75rem); }
+  @media (min-width: 800px) { .coming-up .cu-cards { grid-template-columns: 1fr 1fr; } }
+  .coming-up .cu-card { display: grid; grid-template-columns: 4.5rem 1fr; gap: 1.25rem; align-items: start; height: 100%; }
+  .coming-up .cu-date { display: grid; place-content: center; text-align: center; width: 4.5rem; height: 4.5rem; border-radius: var(--radius-s); background: var(--parchment); color: var(--gold-ink); }
+  .coming-up .cu-day { font-family: var(--font-display); font-size: var(--step-3); line-height: 1; }
+  .coming-up .cu-mon { font-size: var(--step--1); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+  .coming-up .cu-label { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold-ink-sm) !important; }
+  .coming-up .cu-card h3 { font-size: var(--step-2); margin: 0.25rem 0 0.4rem; }
+  .coming-up .cu-when, .coming-up .cu-row-title { color: var(--ink); }
+  .coming-up .cu-about { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 0.4rem; }
+  .coming-up .cu-list { list-style: none; padding: 0; margin-top: 1.25rem; display: grid; }
+  .coming-up .cu-row { padding-block: 0.85rem; border-top: 1px solid var(--line); }
+  .coming-up .cu-row:first-child { border-top: 0; }
+  .coming-up .cu-row-date { font-size: var(--step--1); font-weight: 700; color: var(--gold-ink-sm); }
+  .coming-up .cu-row-meta, .coming-up .cu-row-about { color: var(--muted); }
+  .coming-up .cu-row .cu-label { margin-right: 0.35rem; }
+  .coming-up .cu-row-group { font-size: var(--step--1); }
+  .coming-up .cu-month { margin: clamp(2rem, 1.5rem + 2vw, 3rem) 0 1rem; }
+  .coming-up .cu-month:first-of-type { margin-top: 0; }
+  .coming-up .cu-row a.link, .coming-up .cu-card a.link { display: inline-block; padding-block: 0.6rem; } /* 44px taps */
+  .coming-up .cu-empty { font-size: var(--step-1); color: var(--ink); max-width: 46rem; }
+</style>

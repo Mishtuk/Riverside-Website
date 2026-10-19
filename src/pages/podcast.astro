@@ -36,7 +36,7 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
   <PageHead eyebrow="Podcast" title="Listen anywhere." image="/media/photos/pulpit.jpg" focus="center" lede="Take Sunday with you: on your commute, on a walk, or at home.">
     <div class="btn-row" style="margin-top:2rem">
       <a class="btn btn-dark" href={CHURCH.socials.youtube} rel="noopener">Watch &amp; listen on YouTube</a>
-      <a class="btn btn-outline" href={APPLE_PODCASTS_URL} rel="noopener">Podcast archive on Apple</a>
+      <a class="btn btn-outline" href={APPLE_PODCASTS_URL} rel="noopener" onclick="navigator.sendBeacon?.('/api/stats/play','podcast')">Podcast archive on Apple</a>
     </div>
   </PageHead>
 
@@ -152,6 +152,8 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
       });
     });
     ['play', 'pause', 'timeupdate', 'loadedmetadata', 'ended'].forEach((ev) => audio.addEventListener(ev, paint));
+    let counted = ''; // one play count per episode per page, for the admin Statistics (no cookies)
+    audio.addEventListener('play', () => { if (audio.src !== counted) { counted = audio.src; navigator.sendBeacon?.('/api/stats/play', 'podcast'); } });
     audio.addEventListener('error', () => { if (cur) cur.querySelector('.ep-time')!.textContent = ' · Could not load audio'; });
   }
 </script>

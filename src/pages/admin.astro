@@ -70,7 +70,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     </div>
     <nav class="subnav" aria-label="Admin sections">
       <div class="container-narrow">
-        <ul class="chips"><li><a href="#alerts">Alerts</a></li><li><a href="#email">Email</a></li><li><a href="#items">Videos &amp; podcast</a></li><li><a href="#groups">Groups</a></li><li><a href="#live">Livestream</a></li><li><a href="#staff">Staff</a></li></ul>
+        <ul class="chips"><li><a href="#alerts">Alerts</a></li><li><a href="#stats">Statistics</a></li><li><a href="#email">Email</a></li><li><a href="#items">Videos &amp; podcast</a></li><li><a href="#groups">Groups</a></li><li><a href="#events">Events</a></li><li><a href="#team">Our team</a></li><li><a href="#live">Livestream</a></li><li><a href="#staff">Staff</a></li><li><a href="#activity">Activity</a></li><li><a href="#help">Help</a></li></ul>
       </div>
     </nav>
 
@@ -92,8 +92,10 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
           <label>Message <textarea name="message" rows="3" maxlength="200" required></textarea></label>
           <p class="hint" id="count">0 / 200</p>
           <label>Group (optional) <select name="group" aria-describedby="group-help"><option value="">None</option></select></label>
-          <p class="hint" id="group-help">Pick a group to pin this alert to its section on the Groups page, for example “Not meeting this Sunday”. Write when and where in the message.</p>
+          <p class="hint" id="group-help">Pick a group to pin this alert to its section on the Groups page. Write when and where in the message. If the group isn’t meeting, also set “This week” on its card in Groups.</p>
           <label class="check" id="sitewide-row" hidden><input type="checkbox" name="sitewide" /> <span>Also show site-wide (the banner on every page)</span></label>
+          <label class="check" id="popup-row"><input type="checkbox" name="popup" /> <span>Also show as a pop-up the first time someone visits (each person sees it once)</span></label>
+          <label class="check" id="again-row" hidden><input type="checkbox" name="showAgain" /> <span>Show the pop-up again to people who already closed it</span></label>
           <label>Link (optional) <input name="link" type="text" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://" /></label>
           <label>Expires <input name="expires" type="datetime-local" required aria-describedby="exp-help" /></label>
           <p class="hint" id="exp-help">It disappears from the site automatically after this.</p>
@@ -114,6 +116,8 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
         </form>
       </section>
 
+      <Fragment set:html="<!--rs:stats-->" />
+
       <Fragment set:html="<!--rs:email-->" />
 
       <section id="items" aria-labelledby="items-h">
@@ -130,6 +134,22 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
         <h2 id="groups-h" class="h2">Groups</h2>
         <p><button class="btn" type="button" id="add-group">Add a group</button></p>
         <div id="group-list" class="stack-s"></div>
+      </section>
+
+      <section id="events" aria-labelledby="events-h">
+        <h2 id="events-h" class="h2">Events</h2>
+        <p class="muted">Church-wide events. They show on the home page and the Events page, together with group events and this week’s group meetings.</p>
+        <p><button class="btn" type="button" id="add-event">Add an event</button></p>
+        <div id="event-list" class="stack-s"></div>
+        <p class="hint">Past events are removed automatically.</p>
+      </section>
+
+      <section id="team" aria-labelledby="team-h">
+        <h2 id="team-h" class="h2">Our team</h2>
+        <p class="muted">Shown on the About page under “Meet the people”. The first person is featured with a large photo.</p>
+        <ol id="team-list" class="item-list" role="list"></ol>
+        <div class="btn-row"><button class="btn btn-sm btn-outline" type="button" id="add-member">Add a person</button><button class="btn btn-sm" type="button" id="save-team">Save team</button></div>
+        <p class="dirty" id="team-dirty" hidden>Unsaved changes</p>
       </section>
 
       <section id="staff" aria-labelledby="staff-h">
@@ -157,6 +177,14 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
         <ul id="logins" class="news-list" role="list"></ul>
       </section>
 
+      <section id="activity" aria-labelledby="activity-h">
+        <h2 id="activity-h" class="h2">Activity</h2>
+        <p class="muted">Who changed what, newest first (the last 200 changes and sign-ins).</p>
+        <ul id="activity-list" class="news-list" role="list"></ul>
+        <p><a class="btn btn-sm btn-outline" href={href('/api/admin/backup')} download>Download a backup</a></p>
+        <p class="hint">One file with the site’s content (alerts, events, groups, team, edits) and the subscriber list. Keep it somewhere safe; the server also keeps 7 nightly copies.</p>
+      </section>
+
       <section id="live" aria-labelledby="live-h">
         <h2 id="live-h" class="h2">Livestream</h2>
         <form id="live-form" class="card form">
@@ -171,6 +199,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
           <p><button class="btn btn-sm" type="submit">Save</button></p>
         </form>
       </section>
+      <Fragment set:html="<!--rs:help-->" />
     </div>
   </div>
 
@@ -200,6 +229,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   const TOPIC = { urgent: 'Weather & closing alerts', news: 'Latest happenings' } as Record<string, string>;
   let state: any = {};
   let emailOn = false;
+  let me = '';
 
   async function call(method: string, path: string, body?: unknown, raw?: Blob) {
     const r = await fetch(API + path, {
@@ -308,6 +338,8 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   let editing = '';
   let expTouched = false;
   let sitewideTouched = false;
+  let popupTouched = false;
+  let editingPopup = false;
   const groupName = (id: string) => (state.groups ?? []).find((g: any) => g.id === id)?.name ?? '';
   /** Email topics for the alert being written: the group's list and/or the site-wide topics. */
   const emailTopics = () => (el.group.value
@@ -331,26 +363,31 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     $('#topic-name').textContent = group ? 'the lists below' : TOPIC[type];
     $('#sitewide-row').hidden = !group;
     // Urgent group alerts ("not meeting") default to the site-wide banner too; group news stays on the group.
-    if (group && !sitewideTouched) el.sitewide.checked = type === 'urgent';
+    if (group && !sitewideTouched) el.sitewide.checked = false; // optional: a small group's change shouldn't fill every page
+    // Pop-ups are for alerts on every page; weather / closing ones start ticked.
+    const everyPage = !group || el.sitewide.checked;
+    $('#popup-row').hidden = !everyPage;
+    if (!popupTouched) el.popup.checked = everyPage && type === 'urgent';
+    $('#again-row').hidden = !(editingPopup && everyPage && el.popup.checked);
     $('#email-to').hidden = !group || !el.email.checked;
     $('#etopic-group').textContent = group ? `${groupName(group)} list` : 'The group’s list';
     el.link.placeholder = group ? 'Leave blank to link to the group’s section' : 'https://';
     el.email.disabled = !emailOn;
     $('#email-off').hidden = emailOn;
     $('#post-btn').textContent = el.email.checked ? 'Post alert and email' : 'Post alert';
-    ($('#test-btn') as HTMLButtonElement).hidden = !emailOn;
+    ($('#test-btn') as HTMLButtonElement).hidden = !emailOn || !String(me).includes('@'); // password accounts have no address to test to
     let link = '';
     link = el.link.value.trim() || (group ? `/groups#${group}` : '');
     $('#preview').innerHTML = alertCard({ id: 'preview', type, message: el.message.value.trim() || 'Your message appears here.', link });
     $('#preview').classList.toggle('is-empty', !el.message.value.trim());
   }
-  f.addEventListener('input', (e) => { if (e.target === el.expires) expTouched = true; if (e.target === el.sitewide) sitewideTouched = true; syncCompose(); });
+  f.addEventListener('input', (e) => { if (e.target === el.expires) expTouched = true; if (e.target === el.sitewide) sitewideTouched = true; if (e.target === el.popup) popupTouched = true; syncCompose(); });
   f.addEventListener('change', (e) => { if (e.target === el.type[0] || e.target === el.type[1]) { if (!expTouched) defaultExpiry(); } syncCompose(); });
 
   function renderAlerts() {
     const list = activeAlerts(state.alerts);
     $('#active').innerHTML = list.length
-      ? list.map((a: any) => `<div class="active-row">${alertCard(a)}<p class="hint">${a.group ? `${esc(groupName(a.group))} · ${a.sitewide ? 'Also site-wide' : 'Only on the group'} · ` : ''}Ends ${ends(a.expires)}${a.emailed ? ' · Emailed' : ''}</p><div class="btn-row"><button type="button" class="btn btn-sm btn-outline" data-edit="${esc(a.id)}">Edit</button><button type="button" class="btn btn-sm btn-outline" data-end="${esc(a.id)}">End now</button></div></div>`).join('')
+      ? list.map((a: any) => `<div class="active-row">${alertCard(a)}<p class="hint">${a.group ? `${esc(groupName(a.group))} · ${a.sitewide ? 'Also site-wide' : 'Only on the group'} · ` : ''}Ends ${ends(a.expires)}${a.popup ? ' · Pop-up' : ''}${a.emailed ? ' · Emailed' : ''}</p><div class="btn-row"><button type="button" class="btn btn-sm btn-outline" data-edit="${esc(a.id)}">Edit</button><button type="button" class="btn btn-sm btn-outline" data-end="${esc(a.id)}">End now</button></div></div>`).join('')
       : '<p class="muted">No active alerts. The site shows no banner.</p>';
   }
   function resetCompose() {
@@ -358,6 +395,8 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     editing = '';
     expTouched = false;
     sitewideTouched = false;
+    popupTouched = false;
+    editingPopup = false;
     $('#editing').hidden = true;
     defaultExpiry();
     syncCompose();
@@ -371,6 +410,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     if (b.dataset.edit) {
       el.type.value = a.type; el.message.value = a.message; el.link.value = a.link ?? ''; el.expires.value = local(new Date(a.expires));
       el.group.value = a.group ?? ''; el.sitewide.checked = Boolean(a.sitewide); sitewideTouched = true;
+      el.popup.checked = Boolean(a.popup); popupTouched = true; editingPopup = Boolean(a.popup); el.showAgain.checked = false;
       editing = a.id; expTouched = true; $('#editing').hidden = false; syncCompose();
       el.message.focus();
       return;
@@ -379,7 +419,8 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     save(async () => { await call('DELETE', `/alerts/${encodeURIComponent(a.id)}`); state.alerts = state.alerts.filter((x: any) => x !== a); renderAlerts(); }, 'Alert ended.');
   });
   const alertBody = () => ({ type: el.type.value, message: el.message.value, link: el.link.value.trim(), expires: new Date(el.expires.value).toISOString(),
-    group: el.group.value || undefined, sitewide: el.group.value ? el.sitewide.checked : undefined });
+    group: el.group.value || undefined, sitewide: el.group.value ? el.sitewide.checked : undefined,
+    popup: !$('#popup-row').hidden && el.popup.checked, showAgain: el.showAgain.checked });
   const linkOk = (v: string) => { if (!v || /^\/(?!\/)/.test(v)) return true; try { return /^https?:$/.test(new URL(v).protocol); } catch { return false; } };
   function checkCompose() {
     const err = $('#compose-err');
@@ -442,18 +483,18 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
           + '<p class="dirty" hidden><span>Unsaved changes</span> <button type="button" class="btn btn-sm save">Save</button></p></div></li>';
       }).join('');
   }
-  document.querySelectorAll<HTMLButtonElement>('.seg .chip').forEach((b) => (b.onclick = () => {
+  document.querySelectorAll<HTMLButtonElement>('#items .seg .chip').forEach((b) => (b.onclick = () => {
     kind = b.dataset.kind as typeof kind;
-    document.querySelectorAll('.seg .chip').forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
+    document.querySelectorAll('#items .seg .chip').forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
     pending.clear();
     renderItems();
   }));
-  // Resize to the card size (1280×720, centre crop) in the browser, so uploads stay small.
-  async function toThumb(file: File): Promise<Blob> {
+  // Resize in the browser (centre crop), so uploads stay small: 1280×720 for video cards, 600×600 for team photos.
+  async function toThumb(file: File, w = 1280, h = 720): Promise<Blob> {
     const img = await createImageBitmap(file);
-    const c = Object.assign(document.createElement('canvas'), { width: 1280, height: 720 });
-    const s = Math.max(1280 / img.width, 720 / img.height);
-    c.getContext('2d')!.drawImage(img, (1280 - img.width * s) / 2, (720 - img.height * s) / 2, img.width * s, img.height * s);
+    const c = Object.assign(document.createElement('canvas'), { width: w, height: h });
+    const s = Math.max(w / img.width, h / img.height);
+    c.getContext('2d')!.drawImage(img, (w - img.width * s) / 2, (h - img.height * s) / 2, img.width * s, img.height * s);
     return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('encode'))), 'image/jpeg', 0.85));
   }
   const list = $('#item-list');
@@ -517,7 +558,8 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     </fieldset>`;
   const summary = (g: any) => {
     const s = groupStatus(g, new Date());
-    return `<span class="gname">${esc(g.name || 'New group')}</span><span class="gmeta"><span class="chip-status is-${s.kind}">${s.label}</span><span>${esc(TYPE_LABEL[g.type] ?? TYPE_LABEL.other)}</span><span class="hint">${updated(g.updated)}</span></span>`;
+    const alertOn = activeAlerts(state.alerts).some((a: any) => a.group === g.id);
+    return `<span class="gname">${esc(g.name || 'New group')}</span><span class="gmeta"><span class="chip-status is-${s.kind}">${s.label}</span><span>${esc(TYPE_LABEL[g.type] ?? TYPE_LABEL.other)}</span>${alertOn ? "<span><strong>Alert on</strong></span>" : ""}<span class="hint">${updated(g.updated)}</span></span>`;
   };
   const newsList = (g: any) => {
     const news = g.news ?? [];
@@ -661,7 +703,11 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     $('#own-pw').hidden = r.kind !== 'password';
     $('#accounts').innerHTML = r.accounts.map((a: any) => `<li><p><strong>${esc(a.username)}</strong>${a.username === r.me ? ' (you)' : ''}</p>`
       + `<p class="hint">${a.defaultPassword ? 'Default password: change it before launch' : a.mustChange ? 'Waiting for a new password' : `Password set ${when(a.updated)}`}</p>`
-      + (a.username !== r.me && r.accounts.length > 1 ? `<p><button type="button" class="link del-staff" data-u="${esc(a.username)}">Remove</button></p>` : '') + '</li>').join('');
+      + (a.username !== r.me ? `<div class="btn-row"><button type="button" class="btn btn-sm btn-outline reset-staff" data-u="${esc(a.username)}" aria-expanded="false">Reset password</button>`
+        + (r.accounts.length > 1 ? `<button type="button" class="link del-staff" data-u="${esc(a.username)}">Remove</button>` : '') + '</div>'
+        + `<form class="form reset-form" data-u="${esc(a.username)}" hidden novalidate><label>Temporary password for ${esc(a.username)} <input name="password" type="text" required minlength="12" autocomplete="off" spellcheck="false"></label>`
+        + '<p class="hint">At least 12 characters. Give it to them in person or by phone. They must choose their own the next time they sign in.</p><p class="err" role="alert" hidden></p>'
+        + '<p><button class="btn btn-sm" type="submit">Set temporary password</button></p></form>' : '') + '</li>').join('');
     $('#logins').innerHTML = r.logins.length ? r.logins.map((l: any) => `<li><p><strong>${esc(l.who)}</strong> · ${when(l.at)}</p><p class="hint">${l.method === 'link' ? 'Email link' : 'Password'} · ${esc(l.ip)}</p></li>`).join('') : '<li class="hint">No sign-ins yet.</li>';
     $('#default-warning').hidden = !r.accounts.some((a: any) => a.defaultPassword);
   }
@@ -674,6 +720,18 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     try { await call('POST', '/password', { current: v.current.value, password: v.password.value }); op.reset(); showErr('#own-err', ''); toast('Password changed.'); renderStaff(); }
     catch (err: any) { if (err.status !== 401) showErr('#own-err', PW_ERR[err.data?.error] ?? 'Couldn’t save. Try again.'); }
   });
+  $('#accounts').addEventListener('submit', async (e) => {
+    const form = (e.target as HTMLElement).closest<HTMLFormElement>('.reset-form');
+    if (!form) return;
+    e.preventDefault();
+    const u = form.dataset.u!;
+    const pw = (form.elements as any).password.value;
+    const err = $('.err', form);
+    if (pw.length < 12) { err.textContent = `⚠ ${PW_ERR.too_short}`; err.hidden = false; return; }
+    if (!(await ask(`Reset the password for ${u}?`, 'They are signed out everywhere and must choose a new password the next time they sign in.', 'Reset password'))) return;
+    try { await call('POST', `/staff/${encodeURIComponent(u)}/reset`, { password: pw }); toast(`Password reset. Give ${u} the temporary password.`); renderStaff(); }
+    catch (x: any) { if (x.status !== 401) { err.textContent = `⚠ ${PW_ERR[x.data?.error] ?? 'Couldn’t reset it. Try again.'}`; err.hidden = false; } }
+  });
   const as = $<HTMLFormElement>('#add-staff');
   as.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -682,12 +740,147 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     catch (err: any) { if (err.status !== 401) showErr('#add-err', PW_ERR[err.data?.error] ?? 'Couldn’t save. Try again.'); }
   });
   $('#accounts').addEventListener('click', async (e) => {
+    const rb = (e.target as HTMLElement).closest<HTMLButtonElement>('.reset-staff');
+    if (rb) { // show / hide that account's reset form
+      const form = rb.closest('li')!.querySelector<HTMLFormElement>('.reset-form')!;
+      form.hidden = !form.hidden;
+      rb.setAttribute('aria-expanded', String(!form.hidden));
+      if (!form.hidden) (form.elements as any).password.focus();
+      return;
+    }
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.del-staff');
     if (!b) return;
     if (!(await ask(`Remove ${b.dataset.u}?`, 'They can’t sign in with a password any more.', 'Remove account'))) return;
     try { await call('DELETE', `/staff/${encodeURIComponent(b.dataset.u!)}`); toast('Account removed.'); renderStaff(); }
     catch (err: any) { if (err.status !== 401) fail(undefined, PW_ERR[err.data?.error] ?? 'Couldn’t remove it. Try again.'); }
   });
+
+  // ---------- events (church-wide) ----------
+  const EV_ERR: Record<string, string> = { title: 'Give the event a title.', date: 'Choose a date.', past: 'That date has passed.', time: 'The end time must be after the start time (and needs a start time).', link: 'Enter a full link starting with https://, or a page on this site starting with /' };
+  const evDate = (e: any) => [new Date(`${e.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }), e.start].filter(Boolean).join(' · ');
+  function eventCard(e: any, open = false) {
+    const id = esc(e.id ?? '');
+    const hid = esc(e.id ?? 'new');
+    return `<details class="card gcard" data-id="${id}"${open ? ' open' : ''}><summary><span class="gname">${esc(e.title || 'New event')}</span><span class="gmeta">${e.date ? `<span>${esc(evDate(e))}</span>` : ''}<span class="chip-status ${e.major ? 'is-meeting' : 'is-off'}">${e.major ? 'Major' : 'Minor'}</span></span></summary>
+      <form class="form gform" novalidate>
+      <label>Title <input name="title" required maxlength="80" value="${esc(e.title)}"></label>
+      <div class="two"><label>Date <input type="date" name="date" required min="${etDay(new Date())}" value="${esc(e.date)}"></label>
+      <label>Starts (optional) <input type="time" name="start" value="${esc(e.start)}"></label></div>
+      <div class="two"><label>Ends (optional) <input type="time" name="end" value="${esc(e.end)}"></label>
+      <label>Place <input name="place" maxlength="80" value="${esc(e.place)}" aria-describedby="ep-${hid}"></label></div>
+      <p class="hint" id="ep-${hid}">Leave the place blank to show “Contact us”.</p>
+      <label>Description (optional) <textarea name="about" rows="3" maxlength="300" aria-describedby="ea-${hid}">${esc(e.about)}</textarea></label>
+      <p class="hint" id="ea-${hid}">Up to 300 characters.</p>
+      <fieldset class="types"><legend>Importance</legend>
+        <label class="type-card"><input type="radio" name="major" value="1"${e.major ? ' checked' : ''}> Major: shown big on the home page</label>
+        <label class="type-card"><input type="radio" name="major" value="0"${e.major ? '' : ' checked'}> Minor: shown in the list</label>
+      </fieldset>
+      <label>Link (optional) <input name="link" type="text" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https:// or /page" value="${esc(e.link)}"></label>
+      <p class="err" role="alert" hidden></p>
+      <div class="btn-row"><button class="btn btn-sm" type="submit">Save</button><button class="link remove-event" type="button">Remove</button></div>
+    </form></details>`;
+  }
+  function renderEvents(openId = '') {
+    const list = state.events ?? [];
+    $('#event-list').innerHTML = list.length ? list.map((e: any) => eventCard(e, e.id === openId)).join('') : '<p class="muted" id="no-events">No church events yet. Add one and it appears on the home page and Events.</p>';
+  }
+  $('#add-event').onclick = () => {
+    $('#no-events')?.remove();
+    $('#event-list').insertAdjacentHTML('afterbegin', eventCard({ title: '', date: '', major: false }, true));
+    $<HTMLInputElement>('#event-list [name=title]').focus();
+  };
+  $('#event-list').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const card = form.closest<HTMLElement>('.gcard')!;
+    const v = form.elements as any;
+    const err = $('.err', form);
+    const body = { title: v.title.value, date: v.date.value, start: v.start.value, end: v.end.value, place: v.place.value, about: v.about.value, major: v.major.value === '1', link: v.link.value };
+    const local = !body.title.trim() ? 'title' : !body.date ? 'date' : body.end && (!body.start || body.end <= body.start) ? 'time' : '';
+    if (local) { err.textContent = `⚠ ${EV_ERR[local]}`; err.hidden = false; return; }
+    try {
+      const r = await call('PUT', `/events/${encodeURIComponent(card.dataset.id || 'new')}`, body);
+      state.events = r.events;
+      renderEvents(r.event.id);
+      toast('Event saved. It’s on the home page.');
+    } catch (x: any) {
+      if (x.status === 401) return;
+      if (EV_ERR[x.data?.error]) { err.textContent = `⚠ ${EV_ERR[x.data.error]}`; err.hidden = false; } else fail(() => form.requestSubmit());
+    }
+  });
+  $('#event-list').addEventListener('click', async (e) => {
+    const t = e.target as HTMLElement;
+    if (!t.matches('.remove-event')) return;
+    const card = t.closest<HTMLElement>('.gcard')!;
+    const title = ($<HTMLInputElement>('[name=title]', card).value || 'this event');
+    if (!(await ask(`Remove ${title}?`, 'It disappears from the home page and Events.', 'Remove event'))) return;
+    if (!card.dataset.id) { card.remove(); return toast('Event removed.'); }
+    save(async () => { state.events = (await call('DELETE', `/events/${encodeURIComponent(card.dataset.id!)}`)).events; renderEvents(); }, 'Event removed.');
+  });
+
+  // ---------- our team ----------
+  let team: any[] = [];
+  const teamDirty = (on = true) => ($('#team-dirty').hidden = !on);
+  function renderTeam() {
+    call('GET', '/team').then((r) => { team = r.team; drawTeam(); }).catch(() => {});
+  }
+  function drawTeam() {
+    $('#team-list').innerHTML = team.map((m, i) => `<li class="card item member-row" data-i="${i}">`
+      + (m.photo ? `<img class="team-photo" src="${esc(m.photo)}" alt="" width="96" height="96">` : '<span class="team-photo" aria-hidden="true"></span>')
+      + `<div class="ifields"><p class="hint">${i === 0 ? 'Featured first' : `Position ${i + 1}`}</p>`
+      + `<label>Name <input data-k="name" required maxlength="80" value="${esc(m.name)}"></label>`
+      + `<label>Role <input data-k="role" maxlength="80" value="${esc(m.role)}" placeholder="Elder"></label>`
+      + `<label>Short bio <textarea data-k="bio" rows="4" maxlength="800">${esc(m.bio)}</textarea></label>`
+      + `<div class="btn-row"><label class="btn btn-sm btn-outline file">${m.photo ? 'Change photo' : 'Add photo'}<input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"></label>`
+      + (m.photo ? '<button type="button" class="link m-nophoto">Remove photo</button>' : '')
+      + (i > 0 ? `<button type="button" class="btn btn-sm btn-outline m-up" aria-label="Move ${esc(m.name)} up">Move up</button>` : '')
+      + (i < team.length - 1 ? `<button type="button" class="btn btn-sm btn-outline m-down" aria-label="Move ${esc(m.name)} down">Move down</button>` : '')
+      + (team.length > 1 ? `<button type="button" class="link m-remove">Remove</button>` : '') + '</div></div></li>').join('');
+  }
+  const tl = $('#team-list');
+  const idx = (t: EventTarget | null) => +((t as HTMLElement).closest<HTMLElement>('[data-i]')!.dataset.i!);
+  tl.addEventListener('input', (e) => { const t = e.target as HTMLInputElement; if (!t.dataset.k) return; team[idx(t)][t.dataset.k] = t.value; teamDirty(); });
+  tl.addEventListener('change', async (e) => {
+    const input = e.target as HTMLInputElement;
+    if (input.type !== 'file' || !input.files?.[0]) return;
+    const file = input.files[0];
+    if (file.size > 5 * 1024 * 1024 || !/^image\/(jpeg|png|webp)$/.test(file.type)) return fail(undefined, 'Choose a JPG, PNG or WebP photo up to 5 MB.');
+    try {
+      const { photo } = await call('POST', '/photo', undefined, await toThumb(file, 600, 600));
+      team[idx(input)].photo = photo; drawTeam(); teamDirty();
+    } catch (x: any) { if (x.status !== 401) fail(undefined, 'That photo couldn’t be used. Try another file.'); }
+  });
+  tl.addEventListener('click', async (e) => {
+    const t = e.target as HTMLElement;
+    if (!t.matches('.m-up, .m-down, .m-remove, .m-nophoto')) return;
+    const i = idx(t);
+    if (t.matches('.m-nophoto')) team[i].photo = '';
+    if (t.matches('.m-up')) [team[i - 1], team[i]] = [team[i], team[i - 1]];
+    if (t.matches('.m-down')) [team[i + 1], team[i]] = [team[i], team[i + 1]];
+    if (t.matches('.m-remove')) {
+      if (!(await ask(`Remove ${team[i].name || 'this person'}?`, 'They disappear from the About page when you save.', 'Remove'))) return;
+      team.splice(i, 1);
+    }
+    drawTeam(); teamDirty();
+  });
+  $('#add-member').onclick = () => { team.push({ name: '', role: '', bio: '', photo: '' }); drawTeam(); teamDirty(); $<HTMLInputElement>('#team-list li:last-child [data-k=name]').focus(); };
+  $('#save-team').onclick = () => {
+    if (team.some((m) => !m.name.trim())) return fail(undefined, 'Every person needs a name.');
+    save(async () => { team = (await call('PUT', '/team', team)).team; drawTeam(); teamDirty(false); }, 'Saved. The About page is updated.');
+  };
+
+  // ---------- activity ----------
+  function renderActivity() {
+    call('GET', '/activity').then((r) => {
+      $('#activity-list').innerHTML = r.activity.length
+        ? r.activity.map((a: any) => `<li><p>${esc(a.what)}</p><p class="hint">${esc(a.who)} · ${when(a.at)}</p></li>`).join('')
+        : '<li class="hint">Nothing yet.</li>';
+    }).catch(() => {});
+  }
+  // Keep the log current after any save.
+  const _toast = toast;
+  // @ts-ignore reassigning the function binding
+  toast = (msg: string) => { _toast(msg); renderActivity(); };
 
   // ---------- livestream ----------
   const lf = $<HTMLFormElement>('#live-form');
@@ -702,7 +895,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   (async () => {
     try {
       const r = await call('GET', '/state');
-      state = r.state; emailOn = r.email;
+      state = r.state; emailOn = r.email; me = r.user;
       $('#default-warning').hidden = !r.defaultPassword;
     } catch (e: any) {
       if (e.data?.error !== 'must_change') return gate();
@@ -714,7 +907,7 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
     $('#sign-out').hidden = false;
     lv.mode.value = state.live?.mode ?? 'auto';
     lv.video.value = state.live?.video ?? '';
-    renderAlerts(); renderItems(); renderGroups(); resetCompose(); renderStaff();
+    renderAlerts(); renderItems(); renderGroups(); resetCompose(); renderStaff(); renderEvents(); renderTeam(); renderActivity();
   })();
 </script>
 
@@ -793,6 +986,9 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   .chip-status.is-off { background: var(--stone); border: 1.5px solid var(--stone-2); }
   .chip-status.is-break { border: 1.5px dashed var(--muted); color: var(--muted); }
   .news-list { list-style: none; padding: 0; display: grid; }
+  .team-photo { width: 96px; height: 96px; object-fit: cover; border-radius: 50%; background: var(--stone); }
+  .item.member-row { grid-template-columns: 96px 1fr; }
+  #team-dirty:not([hidden]) { display: block; margin-top: 0.75rem; }
   .email-to { padding-left: 2rem !important; }
   .news-list > li { padding-block: 0.75rem; border-top: 1px solid var(--line); }
   .news-list p + p { margin-top: 0.15rem; }
@@ -801,6 +997,9 @@ const icon = (d: string) => `<svg viewBox="0 0 24 24" width="22" height="22" ari
   .two { display: grid; gap: 0.6rem; grid-template-columns: 1fr 1fr; }
   #confirm { margin: auto; width: min(28rem, calc(100% - 2rem)); border: 0; box-shadow: var(--shadow-l); }
   #confirm:not([open]) { display: none; }
+  /* .btn and other display rules must not beat the hidden attribute anywhere in the admin */
+  .admin-top [hidden], #gate [hidden], #must-change [hidden], #app [hidden] { display: none !important; }
+  .admin-body button.link { padding-block: 0.6rem; } /* 44px tap rows */
   #confirm::backdrop { background: rgb(28 28 28 / 0.5); }
   #confirm form { display: grid; gap: 1rem; }
   .toasts { position: fixed; left: 50%; translate: -50% 0; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 70; display: grid; gap: 0.5rem; width: max-content; max-width: calc(100% - 32px); }

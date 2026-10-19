@@ -64,6 +64,7 @@ const watch = (id: string) => `https://www.youtube.com/watch?v=${id}`;
   document.querySelectorAll('.player[data-yt]').forEach((a) =>
     a.addEventListener('click', (e) => {
       e.preventDefault();
+      navigator.sendBeacon?.('/api/stats/play', 'video'); // play count for the admin Statistics (no cookies)
       const f = document.createElement('iframe');
       f.src = `https://www.youtube-nocookie.com/embed/${a.dataset.yt}?autoplay=1&rel=0`;
       f.title = a.dataset.title || 'YouTube video';

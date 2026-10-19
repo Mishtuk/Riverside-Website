@@ -10,7 +10,7 @@ function client() {
   const day = (ms) => new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
   const STATUS = { confirmed: 'Confirmed', pending: 'Waiting to confirm', unsubscribed: 'Unsubscribed' };
   const ERR = { topic: 'Choose at least one topic.', subject: 'Add a subject.', body: 'Write a message.', no_recipients: 'Nobody is subscribed to that yet.',
-    email_not_configured: 'Email isn’t configured, so nothing can be sent yet.', no_email: 'Your sign-in has no email address to send a test to.',
+    email_not_configured: 'Email isn’t configured, so nothing can be sent yet.', no_email: 'Your account has no email address, so tests can’t be sent. Sign in with an emailed link to send a test.',
     group: 'Choose a group.', emails: 'Paste at least one email address.', too_many: 'Up to 50 addresses at a time.' };
 
   async function api(method, path, body) {
@@ -209,7 +209,7 @@ function client() {
   loadCounts(); loadSent(); preview();
 }
 
-const CSS = `#email .em-tiles{grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));margin-bottom:.75rem}
+const CSS = `#email .em-tiles{grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));margin-bottom:.75rem;padding:0}
 #email .em-tile{padding:1rem 1.25rem}
 #email .em-n{display:block;font-size:var(--step-2);font-weight:700;line-height:1.2}
 #email .em-list{list-style:none;padding:0;display:grid;gap:.5rem}

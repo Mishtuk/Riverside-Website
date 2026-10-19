@@ -9,6 +9,7 @@ import PodcastTeaser from '../components/home/PodcastTeaser.astro';
 import GetInvolved from '../components/home/GetInvolved.astro';
 import GiveBand from '../components/home/GiveBand.astro';
 import Visit from '../components/home/Visit.astro';
+import ComingUpStyles from '../components/ComingUpStyles.astro';
 import { CHURCH, href } from '../lib/site';
 
 const url = new URL(href('/'), Astro.site).href;
@@ -64,11 +65,13 @@ const jsonLd = {
 
   <Hero />
   <NewHere />
+  <Fragment set:html="<!--rs:coming-up-->" />
   <LatestMessage />
   <PodcastTeaser />
   <GetInvolved />
   <GiveBand />
   <Visit />
 
+  <ComingUpStyles />
   <Footer slot="footer" />
 </Base>

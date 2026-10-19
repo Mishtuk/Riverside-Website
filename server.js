@@ -2,21 +2,24 @@
 // fills live data into the HTML at <!--rs:*--> markers (alerts, title edits, groups board, live switch),
 // answers /api/*, runs staff sign-in, and hosts the email module. No framework; Node 22+ built-ins only.
 import { createServer } from 'node:http';
-import { createReadStream, existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join, normalize, sep } from 'node:path';
 import { brotliCompressSync, constants as zc, gzipSync } from 'node:zlib';
-import { openDb, getState, setState, backup } from './src/db.js';
+import { openDb, getState, setState, backup, logActivity, recentActivity } from './src/db.js';
 import {
-  allow, allowList, addStaff, checkLogin, clearFailures, clientIp, consumeToken, cookieHeader, defaultInUse, issueToken, locked, logLogin,
+  allow, allowList, addStaff, resetPassword, checkLogin, clearFailures, clientIp, consumeToken, cookieHeader, defaultInUse, issueToken, locked, logLogin,
   needsChange, readCookie, recentLogins, recordFailure, removeStaff, sameOrigin, seedStaff, setPassword, signSession, staffList, staffRow,
   verifySession, MUST_CHANGE_ROUTES, SESSION_DAYS, USERNAME,
 } from './src/auth.js';
 import {
-  ALERT_CSS, ALERT_TYPES, EMAIL, VIDEO_ID, activeAlerts, siteAlerts, addNews, alertsHtml, boardHtml, esc, imageType, text,
+  ALERT_CSS, ALERT_TYPES, EMAIL, VIDEO_ID, PHOTO_FILE, activeAlerts, siteAlerts, majorAlerts, popupHtml, carryPopKey, upcomingItems, homeEventsHtml,
+  eventsPageHtml, currentEvents, validateChurchEvent, teamHtml, teamSeed, validateTeam, etDay, addNews, alertsHtml, boardHtml, esc, imageType, text,
   validateAlert, validateGroups, validateLive, validateNews,
 } from './src/lib/state.js';
 import { CHURCH } from './src/lib/church.js';
 import { createEmail } from './src/email/index.js';
+import { createStats } from './src/stats/index.js';
+import { helpSection } from './src/help/index.js';
 
 const ROOT = import.meta.dirname;
 const PROD = process.env.NODE_ENV === 'production' || Boolean(process.env.WEBSITE_SITE_NAME); // App Service sets WEBSITE_SITE_NAME
@@ -35,7 +38,8 @@ const ALLOW_DEFAULT_ADMIN = env.ALLOW_DEFAULT_ADMIN === '1';
 const DIST = join(ROOT, 'dist');
 const DATA = env.DATA_DIR || (PROD ? '/home/data' : join(ROOT, '.data'));
 const SEED = JSON.parse(readFileSync(join(ROOT, 'src/content/groups.json'), 'utf8'));
-const CONTACT = { email: CHURCH.email, phone: CHURCH.phone, involved: '/get-involved', groups: '/groups' };
+const STAFF_SEED = teamSeed(JSON.parse(readFileSync(join(ROOT, 'src/content/staff.json'), 'utf8')));
+const CONTACT = { email: CHURCH.email, phone: CHURCH.phone, times: CHURCH.times, involved: '/get-involved', groups: '/groups', events: '/events' };
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
 const db = openDb(DATA);
@@ -49,6 +53,10 @@ const email = createEmail({ db, env: { ...env, DATA_DIR: DATA }, church: CHURCH,
   getGroups: () => (getState(db).groups ?? SEED).map((g) => ({ slug: g.id, name: g.name, type: g.type })) });
 email.migrate();
 email.start();
+// Statistics: counted by the server itself (no cookies, no client script), see src/stats.
+const stats = createStats({ db, env, log, getGroups: () => (getState(db).groups ?? SEED).map((g) => ({ slug: g.id, name: g.name, type: g.type })) });
+stats.migrate();
+stats.start();
 // Same rule as the email module: SMTP settings in production; development writes emails to DATA_DIR/outbox.
 const emailOn = email.configured ?? (Boolean(env.SMTP_URL && env.MAIL_FROM) || !PROD);
 
@@ -127,13 +135,20 @@ function inject(html, state, path) {
   }
   const alerts = siteAlerts(state.alerts, now);
   if (activeAlerts(state.alerts, now).length) html = html.replace('<!--rs:head-->', () => `<style>${ALERT_CSS}</style>`); // banner or group alerts
+  const majors = majorAlerts(state.alerts, now);
+  let top = popupHtml(majors); // the pop-up dialog (shown once per alert per browser by its own script)
   if (alerts.length) {
     // Home: in flow at the top of the hero copy (before the live button), so it never covers it. Elsewhere: top of <main>.
     if (path === '/' && HERO.test(html)) html = html.replace(HERO, (m) => m + alertsHtml(alerts, true));
-    else html = html.replace('<!--rs:alerts-->', () => alertsHtml(alerts, false));
+    else top = alertsHtml(alerts, false) + top;
   }
+  if (top) html = html.replace('<!--rs:alerts-->', () => top);
   html = applyItemOverrides(html, state.videos ?? {}, state.podcast ?? {});
-  return html.replace(/<!--rs:board-->[\s\S]*?<!--\/rs:board-->/, () => boardHtml(state.groups ?? SEED, now, CONTACT, state.alerts));
+  const groups = state.groups ?? SEED;
+  if (html.includes('<!--rs:coming-up-->')) html = html.replace('<!--rs:coming-up-->', () => homeEventsHtml(upcomingItems(state.events, groups, now), majors, now, CONTACT));
+  if (html.includes('<!--rs:events-->')) html = html.replace('<!--rs:events-->', () => eventsPageHtml(upcomingItems(state.events, groups, now, 90), CONTACT));
+  if (state.team) html = html.replace(/<!--rs:team-->[\s\S]*?<!--\/rs:team-->/, () => teamHtml(state.team));
+  return html.replace(/<!--rs:board-->[\s\S]*?<!--\/rs:board-->/, () => boardHtml(groups, now, CONTACT, state.alerts));
 }
 
 // ---------- static files ----------
@@ -166,7 +181,9 @@ async function serveStatic(nreq, nres, url) {
       if (!isAdmin) html = inject(html, getState(db), p);
       else { // the Email tab (and its script) only for a signed-in session that may use it
         const user = adminUser(new Request(url, { headers: { cookie: String(nreq.headers.cookie ?? '') } }), url);
-        if (user && !user.mustChange) html = html.replace('<!--rs:email-->', () => email.adminPartial());
+        if (user && !user.mustChange) {
+          html = html.replace('<!--rs:email-->', () => email.adminPartial()).replace('<!--rs:stats-->', () => stats.adminPartial()).replace('<!--rs:help-->', () => helpSection(CHURCH));
+        }
       }
     }
     catch (e) { log('inject failed, serving the static page', e.message); } // fail open: static HTML is a correct default
@@ -174,6 +191,7 @@ async function serveStatic(nreq, nres, url) {
     if (isAdmin) headers['X-Robots-Tag'] = 'noindex, nofollow';
     const body = compress(nreq, Buffer.from(html), type, headers);
     nres.writeHead(200, headers);
+    if (!isAdmin) stats.record(nreq, nres);
     return nres.end(nreq.method === 'HEAD' ? undefined : body);
   }
 
@@ -212,6 +230,12 @@ function notFound(nreq, nres, url) {
 async function route(req, url) {
   const p = url.pathname;
   const origin = url.origin;
+  if (p.startsWith('/api/photo/') && req.method === 'GET') {
+    const name = p.slice('/api/photo/'.length);
+    const f = PHOTO_FILE.test(name) && join(DATA, 'photos', name);
+    if (!f || !existsSync(f)) return bad('not_found', 404);
+    return new Response(readFileSync(f), { headers: { 'Content-Type': TYPES[extname(name)], 'Cache-Control': 'public, max-age=31536000, immutable' } });
+  }
   if (p.startsWith('/api/thumb/') && req.method === 'GET') {
     const name = p.slice('/api/thumb/'.length);
     const ext = /^[\w-]{11}-[a-z0-9]{1,12}\.(jpg|png|webp)$/.exec(name)?.[1];
@@ -232,9 +256,17 @@ async function route(req, url) {
     if (req.method !== 'GET' && !sameOrigin(req, origin)) return bad('origin', 403);
     // A new account (or admin/admin, unless ALLOW_DEFAULT_ADMIN=1) can only choose a new password until it does.
     if (user.mustChange && !MUST_CHANGE_ROUTES.has(p)) return bad('must_change', 403);
-    if (p.startsWith('/api/admin/email/')) return (await email.adminHandle(req, url, user.name)) ?? bad('not_found', 404);
-    return adminApi(req, url, user);
+    const copy = req.method === 'GET' ? null : req.clone(); // read again below, for the activity log
+    if (p.startsWith('/api/admin/stats/')) return (await stats.adminHandle(req, url)) ?? bad('not_found', 404);
+    const res = p.startsWith('/api/admin/email/') ? (await email.adminHandle(req, url, user.name)) ?? bad('not_found', 404) : await adminApi(req, url, user);
+    if (copy && res.ok) {
+      const what = describe(req.method, p, await copy.json().catch(() => ({})), await res.clone().json().catch(() => ({})));
+      if (what) logActivity(db, user.name, what);
+    }
+    return res;
   }
+  const st = await stats.handle(req, url); // public POST /api/stats/play
+  if (st) return st;
   return (await email.handle(req, url)) ?? bad('not_found', 404);
 }
 
@@ -243,13 +275,45 @@ async function route(req, url) {
 function adminUser(req, url) {
   // Local development only: DEV_ADMIN=1 is ignored in production and on any non-local hostname.
   if (env.DEV_ADMIN === '1' && !PROD && ['localhost', '127.0.0.1'].includes(url.hostname)) return { name: env.DEV_EMAIL || 'dev@localhost', kind: 'email' };
-  const known = { has: (n) => (n.includes('@') ? ADMINS.has(n) : Boolean(staffRow(db, n))) };
+  const known = { has: (n) => (n.includes('@') ? ADMINS.has(n) : Boolean(staffRow(db, n))), version: sessionVersion };
   const name = verifySession(readCookie(req.headers.get('cookie')), SESSION_SECRET, known);
   if (!name) return null;
   if (name.includes('@')) return { name, kind: 'email' };
   return { name, kind: 'password', mustChange: needsChange(staffRow(db, name), ALLOW_DEFAULT_ADMIN) };
 }
-const sessionCookie = (name, url) => cookieHeader(signSession(name, Date.now() + SESSION_DAYS * 86400e3, SESSION_SECRET), { secure: url.protocol === 'https:' });
+// Password accounts carry a session version; a new password or a removed account ends their other sessions.
+const sessionVersion = (name) => (name.includes('@') ? 0 : staffRow(db, name)?.session_v ?? 0);
+const sessionCookie = (name, url) => cookieHeader(signSession(name, Date.now() + SESSION_DAYS * 86400e3, SESSION_SECRET, sessionVersion(name)), { secure: url.protocol === 'https:' });
+
+/** One line for the activity log, or '' for writes not worth listing. */
+function describe(method, p, body, res) {
+  const [section, a1, a2] = p.slice('/api/admin/'.length).split('/');
+  const q = (t) => `“${String(t ?? '').slice(0, 80)}”`;
+  switch (`${method} ${section}`) {
+    case 'POST alerts': return `Posted alert ${q(body.message)}${body.group ? ` for ${body.group}` : ''}${body.popup ? ' (pop-up)' : ''}${res.recipients !== undefined ? `, emailing ${res.recipients}` : ''}`;
+    case 'DELETE alerts': return 'Ended an alert';
+    case 'PUT items': return `Changed a ${a1} title to ${q(body.title)}`;
+    case 'DELETE items': return `Reset a ${a1} to the original`;
+    case 'POST thumb': return 'Changed a video thumbnail';
+    case 'PUT groups': return 'Saved the groups';
+    case 'POST groups': return `Posted an update in ${a1}: ${q(body.title)}`;
+    case 'DELETE groups': return `Deleted an update in ${a1}`;
+    case 'PUT live': return `Set the livestream to ${body.mode}`;
+    case 'POST password': return 'Changed their password';
+    case 'POST staff': return a2 === 'reset' ? `Reset the password for ${a1}` : `Added the staff account ${String(body.username ?? '').toLowerCase()}`;
+    case 'DELETE staff': return `Removed the staff account ${a1}`;
+    case 'PUT events': return `Saved the event ${q(body.title)}`;
+    case 'DELETE events': return 'Removed an event';
+    case 'PUT team': return 'Updated Our team';
+    case 'POST photo': return 'Uploaded a team photo';
+    case 'POST email':
+      if (a1 === 'send') return `Sent the email ${q(body.subject)}${res.recipients !== undefined ? ` to ${res.recipients}` : ''}`;
+      if (a1 === 'test') return `Sent a test email ${q(body.subject)}`;
+      if (a1 === 'subscribers' && a2 === 'unsubscribe') return 'Unsubscribed someone';
+      return `Email: ${[a1, a2].filter(Boolean).join(' ')}`;
+  }
+  return '';
+}
 
 const WRONG = 'That username and password don’t match. Check them and try again.';
 async function passwordLogin(req, url) {
@@ -267,6 +331,7 @@ async function passwordLogin(req, url) {
   }
   clearFailures(`user:${username}`);
   logLogin(db, row.username, ip, 'password');
+  logActivity(db, row.username, 'Signed in with a password');
   log('staff signed in', row.username);
   return json({ ok: true, mustChange: needsChange(row, ALLOW_DEFAULT_ADMIN) }, 200, { 'Set-Cookie': sessionCookie(row.username, url) });
 }
@@ -307,6 +372,7 @@ async function loginPage(req, url) {
     return page('Staff sign in', card('<h1 class="h3">That link has expired or was already used.</h1><p>Sign-in links work once, for 15 minutes.</p><p><a class="btn" href="/admin/">Get a new link</a></p>'), 400);
   }
   logLogin(db, addr, clientIp(req), 'link');
+  logActivity(db, addr, 'Signed in with an emailed link');
   log('staff signed in', addr);
   return new Response(null, { status: 303, headers: { Location: '/admin/', 'Set-Cookie': sessionCookie(addr, url) } });
 }
@@ -315,6 +381,7 @@ async function adminApi(req, url, user) {
   const [section, a1, a2, a3] = url.pathname.slice('/api/admin/'.length).split('/');
   const key = `${req.method} ${section}`;
   if (key === 'POST thumb') return thumbRoute(req, a1);
+  if (key === 'POST photo') return photoRoute(req);
   const body = ['POST', 'PUT'].includes(req.method) ? await req.json().catch(() => null) : null;
   const state = getState(db);
   const save = () => setState(db, state);
@@ -322,6 +389,46 @@ async function adminApi(req, url, user) {
   switch (key) {
     case 'GET state':
       return json({ state: { ...state, groups: state.groups ?? SEED }, email: emailOn, user: user.name, defaultPassword: defaultInUse(db) });
+
+    case 'GET activity':
+      return json({ activity: recentActivity(db) });
+
+    case 'GET backup': { // everything the church owns, as one JSON file (no passwords, tokens or secrets)
+      let subscribers = [];
+      try { subscribers = db.prepare('SELECT email, topics, status, created_at, confirmed_at, unsub_at FROM subscribers ORDER BY id').all(); } catch {}
+      const data = { exported: new Date().toISOString(), site: PUBLIC_URL, state, staffAccounts: staffList(db).map((a) => a.username), subscribers };
+      return new Response(JSON.stringify(data, null, 2), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store',
+        'Content-Disposition': `attachment; filename="riverside-backup-${etDay(new Date())}.json"` } });
+    }
+
+    case 'PUT events': { // /api/admin/events/<id or "new">
+      const v = validateChurchEvent({ ...body, id: a1 === 'new' ? undefined : a1 }, etDay(new Date()));
+      if (v.error) return bad(v.error);
+      const events = currentEvents(state.events, new Date()).filter((e) => e.id !== v.value.id);
+      state.events = [...events, v.value].sort((x, y) => x.date.localeCompare(y.date) || (x.start ?? '').localeCompare(y.start ?? ''));
+      save();
+      return json({ event: v.value, events: state.events });
+    }
+
+    case 'DELETE events':
+      state.events = currentEvents(state.events, new Date()).filter((e) => e.id !== a1);
+      save();
+      return json({ events: state.events });
+
+    case 'GET team':
+      return json({ team: state.team ?? STAFF_SEED });
+
+    case 'PUT team': {
+      const v = validateTeam(body, state.team ?? STAFF_SEED);
+      if (v.error) return bad(v.error);
+      state.team = v.value;
+      save();
+      // Photos no longer used by anyone are deleted.
+      const used = new Set(state.team.map((m) => m.photo));
+      const dir = join(DATA, 'photos');
+      if (existsSync(dir)) for (const f of readdirSync(dir)) if (!used.has(`/api/photo/${f}`)) rmSync(join(dir, f), { force: true });
+      return json({ team: state.team });
+    }
 
     case 'GET me':
       return json({ name: user.name, kind: user.kind, mustChange: Boolean(user.mustChange), defaultPassword: defaultInUse(db) });
@@ -334,7 +441,8 @@ async function adminApi(req, url, user) {
       const r = setPassword(db, user.name, body?.password);
       if (r.error) return bad(r.error);
       log('password changed', row.username);
-      return json({ ok: true });
+      // Every other session of this account just ended (new session version); keep this one.
+      return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie(user.name, url) });
     }
 
     case 'GET staff':
@@ -342,6 +450,12 @@ async function adminApi(req, url, user) {
         logins: recentLogins(db, 10) });
 
     case 'POST staff': {
+      if (a2 === 'reset') { // /api/admin/staff/<username>/reset {password}
+        const rr = resetPassword(db, decodeURIComponent(a1 ?? ''), body?.password, user.name);
+        if (rr.error) return bad(rr.error, rr.error === 'not_found' ? 404 : 400);
+        log('password reset', rr.value, 'by', user.name);
+        return json({ ok: true, username: rr.value });
+      }
       const r = addStaff(db, body?.username, body?.password);
       if (r.error) return bad(r.error);
       log('staff account added', r.value, 'by', user.name);
@@ -374,6 +488,8 @@ async function adminApi(req, url, user) {
       if (body.email && !emailOn) return bad('email_not_configured', 503);
       const alert = v.value;
       // Editing = replace: the edited alert gets a new id, so visitors who dismissed the old one see it again.
+      const replaced = (state.alerts ?? []).find((x) => x.id === body.replaces);
+      Object.assign(alert, carryPopKey(alert, replaced, Boolean(body.showAgain)));
       state.alerts = [...activeAlerts(state.alerts).filter((x) => x.id !== body.replaces), alert];
       save();
       if (!body.email) return json({ alert });
@@ -462,6 +578,17 @@ function alertTopics(asked, { type, group }) {
   return topics.length ? topics : [group ? `group:${group}` : ALERT_TYPES[type].topic];
 }
 
+async function photoRoute(req) {
+  if (+(req.headers.get('content-length') ?? 0) > 2 * 1024 * 1024) return bad('too_large', 413);
+  const bytes = await req.arrayBuffer();
+  const type = imageType(bytes);
+  if (!type) return bad('image');
+  const name = `team-${Date.now().toString(36)}.${type.split('/')[1].replace('jpeg', 'jpg')}`;
+  mkdirSync(join(DATA, 'photos'), { recursive: true });
+  writeFileSync(join(DATA, 'photos', name), Buffer.from(bytes));
+  return json({ photo: `/api/photo/${name}` }); // kept only if a team member uses it on the next save
+}
+
 async function thumbRoute(req, id) {
   if (!VIDEO_ID.test(id ?? '')) return bad('item');
   if (+(req.headers.get('content-length') ?? 0) > 2 * 1024 * 1024) return bad('too_large', 413);
@@ -519,6 +646,6 @@ const server = createServer(async (nreq, nres) => {
 });
 
 server.listen(PORT, () => log(`Riverside site on ${PUBLIC_URL} (port ${PORT}, data in ${DATA}${PROD ? '' : ', development'})`));
-const stop = () => { email.stop(); server.close(() => { db.close(); process.exit(0); }); setTimeout(() => process.exit(0), 5000).unref(); };
+const stop = () => { email.stop(); stats.stop(); server.close(() => { db.close(); process.exit(0); }); setTimeout(() => process.exit(0), 5000).unref(); };
 process.on('SIGTERM', stop);
 process.on('SIGINT', stop);

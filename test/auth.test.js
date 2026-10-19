@@ -181,3 +181,51 @@ test('client IP: the last X-Forwarded-For entry, without a port', async () => {
   assert.equal(clientIp(req('[2001:db8::1]:443')), '2001:db8::1');
   assert.equal(clientIp(req(null)), 'local');
 });
+
+test('sign out everywhere: a new password or a removed account ends every session', async () => {
+  const { addStaff, removeStaff, seedStaff, setPassword, staffRow } = await import('../src/auth.js');
+  const db = openDb(':memory:');
+  seedStaff(db);
+  addStaff(db, 'office', 'a long enough password');
+  const known = { has: (n) => Boolean(staffRow(db, n)), version: (n) => staffRow(db, n)?.session_v ?? 0 };
+  const exp = NOW + 864e5;
+  const phone = signSession('office', exp, SECRET, staffRow(db, 'office').session_v);
+  const laptop = signSession('office', exp, SECRET, staffRow(db, 'office').session_v);
+  assert.equal(verifySession(phone, SECRET, known, NOW), 'office');
+  setPassword(db, 'office', 'another long password');
+  assert.equal(verifySession(phone, SECRET, known, NOW), null, 'old sessions end');
+  assert.equal(verifySession(laptop, SECRET, known, NOW), null);
+  const fresh = signSession('office', exp, SECRET, staffRow(db, 'office').session_v);
+  assert.equal(verifySession(fresh, SECRET, known, NOW), 'office', 'the new cookie works');
+  removeStaff(db, 'office', 'admin');
+  assert.equal(verifySession(fresh, SECRET, known, NOW), null, 'removed account: signed out');
+  db.close();
+});
+
+test('activity log: newest first, only the last 200 kept', async () => {
+  const { logActivity, recentActivity, ACTIVITY_KEEP } = await import('../src/db.js');
+  const db = openDb(':memory:');
+  for (let i = 0; i < ACTIVITY_KEEP + 5; i++) logActivity(db, 'admin', `change ${i}`, NOW + i);
+  const all = recentActivity(db);
+  assert.equal(all.length, ACTIVITY_KEEP);
+  assert.equal(all[0].what, `change ${ACTIVITY_KEEP + 4}`);
+  assert.equal(all.at(-1).what, 'change 5');
+  db.close();
+});
+
+test('reset password: temporary password, forced change, sessions end, never your own', async () => {
+  const { addStaff, checkLogin, needsChange, resetPassword, seedStaff, staffRow } = await import('../src/auth.js');
+  const db = openDb(':memory:');
+  seedStaff(db);
+  addStaff(db, 'office', 'first temporary pass');
+  const known = { has: (n) => Boolean(staffRow(db, n)), version: (n) => staffRow(db, n)?.session_v ?? 0 };
+  const cookie = signSession('office', NOW + 864e5, SECRET, staffRow(db, 'office').session_v);
+  assert.equal(resetPassword(db, 'admin', 'some temporary pass', 'admin').error, 'self', 'use Change my password instead');
+  assert.equal(resetPassword(db, 'office', 'short', 'admin').error, 'too_short');
+  assert.equal(resetPassword(db, 'ghost', 'some temporary pass', 'admin').error, 'not_found');
+  assert.equal(resetPassword(db, 'office', 'second temporary pass', 'admin').value, 'office');
+  assert.equal(verifySession(cookie, SECRET, known, NOW), null, 'their sessions end');
+  assert.equal(checkLogin(db, 'office', 'first temporary pass'), null);
+  assert.ok(needsChange(checkLogin(db, 'office', 'second temporary pass'), true), 'must choose a new one, even with ALLOW_DEFAULT_ADMIN');
+  db.close();
+});

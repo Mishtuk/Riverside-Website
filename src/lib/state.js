@@ -66,7 +66,22 @@ export const ALERT_CSS = `.site-alerts-wrap{margin-top:12px}
 .alert-news{background:var(--parchment);color:var(--ink);border:1px solid var(--line-gold);border-left:4px solid var(--gold)}
 .alert-news .alert-label,.alert-news .ic{color:var(--gold-ink-sm)}
 .alert.is-leaving{height:0!important;opacity:0;padding-block:0}
-@media (max-width:699px){.alert{padding:.75rem .85rem}}`;
+@media (max-width:699px){.alert{padding:.75rem .85rem}}
+.alert-pop{max-width:32rem;width:min(32rem,calc(100% - 2rem));margin:auto;padding:1.5rem;border:0;border-left:4px solid var(--gold);box-shadow:var(--shadow-l);color:var(--ink)}
+.alert-pop:not([open]){display:none}
+.alert-pop::backdrop{background:rgb(28 28 28/.5)}
+.alert-pop h2{margin:0 2.75rem 1rem 0}
+.alert-pop-x{position:absolute;top:.5rem;right:.5rem;width:44px;height:44px;border:0;border-radius:50%;background:none;font-size:1rem;line-height:1}
+.alert-pop-x:hover{background:rgb(127 127 127/.18)}
+.alert-pop-body{max-height:min(70vh,34rem);overflow:auto}
+.alert-pop-row{display:grid;grid-template-columns:auto 1fr;gap:.75rem;padding-block:.9rem;border-top:1px solid var(--line)}
+.alert-pop-row:first-child{border-top:0;padding-top:0}
+.alert-pop .ic{fill:none;stroke:var(--gold-ink);stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;margin-top:.15rem}
+.alert-pop .alert-label{color:var(--gold-ink-sm)}
+.alert-pop .alert-pop-msg{font-size:var(--step-0);line-height:1.5;color:var(--ink)}
+.alert-pop form{margin-top:1rem}
+@media (max-width:479px){.alert-pop .btn{width:100%}}
+@media (prefers-reduced-motion:no-preference){.alert-pop[open]{animation:pop-in .2s var(--ease)}@keyframes pop-in{from{opacity:0;transform:translateY(8px)}}}`;
 
 // Dismiss: remembers ids in localStorage (an edited alert gets a new id, so it shows again).
 const ALERT_JS = `(()=>{const w=document.currentScript.previousElementSibling,K='riverside-dismissed-alerts';let d=[];try{d=JSON.parse(localStorage.getItem(K))||[]}catch(e){}
@@ -224,11 +239,26 @@ export function validateAlert(b, now = new Date(), groupIds = []) {
   if (!(expires > +now) || expires > +now + 90 * 864e5) return { error: 'expires' };
   if (group && !groupIds.includes(group)) return { error: 'group' };
   if (!link && group) link = `/groups#${group}`;
-  else if (/^\/(?!\/)/.test(link)) { if (!/^\/[\w\-./#?=&%]*$/.test(link)) return { error: 'link' }; } // a page on this site
-  else if (link) { try { const u = new URL(link); if (u.protocol !== 'https:' && u.protocol !== 'http:') return { error: 'link' }; link = u.href; } catch { return { error: 'link' }; } }
-  return { value: { id: crypto.randomUUID(), type: b.type, message, link: link || undefined, expires: new Date(expires).toISOString(), created: now.toISOString(),
-    ...(group ? { group, sitewide: Boolean(b.sitewide) } : {}) } };
+  link = cleanLink(link);
+  if (link === null) return { error: 'link' };
+  const sitewide = group ? Boolean(b.sitewide) : true;
+  const id = crypto.randomUUID();
+  return { value: { id, type: b.type, message, link: link || undefined, expires: new Date(expires).toISOString(), created: now.toISOString(),
+    ...(group ? { group, sitewide } : {}),
+    // Pop-up: only for alerts on every page. popKey is what visitors' browsers remember as "seen".
+    ...(b.popup && sitewide ? { popup: true, popKey: id } : {}) } };
 }
+
+/** '' (none), a page on this site ("/events#x"), or a full http(s) URL; null if it's anything else. */
+export function cleanLink(v) {
+  const link = typeof v === 'string' ? v.trim().slice(0, 500) : '';
+  if (!link) return '';
+  if (/^\/(?!\/)/.test(link)) return /^\/[\w\-./#?=&%]*$/.test(link) ? link : null;
+  try { const u = new URL(link); return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null; } catch { return null; }
+}
+
+/** Editing a pop-up alert keeps its "seen" key, so visitors don't see it twice, unless staff tick "Show again". */
+export const carryPopKey = (alert, old, showAgain) => (alert.popup && old?.popup && !showAgain ? { ...alert, popKey: old.popKey ?? old.id } : alert);
 
 /** A group news post from staff. Date is stamped here, never taken from the client. */
 export function validateNews(b, now = new Date()) {
@@ -289,3 +319,156 @@ export function imageType(bytes) {
   if (String.fromCharCode(...b.slice(0, 4)) === 'RIFF' && String.fromCharCode(...b.slice(8, 12)) === 'WEBP') return 'image/webp';
   return null;
 }
+
+// ---------- Major-alert pop-up ----------
+/** Alerts that pop up: active, on every page, ticked "pop-up". Group-only alerts never pop up. */
+export const majorAlerts = (alerts, now) => siteAlerts(alerts, now).filter((a) => a.popup);
+
+// Shows once per alert per browser (localStorage, else sessionStorage, else once per page load); waits while the
+// live video is focused or full screen; focus goes back to the top of the page when it closes.
+const POP_JS = `(()=>{const d=document.getElementById('alert-pop');if(!d||!d.showModal)return;const K='rs_seen_alerts';let st=null;
+for(const n of['localStorage','sessionStorage']){try{const t=window[n];t.setItem(K+'_t','1');t.removeItem(K+'_t');st=t;break}catch(e){}}
+let seen=[];try{seen=JSON.parse(st&&st.getItem(K))||[]}catch(e){}
+const rows=[...d.querySelectorAll('.alert-pop-row')].filter(r=>{if(seen.includes(r.dataset.key)){r.remove();return false}return true});
+if(!rows.length){d.remove();return}
+if(rows.length>1)d.querySelector('h2').textContent='Important updates ('+rows.length+')';
+d.addEventListener('close',()=>{try{st&&st.setItem(K,JSON.stringify(seen.concat(rows.map(r=>r.dataset.key)).slice(-50)))}catch(e){}const s=document.querySelector('.skip-link');if(s)s.focus({preventScroll:true})});
+d.querySelector('.alert-pop-x').onclick=()=>d.close();
+const busy=()=>document.fullscreenElement||document.querySelector('.hero.is-focused');
+const open=()=>{if(busy())return setTimeout(open,1000);d.showModal();d.querySelector('.alert-pop-ok').focus()};
+if(document.readyState==='complete')open();else addEventListener('load',open)})()`;
+
+export const popupHtml = (majors) => (!majors.length ? '' : `<dialog class="card alert-pop" id="alert-pop" aria-labelledby="alert-pop-h">`
+  + `<button class="alert-pop-x" type="button" aria-label="Close">&#x2715;</button><h2 class="h3" id="alert-pop-h">Important update</h2><div class="alert-pop-body">`
+  + majors.map((a) => `<div class="alert-pop-row" data-key="${esc(a.popKey ?? a.id)}">${icon('urgent', 22)}<div><p class="alert-label">Important</p><p class="alert-pop-msg">${esc(a.message)}</p>`
+    + (a.link ? `<p><a class="link link-arrow" href="${esc(a.link)}">Learn more</a></p>` : '') + '</div></div>').join('')
+  + `</div><form method="dialog"><button class="btn alert-pop-ok">Got it</button></form></dialog><script>${POP_JS}</script>`);
+
+// ---------- Church events + "Coming up" (one merged list for home and /events) ----------
+const toMin = (t) => (t ? minutes(t) : -1); // all-day items first on their date
+const nextOn = (today, day) => addDays(today, (day - new Date(`${today}T00:00:00Z`).getUTCDay() + 7) % 7);
+const timeRange = (start, end) => (start ? `${hm12(start)}${end ? `&ndash;${hm12(end)}` : ''}` : '');
+
+/** One church-wide event from staff. Past dates are refused; saved events drop off after their date (ET). */
+export function validateChurchEvent(b, today) {
+  const title = text(b?.title, 80);
+  const date = ymd(b?.date);
+  const start = b?.start ? (HM.test(b.start) ? b.start : 'bad') : '';
+  const end = b?.end ? (HM.test(b.end) ? b.end : 'bad') : '';
+  const link = cleanLink(b?.link);
+  if (!title) return { error: 'title' };
+  if (!date) return { error: 'date' };
+  if (date < today) return { error: 'past' };
+  if (start === 'bad' || end === 'bad' || (end && (!start || end <= start))) return { error: 'time' };
+  if (link === null) return { error: 'link' };
+  return { value: { id: okId(b.id), title, date, start: start || undefined, end: end || undefined, place: text(b?.place, 80) || undefined,
+    about: text(b?.about, 300) || undefined, major: Boolean(b?.major), link: link || undefined } };
+}
+export const currentEvents = (events = [], now) => { const today = etDay(now); return events.filter((e) => e.date >= today); };
+
+/** Church events, group events and this week's group meetings from today on (ET), soonest first; majors first on a day. */
+export function upcomingItems(events = [], groups = [], now, days = 90) {
+  const today = etDay(now);
+  const last = addDays(today, days);
+  const inRange = (d) => d >= today && d <= last;
+  const items = [];
+  for (const e of events) if (inRange(e.date)) items.push({ key: `ev-${e.id}`, kind: 'church', date: e.date, sort: toMin(e.start), time: timeRange(e.start, e.end), title: e.title, place: e.place, about: e.about, major: Boolean(e.major), link: e.link });
+  for (const g of groups) {
+    const group = { id: g.id, name: g.name };
+    for (const e of g.events ?? []) if (inRange(e.date)) items.push({ key: `gev-${g.id}-${e.id}`, kind: 'group', date: e.date, sort: toMin(e.start), time: timeRange(e.start, e.end), title: e.title, place: e.place || g.place, about: e.note, group });
+    if (g.day !== VARIES && groupStatus(g, now).kind === 'meeting') {
+      const d = nextOn(today, g.day);
+      if (inRange(d)) items.push({ key: `meet-${g.id}`, kind: 'meeting', date: d, sort: g.time ? minutes(g.time) : -1, time: esc(g.time ?? ''), title: g.name, place: g.place, group });
+    }
+  }
+  return items.sort((a, b) => a.date.localeCompare(b.date) || Number(b.major ?? 0) - Number(a.major ?? 0) || a.sort - b.sort || a.title.localeCompare(b.title));
+}
+
+const dayLabel = (ymd, o = { weekday: 'short', month: 'short', day: 'numeric' }) => new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-US', { ...o, timeZone: 'UTC' });
+const placeOf = (it, c) => (it.place ? esc(it.place) : it.kind === 'church' ? `<a class="link" href="mailto:${esc(c.email)}">Contact us</a>` : '');
+const whenLine = (it, c) => [dayLabel(it.date), it.time, placeOf(it, c)].filter(Boolean).join(' &middot; ');
+const groupLink = (it, c) => (it.group ? `<a class="link" href="${esc(c.groups)}#${esc(it.group.id)}">${it.kind === 'meeting' ? 'Weekly group' : esc(it.group.name)}</a>` : '');
+
+const eventCard = (it, c) => `<li><article class="card cu-card" id="${esc(it.key)}"><div class="cu-date" aria-hidden="true"><span class="cu-day">${dayLabel(it.date, { day: 'numeric' })}</span><span class="cu-mon">${dayLabel(it.date, { month: 'short' })}</span></div>`
+  + `<div class="cu-body"><p class="cu-label">Major event</p><h3>${esc(it.title)}</h3><p class="cu-when">${whenLine(it, c)}</p>`
+  + (it.about ? `<p class="cu-about">${esc(it.about)}</p>` : '') + (it.link ? `<p><a class="link link-arrow" href="${esc(it.link)}">Details</a></p>` : '')
+  + (it.group ? `<p>${groupLink(it, c)}</p>` : '') + '</div></article></li>';
+const eventRow = (it, c) => `<li class="cu-row" id="${esc(it.key)}"><p class="cu-row-date">${dayLabel(it.date)}</p><p class="cu-row-title">`
+  + (it.major ? '<span class="cu-label">Major event</span> ' : '') + `<strong>${esc(it.title)}</strong>`
+  + `<span class="cu-row-meta">${[it.time, placeOf(it, c)].filter(Boolean).map((x) => ` &middot; ${x}`).join('')}</span></p>`
+  + (it.about && it.kind !== 'meeting' ? `<p class="cu-row-about">${esc(it.about)}</p>` : '')
+  + (it.link ? `<p><a class="link link-arrow" href="${esc(it.link)}">Details</a></p>` : '') + (it.group ? `<p class="cu-row-group">${groupLink(it, c)}</p>` : '') + '</li>';
+
+/** Home "Coming up": active pop-up alerts, up to 2 major cards (30 days), then up to 6 rows (14 days).
+ *  Nothing to show = '' (the section isn't there at all). c = { email, times, groups, events }. */
+export function homeEventsHtml(items, alerts, now, c) {
+  const today = etDay(now);
+  const cards = items.filter((it) => it.major && it.date <= addDays(today, 30)).slice(0, 2);
+  const rows = items.filter((it) => !cards.includes(it) && it.date <= addDays(today, 14)).slice(0, 6);
+  if (!cards.length && !rows.length && !alerts.length) return '';
+  return `<section class="section coming-up" aria-labelledby="coming-up-h"><div class="container"><div class="cu-head"><div><p class="eyebrow">This week &amp; ahead</p><h2 class="h1" id="coming-up-h">Coming up</h2></div>`
+    + `<a class="link link-arrow" href="${esc(c.events)}">All events</a></div>`
+    + (alerts.length ? `<div class="cu-alerts">${alerts.map(alertCard).join('')}</div>` : '')
+    + (cards.length ? `<ul class="cu-cards" role="list">${cards.map((it) => eventCard(it, c)).join('')}</ul>` : '')
+    + (rows.length ? `<ol class="cu-list" role="list">${rows.map((it) => eventRow(it, c)).join('')}</ol>` : '')
+    + '</div></section>';
+}
+
+/** /events "Coming up": the same list for 90 days, by month; majors as cards. */
+export function eventsPageHtml(items, c) {
+  const head = '<div class="section-head"><p class="eyebrow">Coming up</p><h2 class="h1" id="upcoming-h">Special events &amp; <span class="accent">this week.</span></h2></div>';
+  if (!items.length) {
+    return `<section class="section coming-up" aria-labelledby="upcoming-h"><div class="container">${head}<p class="cu-empty">No special events right now. Join us ${esc(c.times)}.</p>`
+      + `<p><a class="link link-arrow" href="${esc(c.groups)}">See weekly groups</a></p></div></section>`;
+  }
+  const months = [];
+  for (const it of items) {
+    const m = it.date.slice(0, 7);
+    if (months.at(-1)?.m !== m) months.push({ m, list: [] });
+    months.at(-1).list.push(it);
+  }
+  return `<section class="section coming-up" aria-labelledby="upcoming-h"><div class="container">${head}` + months.map(({ m, list }) => {
+    const majors = list.filter((it) => it.major);
+    const rest = list.filter((it) => !it.major);
+    return `<h3 class="h2 cu-month">${dayLabel(`${m}-01`, { month: 'long', year: 'numeric' })}</h3>`
+      + (majors.length ? `<ul class="cu-cards" role="list">${majors.map((it) => eventCard(it, c)).join('')}</ul>` : '')
+      + (rest.length ? `<ol class="cu-list" role="list">${rest.map((it) => eventRow(it, c)).join('')}</ol>` : '');
+  }).join('') + '</div></section>';
+}
+
+// ---------- Staff photos and bios (About › Meet the people) ----------
+/** The static starting team: staff.json, with the lead pastor's existing photo. */
+export const teamSeed = (staff) => staff.map((p, i) => ({ id: slugify(p.name.split(' ')[0]), name: p.name, role: p.title, bio: p.bio, photo: i === 0 ? '/media/photos/ezra.jpg' : '' }));
+export const PHOTO_FILE = /^[a-z0-9-]{1,40}-[a-z0-9]{1,12}\.(jpg|png|webp)$/;
+
+/** The first person is featured; everyone else gets a card. Same markup on the static page and from the server. */
+export function teamHtml(team) {
+  if (!team.length) return '';
+  const [lead, ...rest] = team;
+  const img = (p, cls, w, h) => `<img${cls ? ` class="${cls}"` : ''} src="${esc(p.photo)}" alt="${esc(p.name)}, ${esc(p.role)}" width="${w}" height="${h}" loading="lazy">`;
+  return `<article class="lead${lead.photo ? '' : ' no-photo'}" id="${esc(lead.id)}">${lead.photo ? `<div class="lead-photo">${img(lead, '', 300, 375)}</div>` : ''}`
+    + `<div class="lead-text"><p class="role">${esc(lead.role)}</p><h3>${esc(lead.name)}</h3><p>${esc(lead.bio)}</p></div></article>`
+    + (rest.length ? `<ul class="team">${rest.map((p) => `<li class="member" id="${esc(p.id)}">${p.photo ? img(p, 'member-photo', 96, 96) : ''}<p class="role">${esc(p.role)}</p><h3>${esc(p.name)}</h3><p>${esc(p.bio)}</p></li>`).join('')}</ul>` : '');
+}
+
+/** Whole list in display order. A photo must be one we stored (or the seed photo). Ids stay put once given. */
+export function validateTeam(list, old = []) {
+  if (!Array.isArray(list) || !list.length || list.length > 30) return { error: 'team' };
+  const taken = new Set(old.map((o) => o.id));
+  const seen = new Set();
+  const out = [];
+  for (const p of list) {
+    const name = text(p?.name, 80);
+    if (!name) return { error: 'name' };
+    const prev = old.find((o) => o.id === p?.id);
+    const id = prev ? prev.id : slugify(name.split(' ')[0], taken);
+    if (seen.has(id)) return { error: 'team' };
+    seen.add(id); taken.add(id);
+    const photo = typeof p?.photo === 'string' ? p.photo : '';
+    const okPhoto = !photo || photo === prev?.photo || photo === '/media/photos/ezra.jpg' || (photo.startsWith('/api/photo/') && PHOTO_FILE.test(photo.slice(11)));
+    if (!okPhoto) return { error: 'photo' };
+    out.push({ id, name, role: text(p?.role, 80), bio: text(p?.bio, 800), photo });
+  }
+  return { value: out };
+}
+

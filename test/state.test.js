@@ -183,3 +183,78 @@ test('thumbnails: magic bytes and 2 MB limit', () => {
   const big = new Uint8Array(2 * 1024 * 1024 + 1); big.set([0xff, 0xd8, 0xff]);
   assert.equal(imageType(big.buffer), null);
 });
+
+test('church events: validated at the boundary', async () => {
+  const { validateChurchEvent } = await import('../src/lib/state.js');
+  const today = '2026-10-19';
+  const ok = { title: 'Fall picnic', date: '2026-10-24', start: '12:00', end: '14:00', major: true, link: '/events' };
+  assert.equal(validateChurchEvent(ok, today).value.major, true);
+  assert.equal(validateChurchEvent({ ...ok, title: ' ' }, today).error, 'title');
+  assert.equal(validateChurchEvent({ ...ok, date: '2026-02-31' }, today).error, 'date');
+  assert.equal(validateChurchEvent({ ...ok, date: '2026-10-18' }, today).error, 'past');
+  assert.equal(validateChurchEvent({ ...ok, end: '11:00' }, today).error, 'time', 'end before start');
+  assert.equal(validateChurchEvent({ ...ok, start: '' }, today).error, 'time', 'an end needs a start');
+  assert.equal(validateChurchEvent({ ...ok, link: 'javascript:alert(1)' }, today).error, 'link');
+  assert.equal(validateChurchEvent({ ...ok, title: '<b>Picnic</b>' }, today).value.title, 'Picnic');
+});
+
+test('coming up: church + group events + this week\'s meetings, soonest first, majors first on a day, past ones gone (ET)', async () => {
+  const { upcomingItems, homeEventsHtml, eventsPageHtml } = await import('../src/lib/state.js');
+  const events = [
+    { id: 'b', title: 'Choir night', date: '2026-10-21', start: '19:00' },
+    { id: 'a', title: 'Fall picnic', date: '2026-10-21', start: '20:00', major: true },
+    { id: 'old', title: 'Yesterday', date: '2026-10-18' },
+  ];
+  const groups = [
+    { id: 'prayer', name: 'Sunday prayer group', day: 0, time: '9:30–10:30am', place: 'Counseling Office', status: { kind: 'meeting' }, events: [{ id: 'g1', title: 'Prayer walk', date: '2026-10-20', start: '08:00' }] },
+    { id: 'esl', name: 'ESL', day: 2, time: '7pm', status: { kind: 'off', date: '2026-10-20' } }, // not meeting this week
+  ];
+  const mon = new Date('2026-10-19T16:00:00Z'); // Monday noon ET
+  const keys = upcomingItems(events, groups, mon).map((i) => i.key);
+  assert.deepEqual(keys, ['gev-prayer-g1', 'ev-a', 'ev-b', 'meet-prayer'], 'major first on Wed; the prayer meeting is next Sunday; ESL is off');
+  const thuLate = new Date('2026-10-22T03:30:00Z'); // Wed 11:30pm ET: Wednesday's events still on
+  assert.ok(upcomingItems(events, groups, thuLate).some((i) => i.key === 'ev-a'));
+  assert.ok(!upcomingItems(events, groups, new Date('2026-10-22T12:00:00Z')).some((i) => i.key === 'ev-a'), 'gone the next day');
+  const c = { email: 'office@example.org', times: 'Sundays 9:00 & 10:30am', groups: '/groups', events: '/events' };
+  const home = homeEventsHtml(upcomingItems(events, groups, mon), [], mon, c);
+  assert.match(home, /<ul class="cu-cards"[\s\S]*Fall picnic/, 'major as a card');
+  assert.match(home, /Major event/);
+  assert.match(home, /href="\/groups#prayer">Weekly group</);
+  assert.equal(homeEventsHtml([], [], mon, c), '', 'nothing on: no section at all');
+  assert.match(eventsPageHtml([], c), /No special events right now\. Join us Sundays 9:00 &amp; 10:30am\./);
+  assert.match(eventsPageHtml(upcomingItems(events, groups, mon), c), /October 2026[\s\S]*id="ev-a"/);
+});
+
+test('pop-up: only active site-wide alerts ticked "pop-up"; an edit keeps its seen-key unless "Show again"', async () => {
+  const { majorAlerts, popupHtml, carryPopKey } = await import('../src/lib/state.js');
+  const now = new Date(NOW);
+  const ids = ['prayer'];
+  const base = { type: 'urgent', message: 'Closed today: snow.', expires: '2026-10-19T03:59:00Z' };
+  const pop = validateAlert({ ...base, popup: true }, now, ids).value;
+  const plain = validateAlert(base, now, ids).value;
+  const groupOnly = validateAlert({ ...base, group: 'prayer', popup: true }, now, ids).value;
+  const groupWide = validateAlert({ ...base, group: 'prayer', sitewide: true, popup: true }, now, ids).value;
+  assert.equal(groupOnly.popup, undefined, 'group-only alerts never pop up');
+  assert.deepEqual(majorAlerts([pop, plain, groupOnly, groupWide], now).map((a) => a.id).sort(), [pop.id, groupWide.id].sort());
+  assert.deepEqual(majorAlerts([pop], new Date('2026-10-19T04:00:00Z')), [], 'expired: no pop-up');
+  const html = popupHtml([pop]);
+  assert.match(html, /<dialog class="card alert-pop" id="alert-pop" aria-labelledby="alert-pop-h">/);
+  assert.match(html, new RegExp(`data-key="${pop.popKey}"`));
+  assert.equal(popupHtml([]), '');
+  const edited = validateAlert({ ...base, message: 'Closed today and tomorrow.', popup: true }, now, ids).value;
+  assert.equal(carryPopKey(edited, pop, false).popKey, pop.popKey, 'edit: people who closed it are not shown it again');
+  assert.equal(carryPopKey(edited, pop, true).popKey, edited.id, '"Show again": new key');
+});
+
+test('team: one render for static + server; photos must be ours; ids kept', async () => {
+  const { teamSeed, teamHtml, validateTeam } = await import('../src/lib/state.js');
+  const seed = teamSeed([{ name: 'Ezra Strickhouser', title: 'Lead Pastor', bio: 'Bio.' }, { name: 'Paul Leese', title: 'Elder', bio: 'Bio 2.' }]);
+  assert.deepEqual(seed.map((m) => m.id), ['ezra', 'paul']);
+  assert.match(teamHtml(seed), /<article class="lead" id="ezra">[\s\S]*<ul class="team"><li class="member" id="paul">/);
+  assert.equal(validateTeam([{ ...seed[1], photo: 'https://evil.example/x.jpg' }], seed).error, 'photo');
+  assert.equal(validateTeam([{ ...seed[1], photo: '/api/photo/team-abc123.jpg' }], seed).value[0].photo, '/api/photo/team-abc123.jpg');
+  const [first] = validateTeam([{ ...seed[1], name: 'Paul A. Leese' }, seed[0]], seed).value;
+  assert.equal(first.id, 'paul', 'a rename keeps the anchor');
+  assert.equal(validateTeam([], seed).error, 'team');
+  assert.match(teamHtml([{ id: 'x', name: 'A <b>', role: 'R', bio: 'B', photo: '' }]), /class="lead no-photo"[\s\S]*A &lt;b&gt;/);
+});

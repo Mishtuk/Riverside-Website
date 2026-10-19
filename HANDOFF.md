@@ -49,6 +49,9 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
 | Email list, sending queue, subscribe / confirm / email settings pages, admin Email tab | `src/email/` |
 | Starting list of weekly groups (only facts the church has given us) | `src/content/groups.json` |
 | Staff admin page | `src/pages/admin.astro` |
+| Church events, "Coming up" on home and /events, the alert pop-up, the team on About (render + checks) | `src/lib/state.js`; markers `<!--rs:coming-up-->` (home), `<!--rs:events-->` (/events), `<!--rs:team-->` (About) |
+| Statistics (counted by the server, no cookies) and the in-admin Help guide | `src/stats/`, `src/help/` |
+| Activity log, team photos | `activity` table in `src/db.js`; photos in `/home/data/photos/` |
 | Logic checks | `test/state.test.js` (`npm test`) |
 
 ## Pages
@@ -141,6 +144,19 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
 - **Link check:** 0 broken links across all pages.
 - **To re-check:** run `npm run build && npm run preview`, then `npx lighthouse <url> --form-factor=mobile`.
 
+## What Ezra can change (and what stays with the developer)
+Ezra and the staff run the day-to-day content from `/admin`, with no developer needed. The **Help** tab at the bottom of the admin has short step-by-step recipes for each of these.
+- **Alerts:** the banner on every page, a one-time pop-up for major news, pinning an alert to one group, and emailing it.
+- **Email:** writing and sending emails to the lists, looking up a subscriber and taking them off, and seeing what was sent.
+- **Events:** church-wide events (Major or Minor). They show in "Coming up" on the home page and on Events, with group events and this week's group meetings.
+- **Groups:** groups, this week's status, one-off group events, and group news.
+- **Videos and podcast:** titles and thumbnails.
+- **Our team:** names, roles, short bios, photos and the order on the About page.
+- **Livestream:** live now, not live, or automatic.
+- **Staff accounts:** add or remove people, change passwords. **Statistics** and **Activity** are read-only, and **Download a backup** saves everything as one file.
+
+These stay with the developer: the layout and design, the menu, page wording, and the core facts in `src/lib/church.js` (service times, address, phone, email). If Ezra needs one of these changed, he asks.
+
 ## Staff admin (`admin-alerts` branch)
 **First sign-in is admin/admin. You must change it immediately. Do this before giving out the site address.** On the first start the server creates one account, `admin` with password `admin`. Signing in with it leads straight to "Choose a new password" (12 characters or more, not "admin", not the username), and nothing else in the admin works until that is done. The only exception is the testing period: with `ALLOW_DEFAULT_ADMIN=1` set, admin/admin works normally, and a warning bar ("Default password in use: change it before launch") shows on the admin page until the password is changed.
 
@@ -148,6 +164,11 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
 - **Staff accounts** (admin → Staff): change your own password, add an account (username plus a temporary password, which they must change the first time they sign in), or remove someone else's account. The last account can't be removed. The section also lists the last 10 sign-ins (who, when, from where). Give temporary passwords in person or by phone, never by email.
 - **Email sign-in list:** Azure portal → the web app → Settings → Environment variables → `ADMIN_EMAILS` (addresses separated by commas) → Apply. The app restarts. Removing an address also signs that person out.
 - **Post an alert:** Alerts → choose Weather / closing or News → write the message (200 characters max) → optional link → end time (it disappears by itself after that) → Post alert. It shows as a banner under the header on every page, and visitors can dismiss it. "End now" removes it right away. Editing an alert posts it again, so people who dismissed it see the new version.
+- **Pop-up for major news:** tick "Also show as a pop-up the first time someone visits" (it starts ticked for Weather / closing). Each visitor sees the pop-up once, on the first page they open, on top of the banner; it never shows in the admin, and it waits while someone is watching the live video full size. Several at once appear in one pop-up. When you edit a pop-up alert, people who already closed it don't see it again unless you tick "Show the pop-up again".
+- **Events:** Events → "Add an event" → title, date, optional start and end time, place, short description, link, and Major (a big card on the home page) or Minor (a line in the list) → Save. Past events disappear by themselves the day after (Eastern time). "Coming up" on the home page only appears when there is something to show.
+- **Our team:** Our team → edit names, roles and bios, add a photo (cropped square in the browser; JPG, PNG or WebP), move people up or down (the first person is featured), then "Save team".
+- **Activity:** a read-only list of who changed what and when (the last 200 changes and sign-ins). **Download a backup** (in the same section) saves the site's content and the subscriber list as one file.
+- **Signing out everywhere:** changing a password, or removing an account, signs that account out on every other phone and computer straight away.
 - **Email it too:** tick "Also email subscribers". The confirm step shows how many people will get it. Weather / closing goes to "Weather & closing alerts", and News goes to "Latest happenings". Alert emails go to the front of the sending queue. "Send a test to me" sends it only to you. **Be honest with the church about speed:** the banner is instant, but email is sent at the relay's limit. Azure's starting limit is 100 emails an hour, so 1,500 people would take about 15 hours until Azure raises it. Don't promise "instant emergency email".
 - **Email tab:** write an email to one or both topics, see who is subscribed, and unsubscribe someone who phones the office. People can only join through the Subscribe page and its confirmation email.
   - **Unsubscribe requests by email:** every email offers a one-click unsubscribe, which works by itself. It also offers a "mailto" unsubscribe, which arrives as an ordinary email at the reply-to address. Nothing reads that mailbox automatically, so staff must find the person in Email → Subscribers and press "Unsubscribe" on their row **within 10 business days** (the US CAN-SPAM rule). Check that mailbox weekly.
@@ -160,6 +181,17 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
   - Each group has its own link, `/groups#<name>`, which opens its news. The part after `#` is made from the name when the group is first saved and never changes, so shared links keep working after a rename. The "Share this group" button copies it.
   - **Group alerts** ("Not meeting this Sunday", "Moved to Room 2"): open the group and press "Post a meeting alert", or choose a Group in Alerts → Post an alert. Write the when and where in the message. The alert is pinned at the top of that group's card on /groups until it ends. "Also show site-wide" puts it in the banner on every page as well; it is ticked for Weather / closing and unticked for News. With "Also email", the group's own list is picked, and Latest happenings or Weather & closing alerts can be added; each person gets it once. Removing a group removes its alerts.
   - If the server can't read its data, the page shows "Check with the office" instead of guessing.
+
+**Statistics and privacy.**
+- **What we count.** The Statistics tab counts page views, visitors per day, and plays started on our own video players and podcast page. The website counts these itself, on its own server. There are no cookies, no tracking script and no third-party analytics.
+- **How a visitor is counted.** To tell one visitor from another on the same day, the server mixes the visitor's IP address and browser type with a random code that is replaced every night, and keeps only a scrambled result. That result can't be turned back into an IP address, and the same person gets a different one the next day. The IP address and browser type themselves are never saved.
+- **What is stored.** Only daily totals (for example "Oct 19: 140 visitors, 310 page views; Groups page 42").
+- **What is left out.** Bots, staff who are signed in, and browsers that send "Do Not Track" or Global Privacy Control are not counted.
+- **What it means.** The numbers are estimates. Someone who visits on 3 days counts 3 times.
+- **YouTube views (optional).** Set `YOUTUBE_API_KEY` (a free key from Google Cloud with "YouTube Data API v3" enabled; no owner sign-in is needed). The server then reads the channel's public view count once a day and shows the difference over each period. YouTube now counts a view as soon as a video starts, including muted autoplay, so the home page's live video can add YouTube views.
+- **Sharing.** Nothing is shared or sold.
+- **Ready-made privacy text** for a privacy page or the Subscribe page, if the church wants one (add the office's phone and email from `church.js`, not by hand):
+  > **Privacy.** This website doesn't use cookies or third-party trackers. To see how many people visit, our server counts page visits. It uses your IP address and browser type only to make a scrambled one-day code that can't be traced back to you, and it never saves them. We keep only daily totals. If your browser sends "Do Not Track" or Global Privacy Control, you aren't counted at all. If you sign up for our emails, we keep your email address, the lists you chose, and when and from where you confirmed, so we can prove you asked for them. Every email has a one-click unsubscribe. We never sell or share your information. Questions: contact the church office.
 
 ## Hosting on Azure (`admin-alerts`)
 **How it fits together:** one Node process (`server.js`) on an App Service plan. It sends the static `dist/` files, and for pages it fills in alerts, edited titles, the groups board and the live switch at marked spots. Everything staff change, plus the email list and sending queue, is in one SQLite file: `/home/data/riverside.db` (Node's built-in `node:sqlite`). Uploaded thumbnails are files in `/home/data/thumbs/`. `/home` survives restarts and deploys. If the server can't read the data, public pages still show their normal static content; the admin refuses everything without a valid sign-in.
@@ -175,7 +207,7 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
    - `ALLOW_DEFAULT_ADMIN=1` only while testing (admin/admin without the forced change). **Remove it before launch.**
    - `SMTP_URL` = `smtp://USERNAME:PASSWORD@HOST:587` from the email relay (step 4). Put `%40` for any `@` and `%7C` for any `|` inside the username or password.
    - `MAIL_FROM` = `Riverside Community Church <news@riversideconnect.com>`, and `MAIL_REPLY_TO` = the church address that should get replies.
-   - Optional: `SEND_RATE_PER_HOUR` (default 100) and `SEND_RATE_PER_MIN` (default 30). Raise them only after the relay raises its limits. `DATA_DIR` defaults to `/home/data`.
+   - Optional: `YOUTUBE_API_KEY` (see "Statistics and privacy"), `SEND_RATE_PER_HOUR` (default 100) and `SEND_RATE_PER_MIN` (default 30). Raise them only after the relay raises its limits. `DATA_DIR` defaults to `/home/data`.
    - The server refuses to start without `SESSION_SECRET`, `TOKEN_SECRET`, `ADMIN_EMAILS` and `PUBLIC_URL`; the reason is in Log stream.
 3. **GitHub deploy:** web app → Overview → Download publish profile. In the GitHub repo → Settings → Secrets and variables → Actions, add the secret `AZURE_WEBAPP_PUBLISH_PROFILE` (the file's contents), plus the variables `AZURE_WEBAPP_NAME` (the web app's name) and `PUBLIC_URL`. Every push to `admin-alerts` then tests, builds and deploys (`.github/workflows/azure.yml`); Actions → "Deploy to Azure App Service" → Run workflow does it by hand.
 4. **Email relay: Azure Communication Services** (pay per email).

@@ -14,6 +14,7 @@ const { embed, href, thumb, title } = Astro.props;
     const a = (e.target as Element).closest<HTMLAnchorElement>('a.yt-facade');
     if (!a) return;
     e.preventDefault();
+    navigator.sendBeacon?.('/api/stats/play', 'video'); // play count for the admin Statistics (no cookies)
     const f = document.createElement('iframe');
     f.src = a.dataset.embed!;
     f.title = a.dataset.title || 'YouTube video';

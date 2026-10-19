@@ -38,6 +38,7 @@ const tel = `tel:+1${CHURCH.phone.replace(/\D/g, '')}`;
       <ul>
         {NAV.map((l) => <li><a href={href(l.path)}>{l.label}</a></li>)}
         <li><a href={href('/give')}>Give</a></li>
+        <li class="footer-staff-row"><a class="footer-staff" href={href('/admin/')}>Staff Sign In</a></li>
       </ul>
     </nav>
   </div>
@@ -71,6 +72,10 @@ const tel = `tel:+1${CHURCH.phone.replace(/\D/g, '')}`;
   a { color: var(--on-dark); text-decoration: none; overflow-wrap: anywhere; }
   .footer-grid li a, address a { display: inline-block; padding-block: 0.4rem; }
   .footer-grid a:hover { color: var(--gold); text-decoration: underline; text-underline-offset: 4px; }
+  /* Staff sign-in: quiet, still AA on ink (about 8:1). */
+  .footer-staff-row { margin-top: var(--space-xs); }
+  .footer-grid .footer-staff { display: inline-flex; align-items: center; min-height: 44px; font-size: var(--step--1); color: var(--on-dark-muted); padding-block: 0; }
+  .footer-grid .footer-staff:hover, .footer-grid .footer-staff:focus-visible { color: var(--on-dark); text-decoration: underline; text-underline-offset: 4px; }
   .times { margin-top: 0.75rem; color: var(--on-dark); }
   .times span { color: var(--on-dark-muted); }
 

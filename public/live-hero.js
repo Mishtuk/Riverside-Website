@@ -14,7 +14,7 @@
   const v = document.getElementById('hero-video');
   const btns = (a) => hero.querySelectorAll(`[data-act="${a}"]`);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let player, state = '', muted = true, paused = false;
+  let player, state = '', muted = true, paused = false, counted = false;
 
   const id = html.dataset.liveVideo;
   const f = document.createElement('iframe');
@@ -83,6 +83,7 @@
   };
   const focus = (scroll) => {
     if (scroll) scrollTo({ top: 0, behavior: reduce ? 'instant' : 'smooth' });
+    if (!counted) { counted = true; navigator.sendBeacon?.('/api/stats/play', 'live'); } // one play per page, for the admin Statistics
     enter();
     sound(true);
     player.playVideo();

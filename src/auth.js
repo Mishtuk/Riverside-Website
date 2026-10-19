@@ -8,24 +8,28 @@ export const TOKEN_MINUTES = 15;
 const b64u = (b) => Buffer.from(b).toString('base64url');
 const mac = (secret, data) => createHmac('sha256', secret).update(data).digest();
 
-/** Cookie value: base64url("email.exp") + "." + base64url(HMAC). exp is in ms. */
-export const signSession = (email, exp, secret) => {
-  const data = b64u(`${email}.${exp}`);
+/** Cookie value: base64url("name.exp.version") + "." + base64url(HMAC). exp is in ms. The version is the account's
+ *  session_v: bumping it (new password, account removed) ends every session that account has, everywhere. */
+export const signSession = (name, exp, secret, version = 0) => {
+  const data = b64u(`${name}.${exp}.${version}`);
   return `${data}.${b64u(mac(secret, data))}`;
 };
 
 /** The signed-in email, or null if the cookie is missing, forged, expired or the address is no longer allowed. */
+/** The signed-in name, or null if the cookie is missing, forged, expired, from an older session version, or the
+ *  account/address is no longer allowed. `allowed`: { has(name), version?(name) }. */
 export function verifySession(value, secret, allowed, now = Date.now()) {
   const [data, sig, extra] = String(value ?? '').split('.');
   if (!data || !sig || extra !== undefined) return null;
   const want = mac(secret, data);
   const got = Buffer.from(sig, 'base64url');
   if (got.length !== want.length || !timingSafeEqual(got, want)) return null;
-  const raw = Buffer.from(data, 'base64url').toString();
-  const dot = raw.lastIndexOf('.');
-  const email = raw.slice(0, dot);
-  const exp = Number(raw.slice(dot + 1));
-  return exp > now && allowed.has(email) ? email : null;
+  const parts = Buffer.from(data, 'base64url').toString().split('.');
+  const version = Number(parts.pop());
+  const exp = Number(parts.pop());
+  const name = parts.join('.');
+  if (!(exp > now) || !allowed.has(name)) return null;
+  return version === (allowed.version?.(name) ?? 0) ? name : null;
 }
 
 export const cookieHeader = (value, { secure, maxAge = SESSION_DAYS * 86400 }) =>
@@ -119,6 +123,19 @@ export function checkLogin(db, username, pw) {
   return row && ok ? row : null;
 }
 
+/** Another staff member sets a temporary password: the account must choose a new one at next sign-in, and every
+ *  session it has ends. Never for your own account (use "Change my password"). */
+export function resetPassword(db, username, temp, me, now = Date.now()) {
+  const row = staffRow(db, username);
+  if (!row) return { error: 'not_found' };
+  if (row.username === String(me).toLowerCase()) return { error: 'self' };
+  const problem = passwordProblem(temp, row.username);
+  if (problem) return { error: problem };
+  const { salt, hash } = hashPassword(temp);
+  db.prepare('UPDATE staff SET salt = ?, hash = ?, must_change = 1, default_pw = 0, session_v = session_v + 1, updated_at = ? WHERE username = ?').run(salt, hash, now, row.username);
+  return { value: row.username };
+}
+
 export function setPassword(db, username, pw, now = Date.now()) {
   const row = staffRow(db, username);
   if (!row) return { error: 'not_found' };
@@ -126,7 +143,8 @@ export function setPassword(db, username, pw, now = Date.now()) {
   if (problem) return { error: problem };
   if (verifyPassword(pw, row.salt, row.hash)) return { error: 'same' };
   const { salt, hash } = hashPassword(pw);
-  db.prepare('UPDATE staff SET salt = ?, hash = ?, must_change = 0, default_pw = 0, updated_at = ? WHERE username = ?').run(salt, hash, now, row.username);
+  // session_v + 1 signs this account out everywhere; the caller gives the person who changed it a fresh cookie.
+  db.prepare('UPDATE staff SET salt = ?, hash = ?, must_change = 0, default_pw = 0, session_v = session_v + 1, updated_at = ? WHERE username = ?').run(salt, hash, now, row.username);
   return { value: row.username };
 }
 
