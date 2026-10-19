@@ -20,6 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: withastro/action@v5
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }} # optional: fallback when the YouTube RSS feed is down
 
   deploy:
     needs: build

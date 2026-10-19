@@ -26,8 +26,8 @@ npm run preview   # serve dist/ locally
 |---|---|
 | Church facts (times, address, phone, email, text-to-give, map links, socials), nav, livestream window | `src/lib/site.ts`. **Change facts here only; never hard-code them in pages.** |
 | Base-aware links and photo srcsets | `href()` and `photo()` in `src/lib/site.ts` |
-| Latest YouTube videos (read at build time) | `src/lib/youtube.ts`, from the channel RSS feed. No API key needed. |
-| Podcast archive (read at build time) | `src/lib/podcast.ts`, from `riversideconnect.com/feeds/sermons` |
+| Latest YouTube videos (read at build time) | `src/lib/youtube.ts`: the channel RSS feed, with the YouTube Data API as a fallback (see Integrations › YouTube) |
+| Podcast archive | `src/lib/podcast.ts`, from the snapshot `src/content/podcast.json` (taken from `riversideconnect.com/feeds/sermons` on 2026-10-19) |
 | Page copy ported from the old site | `src/content/pages/*.md`, plus `staff.json` and `images.json` |
 | Layout, meta tags, Open Graph, JSON-LD, favicons, manifest link | `src/layouts/Base.astro` |
 | Header and phone menu, footer, phone bottom bar, live banner | `src/components/Header.astro`, `Footer.astro`, `MobileBar.astro`, `LiveBanner.astro` |
@@ -99,11 +99,12 @@ npm run preview   # serve dist/ locally
   - channel `UCWcjfHPkDfMiiGgp0L8zDjQ`
   - previous-livestreams playlist `PLbS1l_W_y15idxZN2oJY6xpN-6NlCaRNE`
   - Videos are embedded with a facade, so nothing loads from YouTube until a visitor clicks.
+  - **Video list at build time:** the keyless RSS feed comes first. If it fails or is empty (YouTube's feeds returned 404 on 2026-10-19) and the `YOUTUBE_API_KEY` repo secret is set, the build uses the YouTube Data API instead, at 2 quota units a build out of 10,000 a day. If there are still no videos, the build fails on purpose, so the last good deploy stays live. To build locally without videos, set `ALLOW_EMPTY_VIDEOS=1`. To add the key: Google Cloud console → enable YouTube Data API v3 → create an API key (restrict it to that API) → repo Settings → Secrets and variables → Actions → `YOUTUBE_API_KEY`.
   - The "We're live" banner shows on Sundays 10:25am–12:00pm ET. Add `?live=1` to any URL to preview it.
   - **Live hero (home):** during the same window, the stream replaces the hero video. It plays muted and blurred behind the copy. Clicking it (or "Watch live", or the banner link) brings it into focus with sound and a control bar: Pause, Sound, Mini player, Full screen, Close. Scrolling down turns it into a mini player in the corner. If the stream hasn't started playing within 8 seconds, or YouTube reports an error, the normal hero video comes back. Outside the window nothing loads from YouTube, and the hero video doesn't download while the stream is showing.
   - **Overrides:** `<html data-live-force="on">` or `"off"` overrides the schedule (banner and hero), and `<html data-live-video="VIDEO_ID">` shows that video instead of the channel's live stream. Staff will set these once the Cloudflare hosting is live. Until then the schedule decides, and `?live=1` previews it.
   - **Known limit:** a cancelled stream inside the window can't be detected without that toggle, so visitors may see YouTube's offline notice in the hero.
-- **Podcast:** Apple Podcasts id 387370044. The feed is stale: the last episode is from 2020-06-14.
+- **Podcast:** Apple Podcasts id 387370044. The feed is stale: the last episode is from 2020-06-14. The site reads a committed snapshot (150 episodes, April 2017 to June 2020), because the feed is on the old vendor's site. The audio (about 11.4 GB of MP3s) is still on the vendor's file host `cpmfiles1.com`, so it needs a new home before their contract ends; after moving it, update the `audioUrl`s in `src/content/podcast.json`.
 - **Text to give:** 267-274-2425.
 
 ## The church
