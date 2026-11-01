@@ -5,8 +5,11 @@ import Footer from '../components/Footer.astro';
 import PageHead from '../components/PageHead.astro';
 import { CHURCH, href } from '../lib/site';
 import { page } from '../lib/md';
+import { MAILCHIMP_NEWS } from '../lib/links';
 
 const { entry, Content } = await page('email');
+// /api/subscribe exists only on the Azure server (BASE '/'). The GitHub Pages preview (BASE is a subpath) has no server, so it uses Mailchimp, as on get-involved.
+const preview = import.meta.env.BASE_URL !== '/';
 ---
 
 <Base title="Subscribe | Riverside Community Church" description={entry.data.description}>
@@ -16,43 +19,55 @@ const { entry, Content } = await page('email');
   <section class="section">
     <div class="container split">
       <div class="prose"><Content /></div>
-      <!-- Our own list (src/email): double opt-in. No JS: the server answers with a page. With JS: the same POST, answered in place. -->
-      <form class="card" id="subscribe" action={href('/api/subscribe')} method="post">
-        <div class="form-body">
-          <h2 class="h3">Subscribe</h2>
-          <label>Email address <input type="email" name="email" required autocomplete="email" inputmode="email" autocapitalize="off" placeholder="you@example.com" aria-describedby="email-err" /></label>
-          <p class="err" id="email-err" hidden><span aria-hidden="true">&#x26A0;</span> Enter an email like name@example.com.</p>
-          <fieldset aria-describedby="topic-err">
-            <legend>What would you like to get?</legend>
-            <p class="err" id="topic-err" hidden><span aria-hidden="true">&#x26A0;</span> Choose at least one topic.</p>
-            <label class="topic"><input type="checkbox" name="topic" value="news" checked /><span><strong>Latest happenings</strong><span class="help">News and upcoming events, usually 1 or 2 emails a week.</span></span></label>
-            <label class="topic"><input type="checkbox" name="topic" value="alerts" checked /><span><strong>Weather &amp; closing alerts</strong><span class="help">Only when weather or a closing changes our plans.</span></span></label>
-          </fieldset>
-          <!-- Filled from /api/email/groups: every group is also an email list. Hidden when there are no groups (or no JS). -->
-          <fieldset id="my-groups" hidden>
-            <legend>My groups <span class="help-inline">(optional)</span></legend>
-            <div id="group-boxes"></div>
-          </fieldset>
-          <div class="hp" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off" /></div>
-          <button class="btn" type="submit">Subscribe</button>
-          <p class="form-error" id="sub-error" role="alert" hidden>Something went wrong. Please try again, or email <a class="link" href={`mailto:${CHURCH.email}`}>{CHURCH.email}</a>.</p>
-          <p class="form-error" id="sub-off" role="alert" hidden>Email signup isn&rsquo;t configured yet. Please email <a class="link" href={`mailto:${CHURCH.email}`}>{CHURCH.email}</a> and we&rsquo;ll add you.</p>
-        </div>
-        <div role="status" class="result">
-          <div id="sub-ok" tabindex="-1" hidden>
-            <p class="ok-head"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="m8 12.3 2.7 2.7L16 9.6" /></svg><span class="h3">Check your email to confirm.</span></p>
-            <p>We sent a link to <strong id="sub-to"></strong>. Tap it to start getting emails. Not there? Check spam, or <button type="button" class="link" id="sub-again">try again</button>.</p>
+      <!-- Server form (src/email): double opt-in. No JS: the server answers with a page. With JS: the same POST, answered in place. Preview: Mailchimp. -->
+      {preview ? (
+        <form class="card" id="subscribe-mc" action={MAILCHIMP_NEWS.action} method="post" target="_blank">
+          <div class="form-body">
+            <h2 class="h3">Subscribe</h2>
+            <label>Email address <input type="email" name="EMAIL" required autocomplete="email" inputmode="email" autocapitalize="off" placeholder="you@example.com" /></label>
+            <div class="hp" aria-hidden="true"><input type="text" name={MAILCHIMP_NEWS.honeypot} tabindex="-1" autocomplete="off" /></div>
+            <button class="btn" type="submit">Subscribe</button>
           </div>
-        </div>
-        <p class="muted small">Looking for prayer emails? <a class="link" href={href('/get-involved#prayer')}>Sign up here</a>.</p>
-      </form>
+          <p class="muted small">Looking for prayer emails? <a class="link" href={href('/get-involved#prayer')}>Sign up here</a>.</p>
+        </form>
+      ) : (
+        <form class="card" id="subscribe" action={href('/api/subscribe')} method="post">
+          <div class="form-body">
+            <h2 class="h3">Subscribe</h2>
+            <label>Email address <input type="email" name="email" required autocomplete="email" inputmode="email" autocapitalize="off" placeholder="you@example.com" aria-describedby="email-err" /></label>
+            <p class="err" id="email-err" hidden><span aria-hidden="true">&#x26A0;</span> Enter an email like name@example.com.</p>
+            <fieldset aria-describedby="topic-err">
+              <legend>What would you like to get?</legend>
+              <p class="err" id="topic-err" hidden><span aria-hidden="true">&#x26A0;</span> Choose at least one topic.</p>
+              <label class="topic"><input type="checkbox" name="topic" value="news" checked /><span><strong>Latest happenings</strong><span class="help">News and upcoming events, usually 1 or 2 emails a week.</span></span></label>
+              <label class="topic"><input type="checkbox" name="topic" value="alerts" checked /><span><strong>Weather &amp; closing alerts</strong><span class="help">Only when weather or a closing changes our plans.</span></span></label>
+            </fieldset>
+            <!-- Filled from /api/email/groups: every group is also an email list. Hidden when there are no groups (or no JS). -->
+            <fieldset id="my-groups" hidden>
+              <legend>My groups <span class="help-inline">(optional)</span></legend>
+              <div id="group-boxes"></div>
+            </fieldset>
+            <div class="hp" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off" /></div>
+            <button class="btn" type="submit">Subscribe</button>
+            <p class="form-error" id="sub-error" role="alert" hidden>Something went wrong. Please try again, or email <a class="link" href={`mailto:${CHURCH.email}`}>{CHURCH.email}</a>.</p>
+            <p class="form-error" id="sub-off" role="alert" hidden>Email signup isn&rsquo;t configured yet. Please email <a class="link" href={`mailto:${CHURCH.email}`}>{CHURCH.email}</a> and we&rsquo;ll add you.</p>
+          </div>
+          <div role="status" class="result">
+            <div id="sub-ok" tabindex="-1" hidden>
+              <p class="ok-head"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="m8 12.3 2.7 2.7L16 9.6" /></svg><span class="h3">Check your email to confirm.</span></p>
+              <p>We sent a link to <strong id="sub-to"></strong>. Tap it to start getting emails. Not there? Check spam, or <button type="button" class="link" id="sub-again">try again</button>.</p>
+            </div>
+          </div>
+          <p class="muted small">Looking for prayer emails? <a class="link" href={href('/get-involved#prayer')}>Sign up here</a>.</p>
+        </form>
+      )}
     </div>
   </section>
 
   <Footer slot="footer" />
 </Base>
 
-<script is:inline>
+{!preview && <script is:inline>
   (() => {
     const f = document.getElementById('subscribe');
     const $ = (id) => document.getElementById(id);
@@ -97,7 +112,7 @@ const { entry, Content } = await page('email');
     });
     $('sub-again').addEventListener('click', () => { $('sub-ok').hidden = true; f.querySelector('.form-body').hidden = false; email.focus(); });
   })();
-</script>
+</script>}
 
 <style>
   form, .form-body { display: grid; gap: 1rem; }

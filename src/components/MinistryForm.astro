@@ -6,7 +6,7 @@ const { id, title } = Astro.props;
 const src = `https://forms.ministryforms.net/embed.aspx?formId=${id}`;
 ---
 <div class="embed" data-src={src} data-title={title}>
-  <p class="embed-loading" role="status">Loading secure giving form&hellip;</p>
+  <p class="embed-loading" role="status">Loading secure form&hellip;</p>
   <noscript><iframe src={src} title={title} loading="lazy" style="width:100%;min-height:900px;border:0"></iframe></noscript>
 </div>
 <script>

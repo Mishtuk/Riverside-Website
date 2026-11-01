@@ -13,6 +13,10 @@ export const CHURCH = Object.freeze({
   times: 'Sundays 9:00 & 10:30am',
   services: [{ label: '9:00am', start: '09:00' }, { label: '10:30am', start: '10:30' }],
   prayerTime: '9:30–10:30am',
+  eslTimes: 'Tuesdays 7–8:30pm',
+  eslPhone: '215-499-3794', // call or text
+  menEmail: 'menattheriver@riversideconnect.com',
+  menFacebook: 'https://www.facebook.com/menattheriver',
   timesNote: 'Livestream & kids at 10:30',
   mapsUrl: 'https://www.google.com/maps/dir/?api=1&destination=Riverside%20Community%20Church%2C%20239%20Columbia%20Ave%2C%20Horsham%2C%20PA%2019044',
   appleMapsUrl: 'https://maps.apple.com/?daddr=239%20Columbia%20Ave%2C%20Horsham%2C%20PA%2019044&q=Riverside%20Community%20Church',

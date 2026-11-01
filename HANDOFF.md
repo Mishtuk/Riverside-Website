@@ -38,7 +38,7 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
 | Live stream in the home hero (loaded only during the live window) | `public/live-hero.js`, with its markup and styles in `src/components/home/Hero.astro` |
 | Home page sections | `src/components/home/*` |
 | Embedded vendor forms | `src/components/MinistryForm.astro` |
-| Old URL → new URL redirects (26) | `moves` in `astro.config.mjs` |
+| Old URL → new URL redirects (81) | `moves` in `astro.config.mjs` |
 | sitemap.xml, robots.txt, manifest.webmanifest | `src/pages/*.ts` |
 | Design research and the reasoning behind the layout | `docs/research.md` |
 | Server: static files, `/api/*`, staff sign-in, and filling alerts, edited titles, the groups board and the live switch into the pages | `server.js` |
@@ -113,7 +113,7 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
   - Response/connect `a2ba1737-d3fa-4331-aae5-391e389ce543`
   - Prayer `d3b02759-c0de-4d32-8f29-b8ef1398bb7d`
   - The script loads only when needed. On phones the form's empty space at the bottom is trimmed by 190px. Re-check that trim if the vendor changes its layout.
-- **Mailchimp:** on `main`, the email signup and the daily prayer emails (`riversideconnect.us2.list-manage.com`). On `admin-alerts`, /subscribe uses the site's own list instead: two topics, "Latest happenings" and "Weather & closing alerts", a confirmation email before anyone is added, and unsubscribe links in every email. Staff send from /admin → Email. The daily prayer signup on Get Involved still uses Mailchimp.
+- **Mailchimp:** the daily prayer emails (`riversideconnect.us2.list-manage.com`), and the /subscribe signup on the GitHub Pages preview. `/api/subscribe` exists only on the Azure server, so `subscribe.astro` renders the Mailchimp form (`MAILCHIMP_NEWS`) when `BASE_URL` is not `/`, and the server form (with its script) when it is `/`. On `admin-alerts` (BASE `/`), /subscribe uses the site's own list instead: two topics, "Latest happenings" and "Weather & closing alerts", a confirmation email before anyone is added, and unsubscribe links in every email. Staff send from /admin → Email. The daily prayer signup on Get Involved still uses Mailchimp.
 - **Wufoo:** discipleship. **Google Form:** ESL. **Email:** baptisms.
 - **YouTube:**
   - channel `UCWcjfHPkDfMiiGgp0L8zDjQ`
@@ -133,7 +133,7 @@ npm test          # logic checks: alerts, groups, events, overrides, admin sign-
 - 215-441-0404 · riverside@riversideconnect.com
 - **Sundays:** 9:00am and 10:30am.
   - The livestream and kids' classes run during the 10:30am service.
-  - The prayer group meets 9:30–10:30am in the Counseling Office.
+  - The prayer group meets 9:30–10:30am (the room is not stated on the site, see "Still needed").
 - **Staff:**
   - Ezra Strickhouser, Lead Pastor
   - Katrina Strickhouser, Office Admin
@@ -255,7 +255,12 @@ These stay with the developer: the layout and design, the menu, page wording, an
 - Real sermon titles or series names on YouTube. Livestreams currently show as "Sunday Service".
 - The podcast: restart it (for example with Spotify for Creators) or retire the Apple listing.
 - Upcoming events, or a calendar source.
-- Men's ministry copy and the Hebrews study schedule.
+- **Prayer group room:** the old site says the Counseling Office, the church's own site says the EPIC Kids room. The website now says "Contact us for the room". Confirm which, then put it in `groups.json` (`place`), `events.astro` and `get-involved.astro`.
+- **Move off cpmfiles1.com before the vendor contract ends:** the 21 study guide PDFs on /get-involved (and the four Hebrews/Faith guides on Discipleship), and the photo used in `staff.json`.
+- **Not ported:** the sermon archive (about 81 pages, up to July 2025) and the blog.
+- **ESL facts (from the church's 2026-27 flyer):** free adult classes, Tuesdays 7-8:30pm, September to November 2026 and February to April 2027; textbook set about $35, books can be borrowed in class; call or text 215-499-3794. Registration is by the flyer's QR code (the Google Form). They are in `src/lib/church.js` (`eslTimes`, `eslPhone`). Update them each term.
+- **Men at the River:** monthly meetings, menattheriver@riversideconnect.com and facebook.com/menattheriver (`menEmail`, `menFacebook` in `church.js`).
+- **Hebrews schedule:** lives in `src/content/pages/discipleship.md` ("Weekly schedule"), shown from Nov 8 to Mar 14, 2027. It is above "Get Connected" because get-involved cuts the page from that heading down. Add the next series there.
 - Whether to keep the "Southern Baptist Convention" wording prominent on About.
 - Whether the MinistryForms form colours can be set to the site's gold.
 - Who controls the DNS for riversideconnect.com.
@@ -264,7 +269,7 @@ These stay with the developer: the layout and design, the menu, page wording, an
 
 ## Suggestions for the church (not code)
 - Claim and complete the Google Business Profile, with photos and service times.
-- Post one new sermon a week to YouTube. The site picks it up on the next deploy. To make that automatic, add a weekly scheduled rebuild (a `schedule:` trigger on GitHub Pages, or a weekly scheduled run of the Azure workflow).
+- Post one new sermon a week to YouTube. The site picks it up on the next deploy. `deploy.yml` now rebuilds every Monday at 12:00 UTC (a `schedule:` trigger) so new videos appear. The Azure workflow has no such trigger yet.
 - Add GA4 or Plausible if they want visitor stats.
 
 ## Out of scope unless requested

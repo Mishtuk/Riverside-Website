@@ -19,6 +19,28 @@ Our current Discipleship Group study is walking through the book of Hebrews alon
 
 Click here for an [Archive of Past Study Guides](#study-guides).
 
+### Weekly schedule
+
+The Sunday message and the study guide to use each week, from November 8.
+
+| Date | Passage | Guide |
+| --- | --- | --- |
+| Nov 8 | Hebrews 7 | Hebrews |
+| Nov 15 | Hebrews 11:8-12; Romans 4; Genesis 12, 15, 21 | Faith |
+| Nov 22 | Hebrews 11:13-16; Phil 3; 1 Chron 29; 1 Peter 2 | Faith |
+| Nov 29 | Hebrews 8 | Hebrews |
+| Dec 6 – Jan 3 | Christmas break from this schedule. Sunday services continue. |  |
+| Jan 10 | Hebrews 9:1-10:18 | Hebrews |
+| Jan 17 | Hebrews 10:19-39 | Hebrews |
+| Jan 24 | Hebrews 11:17-21; Genesis 22, 27, 48 | Faith |
+| Jan 31 | Hebrews 11:22; Genesis 37, 41, 40; Exodus 13; Joshua 24 | Faith |
+| Feb 7 | Hebrews 11:23-29; Exodus 1, 2, 12, 14 | Faith |
+| Feb 14 | Hebrews 11:30-31; Joshua 1, 2, 5, 6; Matthew 1 | Faith |
+| Feb 21 | Hebrews 11:32-40; Judges 6&7 | Faith |
+| Feb 28 | Hebrews 11 | Hebrews |
+| Mar 7 | Hebrews 12 | Hebrews |
+| Mar 14 | Hebrews 13 | Hebrews |
+
 ## Get Connected
 
 If you would like to connect into a 3-5 person discipling relationship at Riverside please complete this form and we will help you to get connected!

@@ -20,7 +20,7 @@ const rhythms = [
   },
   {
     day: 'Every Sunday', title: 'Morning prayer group', time: CHURCH.prayerTime,
-    text: 'We meet in the Counseling Office to pray for our church, its members and our community. All are welcome.',
+    text: 'We meet to pray for our church, its members and our community. Contact us for the room. All are welcome.',
     img: href('/media/photos/keys.jpg'), alt: 'Hands on a keyboard during quiet worship',
     cta: ['More about prayer', href('/get-involved#prayer')],
   },
@@ -31,14 +31,14 @@ const rhythms = [
     cta: ['Kids at Riverside', href('/im-new#kids')],
   },
   {
-    day: 'Classes', title: 'ESL classes', time: ASK,
-    text: 'Practice English in a friendly, patient class. Everyone is welcome.',
+    day: 'Classes', title: 'ESL classes', time: CHURCH.eslTimes,
+    text: 'Free English classes for adults. Fall term runs through November 2026; spring term starts February 2027.',
     img: href('/media/photos/embrace.jpg'), alt: 'Two women sharing a hug at Riverside',
     cta: ['Register for ESL', href('/get-involved#esl')],
   },
   {
     day: 'Small groups', title: 'Discipleship groups', time: ASK,
-    text: 'Men’s and women’s groups of 3–5 people who meet consistently to study the Bible and grow together.',
+    text: 'Small groups of 3–5 people who meet consistently to study the Bible and grow together.',
     img: href('/media/photos/cafe.jpg'), alt: 'Coffee being poured at the Riverside Cafe',
     cta: ['Join a group', href('/get-involved#discipleship')],
   },
@@ -51,7 +51,7 @@ const rhythms = [
 ];
 const sunday = [
   { time: CHURCH.services[0].label, title: 'Worship service' },
-  { time: CHURCH.prayerTime, title: 'Prayer group', note: 'Counseling Office' },
+  { time: CHURCH.prayerTime, title: 'Prayer group', note: 'Contact us for the room' },
   { time: CHURCH.services[1].label, title: 'Worship service', note: 'Kids’ classes & livestream' },
 ];
 ---
@@ -105,7 +105,7 @@ const sunday = [
           </li>
         ))}
       </ul>
-      <p class="ask-note">For ESL, discipleship group and baptism times, email <a href={`mailto:${CHURCH.email}`}>{CHURCH.email}</a> or call <a href={`tel:${CHURCH.phone.replace(/-/g, '')}`}>{CHURCH.phone}</a> and we will point you to the next one.</p>
+      <p class="ask-note">For discipleship group and baptism times, email <a href={`mailto:${CHURCH.email}`}>{CHURCH.email}</a> or call <a href={`tel:${CHURCH.phone.replace(/-/g, '')}`}>{CHURCH.phone}</a> and we will point you to the next one.</p>
     </div>
   </section>
 

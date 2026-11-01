@@ -1,4 +1,5 @@
 [
-  { "id": "prayer", "type": "prayer", "name": "Sunday prayer group", "day": 0, "time": "9:30–10:30am", "place": "Counseling Office", "status": { "kind": "meeting" } },
-  { "id": "kids", "type": "kids", "name": "Kids' classes", "day": 0, "time": "during the 10:30am service", "place": "", "note": "", "status": { "kind": "meeting" } }
+  { "id": "prayer", "type": "prayer", "name": "Sunday prayer group", "day": 0, "time": "9:30–10:30am", "place": "", "status": { "kind": "meeting" } },
+  { "id": "kids", "type": "kids", "name": "Kids' classes", "day": 0, "time": "during the 10:30am service", "place": "", "note": "", "status": { "kind": "meeting" } },
+  { "id": "esl", "type": "esl", "name": "Adult ESL classes", "day": 2, "time": "7–8:30pm", "place": "", "note": "", "status": { "kind": "meeting" } }
 ]

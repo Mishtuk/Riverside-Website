@@ -36,7 +36,7 @@ const span = sermons.length ? `${year(sermons[sermons.length - 1].pubDate)}–${
 >
   <Header slot="header" />
 
-  <PageHead eyebrow="Podcast" title="Listen anywhere." image="/media/photos/pulpit.jpg" focus="center" lede="Take Sunday with you: on your commute, on a walk, or at home.">
+  <PageHead eyebrow="Podcast" title="Sunday messages, anywhere." image="/media/photos/pulpit.jpg" focus="center" lede="Watch Sunday messages on YouTube, or browse our audio archive from 2017 to 2020.">
     <div class="btn-row" style="margin-top:2rem">
       <a class="btn btn-dark" href={CHURCH.socials.youtube} rel="noopener">Watch &amp; listen on YouTube</a>
       <a class="btn btn-outline" href={APPLE_PODCASTS_URL} rel="noopener" onclick="navigator.sendBeacon?.('/api/stats/play','podcast')">Podcast archive on Apple</a>

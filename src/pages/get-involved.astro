@@ -82,8 +82,9 @@ const chips = [
       <div class="cards-grid pair">
         <article class="card" id="men">
           <h3>Men</h3>
-          <p>Men At The River is our men&rsquo;s group. Email us and we will help you get connected.</p>
-          <p class="card-cta"><a class="link link-arrow" href={mail}>Ask about the men&rsquo;s group</a></p>
+          <p>Men at the River helps the men of Riverside build deeper friendships, discipling relationships and a deeper relationship with Christ. We are currently meeting monthly and would love for you to join us.</p>
+          <p class="card-cta"><a class="link link-arrow" href={`mailto:${CHURCH.menEmail}`}>Email Men at the River</a></p>
+          <p class="card-cta"><a class="link link-arrow" href={CHURCH.menFacebook} rel="noopener">Upcoming events on Facebook</a></p>
         </article>
         <article class="card" id="women">
           <h3>Women</h3>
@@ -102,8 +103,8 @@ const chips = [
     <div class="container split">
       <div class="stack">
         <p class="eyebrow">ESL</p>
-        <h2 class="h1">English classes, <span class="accent">everyone welcome.</span></h2>
-        <p class="muted">Practice English in a friendly, patient class. Registration for our ESL program takes one short online form.</p>
+        <h2 class="h1">Free English classes <span class="accent">for adults.</span></h2>
+        <p class="muted">Improve your English with friendly teachers and tutors, in small groups. {CHURCH.eslTimes}, September to November 2026 and February to April 2027. The class is free. Books can be borrowed during class, or bought for about $35. Questions? Call or text <a class="link" href={`tel:${CHURCH.eslPhone.replace(/-/g, '')}`}>{CHURCH.eslPhone}</a>.</p>
         <div class="btn-row"><a class="btn" href={ESL_FORM} rel="noopener">Register for ESL</a></div>
       </div>
       <p class="hello" aria-hidden="true">Hello <span>Hola</span> Ol&aacute; <span>Bonjour</span> &#20320;&#22909;</p>
@@ -115,7 +116,7 @@ const chips = [
       <div class="section-head">
         <p class="eyebrow">Prayer</p>
         <h2 class="h1">We would love to <span class="accent">pray with you.</span></h2>
-        <p>Our Sunday morning prayer group meets {CHURCH.prayerTime} in the Counseling Office. Everyone is welcome.</p>
+        <p>Our Sunday morning prayer group meets {CHURCH.prayerTime}. Contact us for the room. Everyone is welcome.</p>
       </div>
       <div class="card prayer-card">
         <details class="request" name="prayer">
@@ -233,6 +234,7 @@ const chips = [
   .pair .card { display: flex; flex-direction: column; }
   .pair .card > p, .pair .card > div:not(.readmore-body) > :global(p) { color: var(--ink); }
   .card-cta { margin-top: auto; padding-top: 1.25rem; font-weight: 700; }
+  .card-cta + .card-cta { margin-top: 0; padding-top: 0.5rem; }
   .card-cta .link { color: var(--gold-ink); }
   .prayer { display: grid; gap: 0 clamp(2rem, 1rem + 4vw, 5rem); align-items: start; }
   .prayer-card { display: grid; gap: 1rem; border-top: 3px solid var(--gold); }

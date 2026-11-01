@@ -12,7 +12,7 @@ Thousands of churches give to the Southern Baptist Convention (SBC) cooperative 
 
 ## Church Plants Started Through Riverside
 
-**The Journey Church.** The Journey Church was the first of four churches God has planted through Riverside. We were given a church building and sent a team to start a new church plant. The Journey was founded in West Chester in 2007. [thejourneywc.org](http://www.thejourneywc.org)
+**The Journey Church.** The Journey Church was the first of four churches God has planted through Riverside. We were given a church building and sent a team to start a new church plant. The Journey was founded in West Chester in 2007.
 
 **Trinity Church.** Trinity Church was the second of four churches God planted through Riverside. Trinity Church was founded in 2011 by a former Riverside staff member. In 2018 they merged with a church in Roslyn and they now exist as Trinity Community Church. [trinitychurchabington.com](https://trinitychurchabington.com)
 

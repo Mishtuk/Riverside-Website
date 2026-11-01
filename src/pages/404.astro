@@ -18,6 +18,15 @@ import { CHURCH, href } from '../lib/site';
   <Footer slot="footer" />
 </Base>
 
+<script>
+  // ponytail: client-side redirect from a 404, so search engines still see a 404; real 301s in server.js are the upgrade path.
+  import { movedHome } from '../lib/moved.js';
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const path = location.pathname.startsWith(base) ? location.pathname.slice(base.length) : location.pathname;
+  const to = movedHome(path);
+  if (to) location.replace(base + to);
+</script>
+
 <style>
   /* Fill the phone screen so the 404 doesn't read as a footer with a header on top. */
   :global(.page-head) { min-height: calc(85svh - var(--header-h)); display: grid; align-content: center; }
