@@ -12,7 +12,7 @@ function client() {
   const STATUS = { confirmed: 'Confirmed', pending: 'Waiting to confirm', unsubscribed: 'Unsubscribed' };
   const ERR = { topic: 'Choose at least one topic.', subject: 'Add a subject.', body: 'Write a message.', no_recipients: 'Nobody is subscribed to that yet.',
     email_not_configured: 'Email isn’t configured, so nothing can be sent yet.', no_email: 'Your account has no email address, so tests can’t be sent. Sign in with an emailed link to send a test.',
-    forbidden: 'You don’t have permission to change this. Ask an admin.', group: 'Choose a group.', emails: 'Paste at least one email address.', too_many: 'Up to 50 addresses at a time.' };
+    preview: 'This is a preview, so nothing is saved. Changes will save once the website launches.', forbidden: 'You don’t have permission to change this. Ask an admin.', group: 'Choose a group.', emails: 'Paste at least one email address.', too_many: 'Up to 50 addresses at a time.' };
 
   async function api(method, path, body) {
     const r = await fetch(API + path, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body && JSON.stringify(body) });

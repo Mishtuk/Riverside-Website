@@ -7,7 +7,21 @@ import Base from '../layouts/Base.astro';
 import { href } from '../lib/site';
 import { getVideos } from '../lib/youtube';
 import { getSermons } from '../lib/podcast';
-import { ALERT_CSS, ALERT_PRESETS } from '../lib/state.js';
+import { ALERT_CSS, ALERT_PRESETS, teamSeed } from '../lib/state.js';
+import { CHURCH } from '../lib/church.js';
+import { PREVIEW_NOTE, previewScript } from '../lib/admin-preview.js';
+import { TOPICS, groupsByType } from '../email/topics.js';
+import { adminSection } from '../email/admin.js';
+import { statsSection } from '../stats/admin.js';
+import { helpSection } from '../help/index.js';
+import seedGroups from '../content/groups.json';
+import staff from '../content/staff.json';
+
+// The GitHub Pages preview has no server, so the page opens without sign-in and nothing saves (src/lib/admin-preview.js).
+// The launched site builds with BASE '/', which leaves all of this out and keeps the real sign-in.
+const preview = import.meta.env.BASE_URL !== '/';
+const emailGroups = groupsByType(seedGroups.map((g) => ({ ...g, slug: g.id }))).map((t) => ({ ...t, groups: t.groups.map((g) => ({ ...g, n: 0 })) }));
+const previewSeed = { groups: seedGroups, team: teamSeed(staff), emailGroups };
 
 const [videos, sermons] = await Promise.all([getVideos(12), getSermons()]);
 const fmt = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
@@ -48,6 +62,7 @@ const NAV: [string | null, [string, string, keyof typeof I][]][] = [
 <Base title="Admin | Riverside Community Church" admin>
   <Fragment slot="head">
     <style set:html={ALERT_CSS}></style>
+    {preview && <script is:inline set:html={previewScript(previewSeed)}></script>}
     <script type="application/json" id="items-data" set:html={JSON.stringify(items).replace(/</g, '\\u003c')}></script>
   </Fragment>
 
@@ -119,6 +134,7 @@ const NAV: [string | null, [string, string, keyof typeof I][]][] = [
   </div>
 
   <div id="app" data-api={href('/api/admin')} hidden>
+    {preview && <p class="a-preview" role="status">{PREVIEW_NOTE}</p>}
     <div class="a-warn" id="default-warning" hidden>
       <div class="alert alert-urgent" role="status">
         <svg class="ic" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r=".6"/></svg>
@@ -206,9 +222,9 @@ const NAV: [string | null, [string, string, keyof typeof I][]][] = [
       </form>
     </section>
 
-    <Fragment set:html="<!--rs:stats-->" />
+    <Fragment set:html={preview ? statsSection() : '<!--rs:stats-->'} />
 
-    <Fragment set:html="<!--rs:email-->" />
+    <Fragment set:html={preview ? adminSection({ topics: TOPICS }) : '<!--rs:email-->'} />
 
     <section id="items" class="a-view" aria-labelledby="items-h" hidden>
       <div class="a-head"><div><h1 id="items-h" class="a-title" tabindex="-1">Videos &amp; podcast</h1><p class="a-sub">Tip: titles fixed on YouTube fix the site automatically. Use this when that isn&rsquo;t possible.</p></div><div class="a-actions"><button class="btn" type="button" id="add-video">Add a video</button><button class="btn" type="button" id="add-episode" hidden>Add a podcast episode</button></div></div>
@@ -311,7 +327,7 @@ const NAV: [string | null, [string, string, keyof typeof I][]][] = [
         <p><button class="btn btn-sm" type="submit">Save</button></p>
       </form>
     </section>
-    <Fragment set:html="<!--rs:help-->" />
+    <Fragment set:html={preview ? helpSection(CHURCH) : '<!--rs:help-->'} />
   </div>
 
   <dialog id="confirm" class="card">
@@ -332,8 +348,10 @@ const NAV: [string | null, [string, string, keyof typeof I][]][] = [
 
 <script>
   import { timeLabel, upcomingItems, ALERT_PRESETS, URGENT_PRESETS, LABEL_MAX, DAYS, GROUP_TYPES, MAX_NEWS, VARIES, TZ, alertCard, activeAlerts, applyOverride, esc, etDay, groupStatus } from '../lib/state.js';
+  import { PREVIEW_NOTE } from '../lib/admin-preview.js';
 
-  const $ = <T extends Element = HTMLElement>(s: string, r: ParentNode = document) => r.querySelector(s) as unknown as T;
+  const PREVIEW = document.documentElement.hasAttribute('data-preview');
+  const $ =<T extends Element = HTMLElement>(s: string, r: ParentNode = document) => r.querySelector(s) as unknown as T;
   const app = $('#app');
   const API = app.dataset.api!;
   const ITEMS = JSON.parse($('#items-data').textContent!);
@@ -350,6 +368,10 @@ const NAV: [string | null, [string, string, keyof typeof I][]][] = [
     });
     const j = await r.json().catch(() => ({}));
     if (r.status === 401) gate();
+    if (r.status === 403 && j.error === 'preview') {
+      fail();
+      throw Object.assign(new Error('preview'), { data: j, status: 403, handled: true });
+    }
     if (r.status === 403 && j.error === 'forbidden') {
       fail(undefined, 'You don’t have permission to change this. Ask an admin.');
       throw Object.assign(new Error('forbidden'), { data: j, status: 403, handled: true });
@@ -367,6 +389,7 @@ const NAV: [string | null, [string, string, keyof typeof I][]][] = [
     toastTimer = window.setTimeout(() => (t.textContent = ''), 4000);
   }
   function fail(retry?: () => void, msg = 'Couldn’t save. Check your connection and try again.') {
+    if (PREVIEW) { retry = undefined; msg = PREVIEW_NOTE; }
     const t = $('#toast-err');
     t.innerHTML = `<span>${esc(msg)}</span>`;
     if (retry) {
@@ -403,7 +426,7 @@ const NAV: [string | null, [string, string, keyof typeof I][]][] = [
     $('#gate').hidden = false;
   }
   const PW_ERR: Record<string, string> = {
-    too_short: 'Use at least 12 characters.', too_long: 'That is too long (200 characters at most).', too_easy: 'Choose something other than “admin” or your username.',
+    preview: PREVIEW_NOTE, too_short: 'Use at least 12 characters.', too_long: 'That is too long (200 characters at most).', too_easy: 'Choose something other than “admin” or your username.',
     same: 'Choose a password you haven’t used for this account.', current: 'Your current password isn’t right.', taken: 'That username is taken.',
     username: 'Use 3–32 lowercase letters, numbers, dots, dashes or underscores.', last: 'You can’t remove the last account.', self: 'Someone else has to remove your account.', last_admin: 'There must always be at least one admin. Make someone else an admin first.',
   };
@@ -608,7 +631,7 @@ const NAV: [string | null, [string, string, keyof typeof I][]][] = [
   const overrides = () => (kind === 'video' ? (state.videos ??= {}) : (state.podcast ??= {}));
   const addedKey = () => (kind === 'video' ? 'videos' : 'episodes');
   const addedList = (): any[] => ((state.added ??= {})[addedKey()] ??= []);
-  const AUDIO_ERR: Record<string, string> = { audio: 'That file isn’t an MP3. Choose an .mp3 file.', too_large: 'That file is over 200 MB.', title: 'Give it a title.', date: 'Choose a date.', id: 'That isn’t a YouTube video.' };
+  const AUDIO_ERR: Record<string, string> = { preview: PREVIEW_NOTE, audio: 'That file isn’t an MP3. Choose an .mp3 file.', too_large: 'That file is over 200 MB.', title: 'Give it a title.', date: 'Choose a date.', id: 'That isn’t a YouTube video.' };
   function addedRow(x: any) {
     const ep = kind === 'podcast';
     return `<li class="card item${ep ? ' no-thumb' : ''}" data-added="${esc(x.id)}">`
@@ -654,6 +677,7 @@ const NAV: [string | null, [string, string, keyof typeof I][]][] = [
   /** Streams an MP3 to the server (XHR, for upload progress). Resolves to its /api/audio/… address. */
   function uploadMp3(file: File, onProgress: (pct: number) => void): Promise<string> {
     return new Promise((res, rej) => {
+      if (PREVIEW) return rej(Object.assign(new Error('preview'), { status: 403, data: { error: 'preview' } }));
       const x = new XMLHttpRequest();
       x.open('POST', `${API}/audio`);
       x.setRequestHeader('Content-Type', 'audio/mpeg');
@@ -705,7 +729,7 @@ const NAV: [string | null, [string, string, keyof typeof I][]][] = [
         found.hidden = false;
         ($('#yt-add') as HTMLButtonElement).disabled = false;
       } catch (x: any) {
-        if (x.status !== 401) status.textContent = 'We couldn’t find that video. Check the link, or that the video is public.';
+        if (x.status !== 401) status.textContent = PREVIEW ? PREVIEW_NOTE : 'We couldn’t find that video. Check the link, or that the video is public.';
       }
     };
     input.addEventListener('change', lookup);
@@ -1442,7 +1466,8 @@ const NAV: [string | null, [string, string, keyof typeof I][]][] = [
     app.hidden = false;
     body.classList.add('a-in');
     setUser(me);
-    $('#sign-out').hidden = false;
+    $('#sign-out').hidden = PREVIEW;
+    if (PREVIEW) $('#backup a[download]').addEventListener('click', (e) => { e.preventDefault(); fail(); });
     lv.mode.value = state.live?.mode ?? 'auto';
     lv.video.value = state.live?.video ?? '';
     applyAccess();
@@ -1534,6 +1559,7 @@ const NAV: [string | null, [string, string, keyof typeof I][]][] = [
   #app { max-width: var(--a-content); }
   .gate { display: grid; gap: 24px; max-width: 28rem; margin: 32px auto; }
   .gate .card { display: grid; gap: 12px; }
+  .a-preview { margin: 0 0 24px; padding: 12px 16px; border-left: 4px solid var(--a-accent-line); border-radius: 4px; background: var(--a-accent-bg); font-weight: 600; }
   .a-warn { margin-bottom: 24px; }
   .a-warn .alert-x { display: none; }
   .a-view { display: grid; gap: 24px; }
